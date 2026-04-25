@@ -1117,12 +1117,14 @@ if (state.buildMode) {
         ctx.globalAlpha = 1.0; 
     }
 
-    // --- ★変更: 取った時のスライドアップ・アニメーション (ghosts) ---
+// --- ★変更: アニメーションの動きを同期させて被りを防ぐ ---
+    const now = getTime();
+    // 1. Ghosts (状態テキストと飛んでいく串)
     state.visuals.ghosts.forEach(g => {
         const elapsed = now - g.startTime;
         const progress = Math.min(1, elapsed / 800);
         
-        // 0から-150まで上にフワッとスライド
+        // 0から-150まで上にフワッとスライドする計算
         const yOffset = -150 * (1 - Math.pow(1 - progress, 3)); 
         ctx.globalAlpha = 1 - progress;
         
@@ -1130,11 +1132,11 @@ if (state.buildMode) {
         const laneCx = b.x + b.w / 2;
         const p = getVisualPalette(g.status);
         
-        // 串のデータが保存されていれば、串そのものを描いて飛ばす
+        // ★基準位置:飛んでいく串の先端のY座標
+        const stickH = b.h * 0.7; 
+        const stickTop = b.y + b.h * 0.1 + yOffset; 
+        
         if (g.cookState !== undefined) {
-            const stickH = b.h * 0.7; 
-            const stickTop = b.y + b.h * 0.1 + yOffset; // yOffsetを加算
-            
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); 
             ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx-2, stickTop, 4, stickH);
             
@@ -1149,31 +1151,42 @@ if (state.buildMode) {
         }
 
         ctx.fillStyle = p.dot || "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
-        // 文字は飛んでいく串のさらに少し上に表示
-        ctx.fillText(g.status, laneCx, b.y + b.h/2 + yOffset - 20);
+        
+        // ★修正: PERFECTなどの文字を「飛んでいく串の少し上」にしっかり追従させる
+        ctx.fillText(g.status, laneCx, stickTop - 20); 
     });
 
+    // 2. Floaters (スコアや肉の増減)
     state.visuals.floaters.forEach(f => {
         const elapsed = now - f.startTime;
         const progress = Math.min(1, elapsed / 800);
-        const yOffset = -progress * 50; 
         ctx.globalAlpha = 1 - progress;
 
         let fx, fy;
-        if (f.targetType === 'p1' || f.targetType === 'p2') {
-            fx = LAYOUT.CANVAS_WIDTH / 2; fy = LAYOUT.CANVAS_HEIGHT / 2 - 100;
-        } else if (f.targetType === 'lane') {
-            const b = getLaneBounds(f.targetIndex); fx = b.x + b.w/2; fy = b.y - 10;
+        if (f.targetType === 'lane') {
+            const b = getLaneBounds(f.targetIndex);
+            fx = b.x + b.w / 2; 
+            
+            // ★修正: レーン上のスコアも、串と全く同じスピード・計算式で飛ばす
+            const yOffset = -150 * (1 - Math.pow(1 - progress, 3)); 
+            const stickTop = b.y + b.h * 0.1 + yOffset;
+            
+            // PERFECTの文字(stickTop - 20)のさらに上(-45)に配置して被りを防ぐ
+            fy = stickTop - 45; 
+        } else {
+            // 中央の肉増減表示は今まで通りゆっくり上に
+            fx = LAYOUT.CANVAS_WIDTH / 2; 
+            fy = (LAYOUT.CANVAS_HEIGHT / 2 - 100) - (progress * 50);
         }
 
         ctx.textAlign = "center";
         if (f.type === 'meat_up') {
-            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; ctx.fillText("+1", fx, fy + yOffset);
+            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; ctx.fillText("+1 肉", fx, fy);
         } else if (f.type === 'meat_down') {
-            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; ctx.fillText("-1", fx, fy + yOffset);
+            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; ctx.fillText("-1 肉", fx, fy);
         } else if (f.type === 'star_up') {
             ctx.fillStyle = f.color; ctx.font = "bold 32px monospace";
-            const prefix = f.amount > 0 ? "+" : ""; ctx.fillText(`${prefix}${f.amount}`, fx, fy + yOffset);
+            const prefix = f.amount > 0 ? "+" : ""; ctx.fillText(`${prefix}${f.amount}`, fx, fy);
         }
     });
     ctx.globalAlpha = 1.0;
