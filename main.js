@@ -74,13 +74,13 @@ BUTTONS: [
     ]
 };
 
+// 生肉からタレの焦げ色までの美味しそうなパレット
 const VISUAL_STATES = {
-    RAW: { meat: "#ddd", negi: "#bdf", dot: "#fff" },
-    OKAY: { meat: "#853", negi: "#683", dot: "#f90" },
-    PERFECT: { meat: "#da4", negi: "#8e2", dot: "#ff4" },
-    BURNT: { meat: "#222", negi: "#111", dot: "#f33" }
+    RAW: { meat: "#e57373", negi: "#e8f5e9", dot: "#fff" },       // 生肉ピンク、ネギ白
+    OKAY: { meat: "#c07040", negi: "#c8e6c9", dot: "#f90" },      // 火が通った茶色
+    PERFECT: { meat: "#793910", negi: "#81c784", dot: "#ff4" },   // 照り焼きの深い色、ネギの焼き色
+    BURNT: { meat: "#2a1a12", negi: "#1a251a", dot: "#f33" }      // 炭
 };
-
 // --- 新規追加: ドット絵用のカラーパレット ---
 const ICON_PALETTE = {
     1: "#ffffff", // 白(骨、ハイライト)
@@ -795,7 +795,40 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
         ctx.fillRect(x + w - 4, y, 4, h); // 右シャドウ
     }
 }
-
+// 焼き鳥(肉とネギ)を美味しそうに描画する関数
+function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi) {
+    ctx.fillStyle = baseColor;
+    
+    if (isNegi) {
+        // ネギは円柱状(少しスリムにする)
+        const nx = x + 4;
+        const nw = w - 8;
+        ctx.fillRect(nx, y, nw, h);
+        
+        // ネギのハイライト(光沢)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.fillRect(nx + 2, y + 2, nw - 4, 4);
+        
+        // ネギの影
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.fillRect(nx, y + h - 6, nw, 6);
+        ctx.fillRect(nx + nw - 4, y, 4, h);
+    } else {
+        // 肉は丸みを帯びた形(四隅の角を落とすドット絵風の描画)
+        ctx.fillRect(x + 4, y, w - 8, h); // 縦長のベース
+        ctx.fillRect(x, y + 4, w, h - 8); // 横長のベース
+        
+        // 肉のハイライト(タレの照り!)
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.fillRect(x + 6, y + 4, w - 16, 4); // 上部のテカり
+        ctx.fillRect(x + 4, y + 8, 4, 6);      // 左側のテカり
+        
+        // 肉の影(立体感)
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(x + 4, y + h - 8, w - 8, 8);  // 下部の影
+        ctx.fillRect(x + w - 6, y + 6, 4, h - 14); // 右側の影
+    }
+}
 function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     const data = ICON_DATA[iconId]; if (!data) return;
     
@@ -924,10 +957,10 @@ state.lanes.forEach((lane, i) => {
             
             const meatW = b.w * 0.6; const meatH = stickH * 0.2; const meatX = laneCx - meatW/2;
             
-            // 肉とネギ
-            ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.1, meatW, meatH);
-            ctx.fillStyle = p.negi; ctx.fillRect(meatX, stickTop + stickH*0.35, meatW, meatH);
-            ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.6, meatW, meatH);
+// 肉とネギをふっくら艶やかに描画
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false);
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true);
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false);
             
 // 焼け具合のドット表示 (3x2グリッド)
             const cv = Math.min(lane.cookState || 0, 6);
