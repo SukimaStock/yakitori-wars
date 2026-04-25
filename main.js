@@ -774,14 +774,21 @@ if (lane.built) {
             ctx.fillStyle = p.negi; ctx.fillRect(meatX, stickTop + stickH*0.35, meatW, meatH);
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.6, meatW, meatH);
             
-            // --- 新規追加: 焼け具合のドット表示 (3x2グリッド) ---
+// --- 変更: 焼け具合のドット表示 (3x2グリッド) ---
             const cv = Math.min(lane.cookState || 0, 6); // 最大6ドット
             const dotSize = 6;
             const dotGap = 2;
             const gridW = 3 * dotSize + 2 * dotGap;
+            const gridH = 2 * dotSize + dotGap;
             const dotStartX = laneCx - gridW / 2;
             const dotStartY = stickTop + stickH * 0.85; // お肉の下に配置
 
+            // 1. 串の線を隠すためのダークパネル(背景)を描画
+            ctx.fillStyle = "rgba(15, 15, 25, 0.95)"; // ほぼ黒のパネル
+            // ドットの周囲に2pxの余白を持たせて四角を描く
+            ctx.fillRect(dotStartX - 2, dotStartY - 2, gridW + 4, gridH + 4);
+
+            // 2. ドットの描画
             for (let j = 0; j < 6; j++) {
                 const col = j % 3;
                 const row = Math.floor(j / 3);
@@ -791,7 +798,8 @@ if (lane.built) {
                 if (j < cv) {
                     ctx.fillStyle = p.dot; // 焼けている部分の色
                 } else {
-                    ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; // 未到達の部分は半透明の黒
+                    // 未点灯のドットを少し明るいグレーにして見やすくする
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; 
                 }
                 ctx.fillRect(dx, dy, dotSize, dotSize);
             }
