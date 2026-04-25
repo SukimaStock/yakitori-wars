@@ -481,12 +481,15 @@ function placeWorker(boxId) {
         p.resources += 1;
         state.visuals.floaters.push({ type: 'meat_up', targetType: state.currentPlayer === 1 ? 'p1' : 'p2', startTime: performance.now() });
         consumeWorker();
-    } else if (boxId === 2) { // Put
-        if (p.resources >= 1) { state.buildMode = "sapling"; state.pendingBox = boxId; }
-    } else if (boxId === 3) { // Harvest/Discard
-        state.buildMode = "harvest"; state.pendingBox = boxId;
-    } else if (boxId === 4) { // Uchiwa
-        state.buildMode = "uchiwa"; state.pendingBox = boxId;
+    } else {
+        // ★修正: アニメーションを見せるため、150ミリ秒待ってからモードを切り替える
+        state.isBusy = true; // 待っている間の誤タップを防止
+        setTimeout(() => {
+            if (boxId === 2 && p.resources >= 1) state.buildMode = "sapling";
+            else if (boxId === 3) state.buildMode = "harvest";
+            else if (boxId === 4) state.buildMode = "uchiwa";
+            state.isBusy = false; // ロック解除
+        }, 150);
     }
 }
 
@@ -602,10 +605,18 @@ function handleCanvasClick(event, canvas) {
 
     if (isInputLocked()) return;
 
-    if (state.buildMode) {
-        const cBtn = getCancelButtonBounds();
-        if (x >= cBtn.x && x <= cBtn.x + cBtn.w && y >= cBtn.y && y <= cBtn.y + cBtn.h) {
-            state.buildMode = null; state.pendingBox = null; return;
+if (state.buildMode) {
+        const cb = getCancelButtonBounds();
+        if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
+            // ★新規追加: CANCELボタンを押した時間を記録して、150ms後に戻る
+            state.visuals.cancelClick = performance.now();
+            state.isBusy = true;
+            setTimeout(() => {
+                state.buildMode = null; 
+                state.pendingBox = null; 
+                state.isBusy = false;
+            }, 150);
+            return;
         }
 
         for (let i = 0; i < state.lanes.length; i++) {
@@ -1048,12 +1059,18 @@ function drawGameScreen(ctx) {
     ctx.globalAlpha = 1.0; 
 
     // ボタン描画
-    if (state.buildMode) {
+if (state.buildMode) {
         const cb = getCancelButtonBounds();
-        drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33");
-        ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace";
-        ctx.fillText("CANCEL", cb.x + cb.w/2, cb.y + cb.h/2 + 6);
-} else {
+        // ★新規追加: CANCELボタンの凹み計算
+        const clickTime = state.visuals.cancelClick || 0;
+        const isPressed = (now - clickTime < 150);
+        
+        drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
+        
+        const offset = isPressed ? 3 : 0; // 凹んだ時に文字もずらす
+        ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign="center";
+        ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
+    } else {
         LAYOUT.BUTTONS.forEach((btn, i) => {
             const b = getButtonBounds(i);
             const boxId = i + 1;
