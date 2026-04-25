@@ -15,7 +15,7 @@ function initGameState() {
         maxRounds: 13,
         currentPlayer: 1,
         firstPlayer: 1,
-        nextFirstPlayer: 2,
+        nextFirstPlayer: 1, // ★修正: 常にP1から開始するように初期値を変更
         gameOver: false,
         winnerText: "",
         winReason: "",
@@ -212,22 +212,19 @@ function switchTurn() {
     }
 }
 
+// ★修正: 先攻交替をなくし、毎ラウンド必ずP1から始まるように固定
 function startNewRound() {
     state.round++;
     state.players.forEach(p => p.workersRemaining = 1);
-    
-    state.firstPlayer = state.nextFirstPlayer;
-    state.nextFirstPlayer = 3 - state.firstPlayer;
-    const nextP = state.firstPlayer;
 
     state.buildMode = null;
     state.pendingBox = null;
 
-    state.pendingPlayer = nextP;
+    // 毎ラウンドP1から開始
+    state.currentPlayer = 1;
+    state.pendingPlayer = 1;
     state.pendingTurnSplash = true;
-    if (isAIPlayer(nextP)) {
-        state.pendingAiBreath = true;
-    }
+    state.pendingAiBreath = false;
 }
 
 function tryEndRound() {
@@ -623,7 +620,6 @@ function playAITurn() {
             else if (best.type === "serve") { state.buildMode="harvest"; tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
             else if (best.type === "uchiwa") { state.buildMode="uchiwa"; tryUchiwaNode(state.lanes.find(l=>l.id===best.nodeId)); }
         } finally {
-            // エラーが発生しても必ず思考フラグを解除し、進行不能(ソフトロック)を防ぐ
             state.isAIThinking = false;
         }
     }, 450);
@@ -692,12 +688,9 @@ function drawGameScreen(ctx) {
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i);
         ctx.fillStyle = LAYOUT.COLORS.PANEL_BG; ctx.fillRect(b.x, b.y, b.w, b.h);
-        
-        // ★修正: 未定義だった isLaneValidForAction を isNodeValidForMode に変更
         if (state.buildMode && isNodeValidForMode(lane, state.buildMode)) {
             ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(b.x, b.y, b.w, b.h);
         }
-        
         ctx.strokeStyle = "#444"; ctx.strokeRect(b.x, b.y, b.w, b.h);
         const laneCx = b.x + b.w/2;
         
