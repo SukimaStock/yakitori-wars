@@ -22,11 +22,14 @@ function initGameState() {
         isBusy: false,
         isAIThinking: false,
         
-        startRouletteActive: false,
-        startRouletteTimer: 0,
-        startRouletteDuration: 90,
-        startRouletteIndex: 1,
-        startRouletteFinalPlayer: null,
+// initGameState内を更新
+state.startRouletteActive = false;
+state.startRouletteInterval = 4;     // 次の切り替わりまでのフレーム数(初期値)
+state.startRouletteTickTimer = 4;    // 現在のカウントダウン
+state.startRouletteCount = 0;        // 何回切り替わったか
+state.startRouletteMaxCount = 16;    // 合計何回切り替わったら止まるか
+state.startRouletteIndex = 1;
+state.startRouletteFinalPlayer = null;
         
         turnSplashTimer: 0,
         pendingTurnSplash: false,
@@ -268,17 +271,28 @@ function startNewRound() {
 
 function updateRoulette() {
     if (!state.startRouletteActive) return;
-    state.startRouletteTimer--;
-    if (state.startRouletteTimer % 5 === 0) {
+
+    state.startRouletteTickTimer--;
+
+    if (state.startRouletteTickTimer <= 0) {
+        // P1とP2を入れ替え
         state.startRouletteIndex = 3 - state.startRouletteIndex;
-    }
-    if (state.startRouletteTimer <= 0) {
-        state.startRouletteActive = false;
-        state.startRouletteFinalPlayer = Math.random() < 0.5 ? 1 : 2;
-        state.firstPlayer = state.startRouletteFinalPlayer;
-        state.currentPlayer = state.startRouletteFinalPlayer;
-        state.pendingPlayer = state.startRouletteFinalPlayer;
-        state.pendingTurnSplash = true;
+        state.startRouletteCount++;
+
+        // ★こだわりポイント: インターバルを1.15倍ずつ長くして減速させる
+        state.startRouletteInterval *= 1.15; 
+        state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
+
+        // 規定回数に達したら終了
+        if (state.startRouletteCount >= state.startRouletteMaxCount) {
+            state.startRouletteActive = false;
+            // 最終的なプレイヤーを決定(最後のアニメーションに合わせてセット)
+            state.startRouletteFinalPlayer = state.startRouletteIndex;
+            state.firstPlayer = state.startRouletteFinalPlayer;
+            state.currentPlayer = state.startRouletteFinalPlayer;
+            state.pendingPlayer = state.startRouletteFinalPlayer;
+            state.pendingTurnSplash = true;
+        }
     }
 }
 
