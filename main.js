@@ -295,16 +295,27 @@ function consumeWorker() {
 }
 
 function switchTurn() {
-    const nextP = 3 - state.currentPlayer;
-    if (state.players[nextP - 1].workersRemaining > 0) {
-        state.pendingPlayer = nextP;
-        state.pendingTurnSplash = true;
-        if (isAIPlayer(nextP)) {
-            state.pendingAiBreath = true;
+    // 1. ポップアップ演出が終わるまで、プレイヤーの入力をブロックします
+    state.isBusy = true;
+
+    // 2. 800ミリ秒(ポップアップが消える時間)待ってから次の処理へ進みます
+    setTimeout(() => {
+        const nextP = 3 - state.currentPlayer;
+        
+        if (state.players[nextP - 1].workersRemaining > 0) {
+            state.pendingPlayer = nextP;
+            state.pendingTurnSplash = true; // ここで初めてターンスプラッシュが始まります
+            if (isAIPlayer(nextP)) {
+                state.pendingAiBreath = true;
+            }
+        } else if (state.players[state.currentPlayer - 1].workersRemaining <= 0) {
+            // ラウンド終了判定(元々あった600ミリ秒の待機は、外側の800ミリ秒に統合しました)
+            tryEndRound();
         }
-    } else if (state.players[state.currentPlayer - 1].workersRemaining <= 0) {
-        setTimeout(() => tryEndRound(), 600);
-    }
+        
+        // 3. 順番の切り替え処理が終わったので、入力ロックを解除します
+        state.isBusy = false;
+    }, 800);
 }
 
 // ★修正: Codea版の仕様に合わせ、ルーレットで決定した先攻(firstPlayer)から毎ラウンド開始する
