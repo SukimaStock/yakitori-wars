@@ -85,7 +85,9 @@ const ICON_DATA = {
     meat: [0,0,1,1,1,1,0,0, 0,1,1,1,1,1,1,0, 1,1,1,1,1,1,1,1, 0,1,1,1,1,1,1,0, 0,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 1,0,0,0,0,0,0,1, 0,1,0,0,0,0,1,0],
     put: [0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 1,1,1,1,1,1,1,1, 0,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 0,0,0,1,1,0,0,0, 0,0,0,0,0,0,0,0],
     serve: [0,0,1,1,1,1,0,0, 0,1,1,1,1,1,1,0, 1,1,0,1,1,0,1,1, 1,1,1,1,1,1,1,1, 1,1,0,1,1,0,1,1, 0,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 0,0,0,0,0,0,0,0],
-    uchiwa: [0,1,1,1,1,1,1,0, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 0,1,1,1,1,1,1,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0]
+    uchiwa: [0,1,1,1,1,1,1,0, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 0,1,1,1,1,1,1,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0],
+    // ↓新規追加:スコア(ダイヤ)アイコン
+    diamond: [0,0,0,1,1,0,0,0, 0,0,1,1,1,1,0,0, 0,1,1,1,1,1,1,0, 1,1,1,1,1,1,1,1, 0,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 0,0,0,1,1,0,0,0, 0,0,0,0,0,0,0,0]
 };
 
 function getVisualPalette(status) { return VISUAL_STATES[status] || VISUAL_STATES.RAW; }
@@ -229,7 +231,7 @@ function switchTurn() {
     }
 }
 
-// ★修正: 先攻交替をなくし、毎ラウンド必ずP1から始まるように固定
+// ★修正: Codea版の仕様に合わせ、ルーレットで決定した先攻(firstPlayer)から毎ラウンド開始する
 function startNewRound() {
     state.round++;
     state.players.forEach(p => p.workersRemaining = 1);
@@ -237,13 +239,39 @@ function startNewRound() {
     state.buildMode = null;
     state.pendingBox = null;
 
-    // 毎ラウンドP1から開始
-    state.currentPlayer = 1;
-    state.pendingPlayer = 1;
+    // ★変更箇所: 1に固定されていた部分を state.firstPlayer に変更しました
+    state.currentPlayer = state.firstPlayer;
+    state.pendingPlayer = state.firstPlayer;
+    
     state.pendingTurnSplash = true;
     state.pendingAiBreath = false;
 }
 
+// --- 新規追加: ルーレットの更新処理 ---
+function updateRoulette() {
+    if (!state.startRouletteActive) return;
+
+    state.startRouletteTimer--;
+
+    // 5フレームごとに表示を切り替え
+    if (state.startRouletteTimer % 5 === 0) {
+        state.startRouletteIndex = 3 - state.startRouletteIndex;
+    }
+
+    // ルーレット終了時の処理
+    if (state.startRouletteTimer <= 0) {
+        state.startRouletteActive = false;
+        // ランダムに先攻を決定
+        state.startRouletteFinalPlayer = Math.random() < 0.5 ? 1 : 2;
+
+        // ★確認箇所: ルーレットの結果を firstPlayer にしっかり保持しています
+        state.firstPlayer = state.startRouletteFinalPlayer;
+        state.currentPlayer = state.startRouletteFinalPlayer;
+        state.pendingPlayer = state.startRouletteFinalPlayer;
+        state.pendingTurnSplash = true;
+    }
+}
+// ------------------------------------
 function tryEndRound() {
     advanceAllSkewersAtRoundEnd();
     
@@ -697,6 +725,27 @@ function playAITurn() {
 // 7. render/render.js - 描画処理
 // ==========================================
 const getTime = () => performance.now();
+// 立体的なパネル(ボタンやUI枠)を描画する関数
+function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
+    // 影とハイライトの色を計算(簡易的)
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(x, y, w, h);
+
+    if (isPressed) {
+        // 押されている時は上が暗く、下が明るい(または全体を少し暗く沈める)
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(x, y, w, h);
+    } else {
+        // 通常時は上・左にハイライト、下・右にシャドウ
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.fillRect(x, y, w, 4); // 上ハイライト
+        ctx.fillRect(x, y, 4, h); // 左ハイライト
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+        ctx.fillRect(x, y + h - 6, w, 6); // 下シャドウ(少し太め)
+        ctx.fillRect(x + w - 4, y, 4, h); // 右シャドウ
+    }
+}
 
 function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     const data = ICON_DATA[iconId]; if (!data) return;
@@ -812,9 +861,9 @@ if (lane.built) {
         ctx.fillText("🔥".repeat(lane.fire), laneCx, b.y + b.h - 10);
     });
 
-    if (state.buildMode) {
+if (state.buildMode) {
         const cb = getCancelButtonBounds();
-        ctx.fillStyle = "#a33"; ctx.fillRect(cb.x, cb.y, cb.w, cb.h);
+        drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33");
         ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace";
         ctx.fillText("CANCEL", cb.x + cb.w/2, cb.y + cb.h/2 + 6);
     } else {
@@ -828,14 +877,15 @@ if (lane.built) {
             if (boxId === 4) canUse = true; 
             
             const isLocked = isInputLocked();
-            ctx.fillStyle = (canUse && !isLocked) ? btn.color : "#445";
-            ctx.fillRect(b.x, b.y, b.w, b.h);
-            drawDotIcon(ctx, btn.icon, b.x + b.w/2, b.y + b.h/2 - 10, (canUse && !isLocked) ? "#fff" : "#888", 3);
-            ctx.fillStyle = (canUse && !isLocked) ? "#fff" : "#aaa"; ctx.font = "bold 14px monospace";
-            ctx.fillText(btn.label, b.x + b.w/2, b.y + b.h - 10);
+            const baseColor = (canUse && !isLocked) ? btn.color : "#445";
+            
+            // 立体的なボタンを描画
+            drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor);
+            
+            // アイコンを中央に大きく配置(ラベル文字はあえて描画しない)
+            drawDotIcon(ctx, btn.icon, b.x + b.w/2, b.y + b.h/2, (canUse && !isLocked) ? "#fff" : "#888", 4);
         });
     }
-
     // --- 新規追加: ルーレットの描画 ---
     if (state.startRouletteActive) {
         ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; 
@@ -911,36 +961,37 @@ if (lane.built) {
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx;
-    ctx.fillStyle = LAYOUT.COLORS.PANEL_BG; ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = active ? (idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2) : "#444";
-    ctx.lineWidth = active ? 4 : 2; ctx.strokeRect(x, y, w, h);
+    const baseColor = active ? (idx === 1 ? "#2a4a6a" : "#6a2a3a") : LAYOUT.COLORS.PANEL_BG;
     
-    // ★ 変更: プレイヤー名の文字を大きくし、自分のターンなら色を変える
-    ctx.fillStyle = active ? (idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2) : "#fff"; 
+    // パネルの背景(枠付き)
+    drawBevelRect(ctx, x, y, w, h, baseColor);
+    
+    // アクティブなプレイヤーはさらに外枠を光らせる
+    if (active) {
+        ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+    }
+    
+    // プレイヤー名 (P1 / P2)
+    ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
     ctx.font = "bold 18px monospace"; 
-    ctx.textAlign = "center";
-    ctx.fillText(`P${idx}`, x + w/2, y + 22);
+    ctx.textAlign = "left";
+    ctx.fillText(`P${idx}`, x + 10, y + 25);
     
-    // ★ 変更: スコアの文字を大きくして強調
+    // スコア(ダイヤアイコン + 数字)
+    drawDotIcon(ctx, "diamond", x + 20, y + 45, "#6cf", 2);
     ctx.fillStyle = "#fff"; 
     ctx.font = "bold 16px monospace";
-    ctx.fillText(`SCORE: ${player.score}`, x + w/2, y + 44);
+    ctx.textAlign = "right";
+    ctx.fillText(`${player.score}`, x + w - 10, y + 50);
     
-    // ★ 変更: 肉の数をアイコンで並べて描画する
+    // 肉の数(肉アイコン + 数字)
     const meatCount = player.resources || 0;
-    const iconScale = 2; // アイコンのサイズ
-    const iconSpacing = 16; // アイコン同士の間隔
-    
-    // アイコン群をパネルの中央に配置するための計算
-    const startX = x + w/2 - ((meatCount - 1) * iconSpacing) / 2;
-    const cy = y + 62; // アイコンの高さ位置
-
-    for (let i = 0; i < meatCount; i++) {
-        // 所持している肉の数だけ、ドットアイコンを描画する
-        drawDotIcon(ctx, "meat", startX + i * iconSpacing, cy, "#c55", iconScale);
-    }
+    drawDotIcon(ctx, "meat", x + 20, y + 65, "#f77", 2);
+    ctx.fillStyle = "#fff"; 
+    ctx.fillText(`${meatCount}`, x + w - 10, y + 70);
 }
-
 // ==========================================
 // 8. main.js - セットアップとスマホ対応
 // ==========================================
