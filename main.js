@@ -298,10 +298,17 @@ function isLaneValidForAction(laneIndex, actionId) {
     return false;
 }
 
+// ==========================================
+// 5. game/input.js - 入力処理 (handleCanvasClickのみ修正)
+// ==========================================
+
 function handleCanvasClick(event, canvas) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    
+    // ★修正: canvas.width(高解像度)ではなく、LAYOUT.CANVAS_WIDTH(800)を基準にスケールを計算します
+    const scaleX = LAYOUT.CANVAS_WIDTH / rect.width;
+    const scaleY = LAYOUT.CANVAS_HEIGHT / rect.height;
+    
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
 
@@ -481,34 +488,41 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx) {
 // ==========================================
 // 8. main.js - セットアップとスマホ対応
 // ==========================================
-const canvas = document.createElement('canvas');
-canvas.id = "game";
-const ctx = canvas.getContext('2d');
-document.body.appendChild(canvas);
 
-// CSSスタイル設定
+// ★修正: 新規作成をやめ、HTMLのcanvasを取得する
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// ★修正: flex指定を削除し、不要なスタイルを整理
 document.body.style.margin = "0";
 document.body.style.padding = "0";
 document.body.style.backgroundColor = "#111";
-document.body.style.display = "flex";
-document.body.style.justifyContent = "center";
-document.body.style.alignItems = "center";
 document.body.style.height = "100vh";
 document.body.style.overflow = "hidden";
 document.body.style.touchAction = "none"; // スクロール防止
 
+// ★修正: ご提案いただいた新しいresize関数
 function resize() {
     const dpr = window.devicePixelRatio || 1;
-    // 800:600 のアスペクト比を維持して画面いっぱいに広げる
-    const scale = Math.min(window.innerWidth / LAYOUT.CANVAS_WIDTH, window.innerHeight / LAYOUT.CANVAS_HEIGHT);
-    
+
+    const scale = Math.min(
+        window.innerWidth / LAYOUT.CANVAS_WIDTH,
+        window.innerHeight / LAYOUT.CANVAS_HEIGHT
+    );
+
     const width = LAYOUT.CANVAS_WIDTH * scale;
     const height = LAYOUT.CANVAS_HEIGHT * scale;
 
     canvas.width = LAYOUT.CANVAS_WIDTH * dpr;
     canvas.height = LAYOUT.CANVAS_HEIGHT * dpr;
+
     canvas.style.width = width + "px";
     canvas.style.height = height + "px";
+
+    canvas.style.position = "absolute";
+    canvas.style.left = "50%";
+    canvas.style.top = "50%";
+    canvas.style.transform = "translate(-50%, -50%)";
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
