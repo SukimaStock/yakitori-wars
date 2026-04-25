@@ -531,9 +531,22 @@ const BALANCE = {
     strong: { heat: 3, perfect: [6], okay: [5], pts: {perfect:6, okay:2, early:-5, burnt:-2} }
 };
 
+// 勝ち抜き方式のステージ設定(ステージ1〜5で徐々に強くなる)
+const STAGE_CONFIG = {
+    1: { profile: "gambler", level: 1, enemyName: "KENTA" },
+    2: { profile: "thief",   level: 2, enemyName: "HIDEKI" },
+    3: { profile: "reader",  level: 3, enemyName: "TETSUYA" },
+    4: { profile: "master",  level: 4, enemyName: "MAKOTO" },
+    5: { profile: "master",  level: 5, enemyName: "BOSS" } // 最終ステージ
+};
+
+// AIの全レベル(1〜5)のパラメータ
 const AI_LEVEL_CONFIG = {
-    1: { rand: 0.40, mistake: 0.30, futWt: 0.10, allowUchiwa: false, scoreNoise: 10 },
-    2: { rand: 0.20, mistake: 0.15, futWt: 0.20, allowUchiwa: true, scoreNoise: 6 }
+    1: { rand: 0.40, mistake: 0.30, futWt: 0.10, allowUchiwa: false, topCandRange: 3, scoreNoise: 10, closeThresh: 8, closeRate: 0.35 },
+    2: { rand: 0.20, mistake: 0.15, futWt: 0.20, allowUchiwa: true,  topCandRange: 3, scoreNoise: 6,  closeThresh: 6, closeRate: 0.25 },
+    3: { rand: 0.10, mistake: 0.05, futWt: 0.30, allowUchiwa: true,  topCandRange: 2, scoreNoise: 3,  closeThresh: 5, closeRate: 0.20 },
+    4: { rand: 0.03, mistake: 0.01, futWt: 0.50, allowUchiwa: true,  topCandRange: 2, scoreNoise: 1.5, closeThresh: 4, closeRate: 0.10 },
+    5: { rand: 0.15, mistake: 0.20, futWt: 0.40, allowUchiwa: true,  topCandRange: 3, scoreNoise: 4,  closeThresh: 6, closeRate: 0.25 }
 };
 
 function buildActionCandidates(currentState, playerIndex) {
@@ -630,11 +643,8 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 }
 
 function playAITurn() {
-    // --- 新規追加: ルーレット中はAIも停止 ---
     if (state.startRouletteActive) return;
-
     if (!isAIPlayer(state.currentPlayer)) return;
-
     if (state.screen !== "game" || state.isBusy || state.gameOver || 
         state.pendingTurnSplash || state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0) return;
     
@@ -656,10 +666,30 @@ function playAITurn() {
                 return { action: a, score: s };
             });
 
+            // スコアが高い順に並び替え
             scored.sort((a, b) => b.score - a.score);
             let best = scored[0].action;
 
-            if (scored.length > 1 && Math.random() < levelConf.mistake) best = scored[1].action;
+            // --- 全レベル対応:ミスと揺らぎの判定 ---
+            if (scored.length > 1) {
+                const r = Math.random();
+                if (r < levelConf.mistake) {
+                    // ミス:1位との差が15点以内の2位または3位を選ぶ
+                    let pool = scored.filter((s, i) => i >= 1 && i <= 2 && (scored[0].score - s.score) <= 15);
+                    if (pool.length > 0) best = pool[Math.floor(Math.random() * pool.length)].action;
+                } else if (Math.random() < levelConf.rand) {
+                    // ランダム:1位との差が12点以内の上位候補から選ぶ
+                    let pool = scored.slice(0, levelConf.topCandRange).filter(s => (scored[0].score - s.score) <= 12);
+                    if (pool.length > 1) best = pool[Math.floor(Math.random() * pool.length)].action;
+                } else {
+                    // 僅差の揺らぎ:1位と2位が近いスコアなら、確率で2位を選ぶ
+                    let second = scored[1];
+                    if ((scored[0].score - second.score) <= levelConf.closeThresh) {
+                        if (Math.random() < levelConf.closeRate) best = second.action;
+                    }
+                }
+            }
+            // ----------------------------------------
 
             if (best.type === "meat") placeWorker(1);
             else if (best.type === "put") { state.buildMode="sapling"; tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
