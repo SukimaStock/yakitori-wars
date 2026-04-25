@@ -624,7 +624,7 @@ function handleCanvasClick(event, canvas) {
         return;
     }
 
-    for (let i = 0; i < LAYOUT.BUTTONS.length; i++) {
+for (let i = 0; i < LAYOUT.BUTTONS.length; i++) {
         const b = getButtonBounds(i);
         if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
             const actionId = LAYOUT.BUTTONS[i].id;
@@ -635,7 +635,11 @@ function handleCanvasClick(event, canvas) {
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
             if (boxId === 4) canUse = true; 
 
-            if (canUse) placeWorker(boxId);
+            if (canUse) {
+                // ★新規追加: ボタンを押した瞬間の時間を記録する
+                state.visuals.buttonClicks[i] = performance.now();
+                placeWorker(boxId);
+            }
             return;
         }
     }
@@ -824,9 +828,15 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     ctx.fillRect(x, y, w, h);
 
     if (isPressed) {
+        // ★変更: 押されている時は内側に濃い影をつけて凹みを表現
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
         ctx.fillRect(x, y, w, h);
+        
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        ctx.fillRect(x, y, w, 6); // 上の影
+        ctx.fillRect(x, y, 6, h); // 左の影
     } else {
+        // 通常時は出っ張った表現(ハイライトと影)
         ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
         ctx.fillRect(x, y, w, 4); 
         ctx.fillRect(x, y, 4, h); 
@@ -836,7 +846,6 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
         ctx.fillRect(x + w - 4, y, 4, h); 
     }
 }
-
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi) {
     ctx.fillStyle = baseColor;
     
@@ -1044,7 +1053,7 @@ function drawGameScreen(ctx) {
         drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33");
         ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace";
         ctx.fillText("CANCEL", cb.x + cb.w/2, cb.y + cb.h/2 + 6);
-    } else {
+} else {
         LAYOUT.BUTTONS.forEach((btn, i) => {
             const b = getButtonBounds(i);
             const boxId = i + 1;
@@ -1054,14 +1063,21 @@ function drawGameScreen(ctx) {
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
             if (boxId === 4) canUse = true; 
 
-            const isLocked = isInputLocked();
+            // ★新規追加: 凹み状態の判定 (クリックから150ms以内なら凹む)
+            const clickTime = state.visuals.buttonClicks[i] || 0;
+            const isPressed = (now - clickTime < 150);
+            
+            // 押された直後は入力ロック状態でもグレーアウトさせない
+            const isLocked = isInputLocked() && !isPressed;
             const baseColor = (canUse && !isLocked) ? btn.color : "#445";
 
-            drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor);
-            drawDotIcon(ctx, btn.icon, b.x + b.w/2, b.y + b.h/2, (canUse && !isLocked) ? "#fff" : "#888", 4);
+            drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
+            
+            // ★新規追加: 凹んだ時はアイコンも右下に「3px」ずらす
+            const offset = isPressed ? 3 : 0;
+            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
         });
     }
-
     // 帯フェード描画
     if (state.startRouletteActive) {
         const fadeAlpha = getFadeAlpha(state.startRouletteTimer, state.startRouletteDuration, 15);
