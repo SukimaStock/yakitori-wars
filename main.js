@@ -81,9 +81,9 @@ const VISUAL_STATES = {
     PERFECT: { meat: "#793910", negi: "#81c784", dot: "#ff4" },   // 照り焼きの深い色、ネギの焼き色
     BURNT: { meat: "#2a1a12", negi: "#1a251a", dot: "#f33" }      // 炭
 };
-// --- 新規追加: ドット絵用のカラーパレット ---
+// --- ドット絵用のカラーパレット ---
 const ICON_PALETTE = {
-    1: "#ffffff", // 白(骨、ハイライト)
+    1: "#ffffff", // 白
     2: "#d95763", // 肉(赤身)
     3: "#8c3f5d", // 肉(影)
     4: "#df7126", // 火(オレンジ)
@@ -91,7 +91,9 @@ const ICON_PALETTE = {
     6: "#5fcde4", // ダイヤ(水色)
     7: "#8f563b", // うちわの柄(茶色)
     8: "#ac3232", // うちわの模様(赤)
-    9: "#e8ede7"  // うちわの紙(オフホワイト)
+    9: "#e8ede7", // うちわの紙(オフホワイト)
+    10: "#99e550", // ★新規: 置く(緑)
+    11: "#ffcc66"  // ★新規: 取る/捨てる(オレンジ黄色)
 };
 
 // --- アイコンデータ(数字はパレットのインデックス。10はUI指定色) ---
@@ -107,7 +109,7 @@ const ICON_DATA = {
         0,0,2,2,2,2,0,0,
         0,0,0,0,0,0,0,0
     ],
-    // 置く (下矢印)
+// 置く (下矢印を 10:緑 に変更)
     put: [
         0,0,0,10,10,0,0,0,
         0,0,0,10,10,0,0,0,
@@ -118,16 +120,16 @@ const ICON_DATA = {
         0,0,10,10,10,10,0,0,
         0,0,0,10,10,0,0,0
     ],
-    // 取る/捨てる (上矢印)
+    // 取る/捨てる (上矢印を 11:オレンジ黄色 に変更)
     serve: [
-        0,0,0,10,10,0,0,0,
-        0,0,10,10,10,10,0,0,
-        0,10,10,10,10,10,10,0,
-        10,10,10,10,10,10,10,10,
-        0,0,0,10,10,0,0,0,
-        0,0,0,10,10,0,0,0,
-        0,0,0,10,10,0,0,0,
-        0,0,0,10,10,0,0,0
+        0,0,0,11,11,0,0,0,
+        0,0,11,11,11,11,0,0,
+        0,11,11,11,11,11,11,0,
+        11,11,11,11,11,11,11,11,
+        0,0,0,11,11,0,0,0,
+        0,0,0,11,11,0,0,0,
+        0,0,0,11,11,0,0,0,
+        0,0,0,11,11,0,0,0
     ],
 // うちわ (縁取りをなくし、白ベースに赤模様)
     uchiwa: [
@@ -831,8 +833,6 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi) {
 }
 function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     const data = ICON_DATA[iconId]; if (!data) return;
-    
-    // 無効状態(colorがグレー)かどうかを判定
     const isDisabled = (color === "#888"); 
     
     for (let i = 0; i < 64; i++) {
@@ -841,15 +841,11 @@ function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
             const x = (i % 8) * scale; 
             const y = Math.floor(i / 8) * scale;
             
-            // 色の決定ロジック
             if (isDisabled) {
-                ctx.fillStyle = "#888"; // 無効時はすべてグレー
-            } else if (val === 10) {
-                ctx.fillStyle = color; // 10はUI指定色(白など)をそのまま使う
+                ctx.fillStyle = "#888"; // 無効時はグレー
             } else {
                 ctx.fillStyle = ICON_PALETTE[val] || color;
             }
-            
             ctx.fillRect(cx - (4 * scale) + x, cy - (4 * scale) + y, scale, scale);
         }
     }
@@ -962,25 +958,40 @@ state.lanes.forEach((lane, i) => {
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false);
             
-// 焼け具合のドット表示 (3x2グリッド)
+// --- 変更: 焼け具合のドット表示をリッチに (3x2グリッド) ---
             const cv = Math.min(lane.cookState || 0, 6);
-            const dotSize = 6; const dotGap = 2;
+            const dotSize = 8; // サイズを少し大きく
+            const dotGap = 4;  // 隙間も広げる
             const gridW = 3 * dotSize + 2 * dotGap;
             const gridH = 2 * dotSize + dotGap;
             const dotStartX = laneCx - gridW / 2;
-            // ★変更: 串の最下部(stickTop + stickH)からさらに10px下に移動
-            const dotStartY = stickTop + stickH + 10;
+            const dotStartY = stickTop + stickH + 12;
 
-            ctx.fillStyle = "rgba(15, 15, 25, 0.95)";
-            ctx.fillRect(dotStartX - 2, dotStartY - 2, gridW + 4, gridH + 4);
+            // ドットの背景パネル(計器盤のような立体感)
+            drawBevelRect(ctx, dotStartX - 6, dotStartY - 6, gridW + 12, gridH + 12, "#242430");
 
             for (let j = 0; j < 6; j++) {
                 const col = j % 3; const row = Math.floor(j / 3);
                 const dx = dotStartX + col * (dotSize + dotGap);
                 const dy = dotStartY + row * (dotSize + dotGap);
-                ctx.fillStyle = (j < cv) ? p.dot : "rgba(255, 255, 255, 0.15)";
-                ctx.fillRect(dx, dy, dotSize, dotSize);
+
+                if (j < cv) {
+                    // 点灯状態(LED風の光)
+                    ctx.fillStyle = p.dot; 
+                    ctx.fillRect(dx, dy, dotSize, dotSize);
+                    // LEDのハイライト(テカリ)
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+                    ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
+                } else {
+                    // 消灯状態(穴のような凹み)
+                    ctx.fillStyle = "rgba(10, 10, 15, 0.9)";
+                    ctx.fillRect(dx, dy, dotSize, dotSize);
+                    // 凹みのエッジ(下部を明るくして立体感を出す)
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+                    ctx.fillRect(dx, dy + dotSize - 1, dotSize, 1);
+                }
             }
+            // ---------------------------------------------------
             
             // 所有者マーク(P1 or P2 の三角形)
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
