@@ -882,53 +882,63 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
 // ==========================================
 // 8. main.js - セットアップとスマホ対応
 // ==========================================
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+window.addEventListener("DOMContentLoaded", () => {
+    const canvas = document.getElementById("game");
+    
+    // Canvasが存在しない場合の安全対策
+    if (!canvas) {
+        console.error("エラー: canvas#game が見つかりません。HTMLに <canvas id=\"game\"></canvas> が存在するか確認してください。");
+        return;
+    }
 
-document.body.style.margin = "0";
-document.body.style.padding = "0";
-document.body.style.backgroundColor = "#111";
-document.body.style.height = "100vh";
-document.body.style.overflow = "hidden";
-document.body.style.touchAction = "none";
+    const ctx = canvas.getContext("2d");
 
-function resize() {
-    const dpr = window.devicePixelRatio || 1;
-    const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    // CSSはHTML側で指定しても良いですが、JS側でも念のため適用
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.backgroundColor = "#111";
+    document.body.style.height = "100vh";
+    document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
 
-    LAYOUT.CANVAS_WIDTH = vw;
-    LAYOUT.CANVAS_HEIGHT = vh;
-    canvas.width = vw * dpr;
-    canvas.height = vh * dpr;
-    canvas.style.width = vw + "px";
-    canvas.style.height = vh + "px";
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-window.addEventListener("resize", resize);
-resize();
+    function resize() {
+        const dpr = window.devicePixelRatio || 1;
+        const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
-let lastTouchTime = 0;
+        LAYOUT.CANVAS_WIDTH = vw;
+        LAYOUT.CANVAS_HEIGHT = vh;
+        canvas.width = vw * dpr;
+        canvas.height = vh * dpr;
+        canvas.style.width = vw + "px";
+        canvas.style.height = vh + "px";
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener("resize", resize);
+    resize();
 
-canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    lastTouchTime = Date.now();
-    const touch = e.touches[0];
-    handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY }, canvas);
-}, { passive: false });
+    let lastTouchTime = 0;
 
-canvas.addEventListener("click", (e) => {
-    if (Date.now() - lastTouchTime < 500) return;
-    handleCanvasClick(e, canvas);
+    canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        lastTouchTime = Date.now();
+        const touch = e.touches[0];
+        handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY }, canvas);
+    }, { passive: false });
+
+    canvas.addEventListener("click", (e) => {
+        if (Date.now() - lastTouchTime < 500) return;
+        handleCanvasClick(e, canvas);
+    });
+
+    function loop() {
+        updateRoulette();
+        resolvePendingTurnFlow();
+        render(ctx);
+        playAITurn();
+        requestAnimationFrame(loop);
+    }
+    
+    // ゲームループ開始
+    loop();
 });
-
-function loop() {
-    // --- 新規追加: ルーレットの更新 ---
-    updateRoulette();
-    // --------------------------------
-    resolvePendingTurnFlow();
-    render(ctx);
-    playAITurn();
-    requestAnimationFrame(loop);
-}
-loop();
