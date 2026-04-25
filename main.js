@@ -132,10 +132,10 @@ const ICON_DATA = {
 // うちわ (縁取りをなくし、白ベースに赤模様)
     uchiwa: [
         0,8,8,8,8,8,8,0,
-        0,8,8,8,8,8,8,0,
+        8,8,8,8,8,8,8,8,
         8,8,8,8,8,8,8,8,
         9,9,9,9,9,9,9,9,
-        9,9,9,7,7,9,9,9,
+        0,9,9,7,7,9,9,0,
         0,0,0,7,7,0,0,0,
         0,0,0,7,7,0,0,0,
         0,0,0,7,7,0,0,0
@@ -929,13 +929,14 @@ state.lanes.forEach((lane, i) => {
             ctx.fillStyle = p.negi; ctx.fillRect(meatX, stickTop + stickH*0.35, meatW, meatH);
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.6, meatW, meatH);
             
-            // 焼け具合のドット表示 (3x2グリッド)
+// 焼け具合のドット表示 (3x2グリッド)
             const cv = Math.min(lane.cookState || 0, 6);
             const dotSize = 6; const dotGap = 2;
             const gridW = 3 * dotSize + 2 * dotGap;
             const gridH = 2 * dotSize + dotGap;
             const dotStartX = laneCx - gridW / 2;
-            const dotStartY = stickTop + stickH * 0.85;
+            // ★変更: 串の最下部(stickTop + stickH)からさらに10px下に移動
+            const dotStartY = stickTop + stickH + 10;
 
             ctx.fillStyle = "rgba(15, 15, 25, 0.95)";
             ctx.fillRect(dotStartX - 2, dotStartY - 2, gridW + 4, gridH + 4);
