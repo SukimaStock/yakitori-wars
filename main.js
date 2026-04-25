@@ -21,6 +21,15 @@ function initGameState() {
         winReason: "",
         isBusy: false,
         isAIThinking: false,
+        
+        // --- 新規追加: ルーレット用ステート ---
+        startRouletteActive: false,
+        startRouletteTimer: 0,
+        startRouletteDuration: 90, // 約1.5秒 (60fps想定)
+        startRouletteIndex: 1,
+        startRouletteFinalPlayer: null,
+        // ----------------------------------
+        
         turnSplashTimer: 0,
         pendingTurnSplash: false,
         pendingAiBreath: false,
@@ -139,9 +148,12 @@ function startGame(mode) {
     state.screen = "game";
     if (mode === "ai") setupAIForStage(1);
     
-    state.currentPlayer = 1;
-    state.pendingPlayer = 1;
-    state.pendingTurnSplash = true;
+    // --- 新規追加: ルーレット開始設定 ---
+    state.startRouletteActive = true;
+    state.startRouletteTimer = state.startRouletteDuration;
+    state.startRouletteIndex = 1;
+    state.startRouletteFinalPlayer = null;
+    // ----------------------------------
 }
 
 function nextStage() {
@@ -153,9 +165,12 @@ function nextStage() {
     state.screen = "game";
     setupAIForStage(nextStg);
     
-    state.currentPlayer = 1;
-    state.pendingPlayer = 1;
-    state.pendingTurnSplash = true;
+    // --- 新規追加: 次ステージもルーレット開始 ---
+    state.startRouletteActive = true;
+    state.startRouletteTimer = state.startRouletteDuration;
+    state.startRouletteIndex = 1;
+    state.startRouletteFinalPlayer = null;
+    // ----------------------------------------
 }
 
 function updateAllScores() {
@@ -260,6 +275,31 @@ function tryEndRound() {
     }
     startNewRound();
 }
+
+// --- 新規追加: ルーレットの更新処理 ---
+function updateRoulette() {
+    if (!state.startRouletteActive) return;
+
+    state.startRouletteTimer--;
+
+    // 5フレームごとに表示を切り替え
+    if (state.startRouletteTimer % 5 === 0) {
+        state.startRouletteIndex = 3 - state.startRouletteIndex;
+    }
+
+    // ルーレット終了時の処理
+    if (state.startRouletteTimer <= 0) {
+        state.startRouletteActive = false;
+        // ランダムに先攻を決定
+        state.startRouletteFinalPlayer = Math.random() < 0.5 ? 1 : 2;
+
+        state.firstPlayer = state.startRouletteFinalPlayer;
+        state.currentPlayer = state.startRouletteFinalPlayer;
+        state.pendingPlayer = state.startRouletteFinalPlayer;
+        state.pendingTurnSplash = true;
+    }
+}
+// ------------------------------------
 
 function resolvePendingTurnFlow() {
     if (state.pendingTurnSplash) { 
@@ -409,6 +449,9 @@ function isNodeValidForMode(node, mode) {
 // 5. game/input.js - 入力処理
 // ==========================================
 function isInputLocked() {
+    // --- 新規追加: ルーレット中は入力不可 ---
+    if (state.startRouletteActive) return true;
+    
     const cp = state.currentPlayer;
     if (isAIPlayer(cp)) return true;
 
@@ -587,6 +630,9 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 }
 
 function playAITurn() {
+    // --- 新規追加: ルーレット中はAIも停止 ---
+    if (state.startRouletteActive) return;
+
     if (!isAIPlayer(state.currentPlayer)) return;
 
     if (state.screen !== "game" || state.isBusy || state.gameOver || 
@@ -675,7 +721,9 @@ function drawGameScreen(ctx) {
     const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
     const safeTop = 15;
     
-    const activePlayer = state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer;
+    // ルーレット中は activePlayer のハイライトを一旦 P1/P2 両方オフにするか、インデックスに合わせます
+    const activePlayer = state.startRouletteActive ? state.startRouletteIndex : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
+    
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 60, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 60, 2, activePlayer);
     
@@ -735,12 +783,28 @@ function drawGameScreen(ctx) {
         });
     }
 
-    if (state.turnSplashTimer > 0) {
+    // --- 新規追加: ルーレットの描画 ---
+    if (state.startRouletteActive) {
+        ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; 
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+        
+        ctx.fillStyle = state.startRouletteIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        ctx.font = "bold 48px monospace"; 
+        ctx.textAlign = "center";
+        ctx.fillText(`P${state.startRouletteIndex}`, cx, LAYOUT.CANVAS_HEIGHT / 2 + 10);
+        
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 24px monospace";
+        ctx.fillText("WHO GOES FIRST?", cx, LAYOUT.CANVAS_HEIGHT / 2 - 40);
+    } 
+    // 既存のターンスプラッシュ
+    else if (state.turnSplashTimer > 0) {
         ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; ctx.fillRect(0,0,LAYOUT.CANVAS_WIDTH,LAYOUT.CANVAS_HEIGHT);
         ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
         ctx.font = "bold 32px monospace"; 
         ctx.fillText(`P${activePlayer} TURN`, cx, LAYOUT.CANVAS_HEIGHT / 2);
     }
+    // ------------------------------------
 
     const now = getTime();
     state.visuals.ghosts.forEach(g => {
@@ -837,6 +901,9 @@ canvas.addEventListener("click", (e) => {
 });
 
 function loop() {
+    // --- 新規追加: ルーレットの更新 ---
+    updateRoulette();
+    // --------------------------------
     resolvePendingTurnFlow();
     render(ctx);
     playAITurn();
