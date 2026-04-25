@@ -871,28 +871,39 @@ if (lane.built) {
         ctx.fillText(g.status, b.x + b.w/2, b.y + b.h/2 + yOffset);
     });
 
+// (drawGameScreen関数の中の終盤あたりにあります)
     state.visuals.floaters.forEach(f => {
         const elapsed = now - f.startTime;
         const progress = Math.min(1, elapsed / 800);
-        const yOffset = -progress * 40;
+        const yOffset = -progress * 50; // フワッと上に消える移動量
         ctx.globalAlpha = 1 - progress;
         
         let fx, fy;
-        if (f.targetType === 'p1') { fx = panelW / 2 + 10; fy = safeTop + 70; }
-        else if (f.targetType === 'p2') { fx = LAYOUT.CANVAS_WIDTH - panelW / 2 - 10; fy = safeTop + 70; }
+        if (f.targetType === 'p1' || f.targetType === 'p2') {
+            // ★変更: 肉の増減は画面中央(やや上)に集約する
+            fx = LAYOUT.CANVAS_WIDTH / 2;
+            fy = LAYOUT.CANVAS_HEIGHT / 2 - 100;
+        }
         else if (f.targetType === 'lane') {
+            // 取ったときのスコア等は、該当する串(レーン)の上にそのまま表示
             const b = getLaneBounds(f.targetIndex);
-            fx = b.x + b.w/2; fy = b.y;
+            fx = b.x + b.w/2; 
+            fy = b.y - 10;
         }
         
         ctx.textAlign = "center";
+        
+        // ★変更: 文字サイズを少し大きくして視認性をアップ
         if (f.type === 'meat_up') {
-            ctx.fillStyle = "#fa3"; ctx.font = "bold 20px monospace"; ctx.fillText("+1 肉", fx, fy + yOffset);
+            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; 
+            ctx.fillText("+1 肉", fx, fy + yOffset);
         } else if (f.type === 'meat_down') {
-            ctx.fillStyle = "#f33"; ctx.font = "bold 20px monospace"; ctx.fillText("-1 肉", fx, fy + yOffset);
+            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; 
+            ctx.fillText("-1 肉", fx, fy + yOffset);
         } else if (f.type === 'star_up') {
-            ctx.fillStyle = f.color; ctx.font = "bold 24px monospace";
-            const prefix = f.amount > 0 ? "+" : ""; ctx.fillText(`${prefix}${f.amount}`, fx, fy + yOffset);
+            ctx.fillStyle = f.color; ctx.font = "bold 32px monospace";
+            const prefix = f.amount > 0 ? "+" : ""; 
+            ctx.fillText(`${prefix}${f.amount}`, fx, fy + yOffset);
         }
     });
     ctx.globalAlpha = 1.0;
