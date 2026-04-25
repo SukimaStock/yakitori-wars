@@ -746,8 +746,8 @@ function drawGameScreen(ctx) {
     // ルーレット中は activePlayer のハイライトを一旦 P1/P2 両方オフにするか、インデックスに合わせます
     const activePlayer = state.startRouletteActive ? state.startRouletteIndex : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
     
-    drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 60, 1, activePlayer);
-    drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 60, 2, activePlayer);
+    drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
+    drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
     
     ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
     ctx.fillText(`ROUND ${state.round}`, cx, safeTop + 25);
@@ -914,11 +914,31 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     ctx.fillStyle = LAYOUT.COLORS.PANEL_BG; ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = active ? (idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2) : "#444";
     ctx.lineWidth = active ? 4 : 2; ctx.strokeRect(x, y, w, h);
-    ctx.fillStyle = "#fff"; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
-    ctx.fillText(`P${idx}`, x+w/2, y+20);
-    ctx.font = "12px monospace";
-    ctx.fillText(`SCORE:${player.score}`, x+w/2, y+38);
-    ctx.fillText(`MEAT:${player.resources}`, x+w/2, y+54);
+    
+    // ★ 変更: プレイヤー名の文字を大きくし、自分のターンなら色を変える
+    ctx.fillStyle = active ? (idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2) : "#fff"; 
+    ctx.font = "bold 18px monospace"; 
+    ctx.textAlign = "center";
+    ctx.fillText(`P${idx}`, x + w/2, y + 22);
+    
+    // ★ 変更: スコアの文字を大きくして強調
+    ctx.fillStyle = "#fff"; 
+    ctx.font = "bold 16px monospace";
+    ctx.fillText(`SCORE: ${player.score}`, x + w/2, y + 44);
+    
+    // ★ 変更: 肉の数をアイコンで並べて描画する
+    const meatCount = player.resources || 0;
+    const iconScale = 2; // アイコンのサイズ
+    const iconSpacing = 16; // アイコン同士の間隔
+    
+    // アイコン群をパネルの中央に配置するための計算
+    const startX = x + w/2 - ((meatCount - 1) * iconSpacing) / 2;
+    const cy = y + 62; // アイコンの高さ位置
+
+    for (let i = 0; i < meatCount; i++) {
+        // 所持している肉の数だけ、ドットアイコンを描画する
+        drawDotIcon(ctx, "meat", startX + i * iconSpacing, cy, "#c55", iconScale);
+    }
 }
 
 // ==========================================
