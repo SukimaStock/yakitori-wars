@@ -22,14 +22,14 @@ function initGameState() {
         isBusy: false,
         isAIThinking: false,
         
-// initGameState内を更新
-state.startRouletteActive = false;
-state.startRouletteInterval = 4;     // 次の切り替わりまでのフレーム数(初期値)
-state.startRouletteTickTimer = 4;    // 現在のカウントダウン
-state.startRouletteCount = 0;        // 何回切り替わったか
-state.startRouletteMaxCount = 16;    // 合計何回切り替わったら止まるか
-state.startRouletteIndex = 1;
-state.startRouletteFinalPlayer = null;
+        // ★新しいルーレット用の変数( : と , を使います)
+        startRouletteActive: false,
+        startRouletteInterval: 4,
+        startRouletteTickTimer: 4,
+        startRouletteCount: 0,
+        startRouletteMaxCount: 16,
+        startRouletteIndex: 1,
+        startRouletteFinalPlayer: null,
         
         turnSplashTimer: 0,
         pendingTurnSplash: false,
@@ -54,7 +54,6 @@ state.startRouletteFinalPlayer = null;
         }
     };
 }
-initGameState();
 
 // ==========================================
 // 2. render/layout.js - 定数とレイアウト設定
@@ -159,8 +158,11 @@ function startGame(mode) {
     state.screen = "game";
     if (mode === "ai") setupAIForStage(1);
     
+    // ★新しいルーレット変数の初期化
     state.startRouletteActive = true;
-    state.startRouletteTimer = state.startRouletteDuration;
+    state.startRouletteInterval = 4;
+    state.startRouletteTickTimer = 4;
+    state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
     state.startRouletteFinalPlayer = null;
 }
@@ -174,12 +176,14 @@ function nextStage() {
     state.screen = "game";
     setupAIForStage(nextStg);
     
+    // ★新しいルーレット変数の初期化
     state.startRouletteActive = true;
-    state.startRouletteTimer = state.startRouletteDuration;
+    state.startRouletteInterval = 4;
+    state.startRouletteTickTimer = 4;
+    state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
     state.startRouletteFinalPlayer = null;
 }
-
 function updateAllScores() {
     state.players.forEach(p => p.score = p.servedScore || 0);
 }
