@@ -505,28 +505,26 @@ document.body.style.touchAction = "none"; // スクロール防止
 function resize() {
     const dpr = window.devicePixelRatio || 1;
 
+    const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+    const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
     const scale = Math.min(
-        window.innerWidth / LAYOUT.CANVAS_WIDTH,
-        window.innerHeight / LAYOUT.CANVAS_HEIGHT
+        vw / LAYOUT.CANVAS_WIDTH,
+        vh / LAYOUT.CANVAS_HEIGHT
     );
 
-    const width = LAYOUT.CANVAS_WIDTH * scale;
-    const height = LAYOUT.CANVAS_HEIGHT * scale;
+    const cssWidth = Math.floor(LAYOUT.CANVAS_WIDTH * scale);
+    const cssHeight = Math.floor(LAYOUT.CANVAS_HEIGHT * scale);
 
     canvas.width = LAYOUT.CANVAS_WIDTH * dpr;
     canvas.height = LAYOUT.CANVAS_HEIGHT * dpr;
 
-    canvas.style.width = width + "px";
-    canvas.style.height = height + "px";
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
 
-    canvas.style.position = "absolute";
-    canvas.style.left = "50%";
-    canvas.style.top = "50%";
-    canvas.style.transform = "translate(-50%, -50%)";
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-
 window.addEventListener("resize", resize);
 resize();
 
