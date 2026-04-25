@@ -978,10 +978,14 @@ function drawGameScreen(ctx) {
         gradient.addColorStop(1, `rgba(255, 60, 10, ${0.15 + lane.fire * 0.15})`);
         ctx.fillStyle = gradient; ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
 
-        if (state.buildMode && isNodeValidForMode(lane, state.buildMode)) {
-            ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; ctx.fillRect(b.x, b.y, b.w, b.h);
+if (state.buildMode && isNodeValidForMode(lane, state.buildMode)) {
+            // 時間の経過を利用して、波のように行ったり来たりする数値を計算します
+            // 0.15 を基準に、±0.1(つまり 0.05 〜 0.25 の間)で透明度が変化します
+            const alpha = 0.15 + Math.sin(getTime() / 150) * 0.1;
+            
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.fillRect(b.x, b.y, b.w, b.h);
         }
-
         const laneCx = b.x + b.w/2;
         
         if (lane.built) {
@@ -1164,9 +1168,9 @@ if (state.buildMode) {
 
         ctx.textAlign = "center";
         if (f.type === 'meat_up') {
-            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; ctx.fillText("+1 肉", fx, fy + yOffset);
+            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; ctx.fillText("+1", fx, fy + yOffset);
         } else if (f.type === 'meat_down') {
-            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; ctx.fillText("-1 肉", fx, fy + yOffset);
+            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; ctx.fillText("-1", fx, fy + yOffset);
         } else if (f.type === 'star_up') {
             ctx.fillStyle = f.color; ctx.font = "bold 32px monospace";
             const prefix = f.amount > 0 ? "+" : ""; ctx.fillText(`${prefix}${f.amount}`, fx, fy + yOffset);
