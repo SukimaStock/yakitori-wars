@@ -139,7 +139,6 @@ function startGame(mode) {
     state.screen = "game";
     if (mode === "ai") setupAIForStage(1);
     
-    // ゲーム開始時も演出を挟む
     state.currentPlayer = 1;
     state.pendingPlayer = 1;
     state.pendingTurnSplash = true;
@@ -209,7 +208,6 @@ function switchTurn() {
             state.pendingAiBreath = true;
         }
     } else if (state.players[state.currentPlayer - 1].workersRemaining <= 0) {
-        // 全員の行動が終了したら、0.6秒待ってからラウンド終了処理へ
         setTimeout(() => tryEndRound(), 600);
     }
 }
@@ -268,7 +266,7 @@ function tryEndRound() {
 
 function resolvePendingTurnFlow() {
     if (state.pendingTurnSplash) { 
-        state.turnSplashTimer = 45; // 演出タイマーをセット
+        state.turnSplashTimer = 45; 
         state.pendingTurnSplash = false; 
     }
     if (state.turnSplashTimer > 0) {
@@ -278,7 +276,6 @@ function resolvePendingTurnFlow() {
             state.aiBreathTimer = 15; 
             state.pendingAiBreath = false; 
         } else if (state.aiBreathTimer <= 0) {
-            // スプラッシュ演出が完全に終わってから操作権限を移譲する
             state.currentPlayer = state.pendingPlayer;
             state.pendingPlayer = null;
         }
@@ -302,18 +299,23 @@ function getCookLabel(laneType, cv) {
     return "early";
 }
 
-function canUseMeat(playerIndex) { return true; }
+// ★修正: 肉の所持上限(2未満)を追加
+function canUseMeat(playerIndex) { 
+    return state.players[playerIndex - 1].resources < 2; 
+}
+
 function canUseSkewer(playerIndex) {
     return state.players[playerIndex - 1].resources >= 1 && state.lanes.some(l => !l.built);
 }
+
 function canUseServe(playerIndex) {
     const p = state.players[playerIndex - 1];
     for (let n of state.lanes) {
         if (n.built) {
             const status = getCookLabel(n.type, n.cookState);
-            if (status === "burnt") return true; // clean up
-            if (n.owner === playerIndex) return true; // harvest own
-            if (p.resources >= 1 && (status === "okay" || status === "perfect")) return true; // steal
+            if (status === "burnt") return true; 
+            if (n.owner === playerIndex) return true; 
+            if (p.resources >= 1 && (status === "okay" || status === "perfect")) return true; 
         }
     }
     return false;
@@ -355,7 +357,7 @@ function tryHarvestNode(node) {
     const status = getCookLabel(node.type, node.cookState);
     
     if (isSteal) {
-        if (status === "early") return; // Cannot steal raw
+        if (status === "early") return; 
         if (status !== "burnt") {
             if (p.resources < 1) return;
             p.resources -= 1;
@@ -365,10 +367,10 @@ function tryHarvestNode(node) {
 
     let scoreGained = 0;
     if (status === "burnt") {
-        if (isSteal) scoreGained = 0; // Clean up
-        else scoreGained = -2; // Own burnt penalty
+        if (isSteal) scoreGained = 0; 
+        else scoreGained = -2; 
     } else if (status === "early") {
-        scoreGained = -5; // Raw penalty
+        scoreGained = -5; 
     } else {
         const heat = getBaseHeat(node.type);
         if (heat === 1) scoreGained = (status === "perfect") ? 12 : 3;
@@ -412,7 +414,6 @@ function isNodeValidForMode(node, mode) {
 // ==========================================
 function isInputLocked() {
     const cp = state.currentPlayer;
-    // AIのターンは人間の入力を完全にロック
     if (isAIPlayer(cp)) return true;
 
     return state.screen !== "game" || 
@@ -474,7 +475,7 @@ function handleCanvasClick(event, canvas) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
             if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
-            if (boxId === 4) canUse = true; // Uchiwa validates on tap
+            if (boxId === 4) canUse = true; 
 
             if (canUse) placeWorker(boxId);
             return;
@@ -506,7 +507,7 @@ function buildActionCandidates(currentState, playerIndex) {
     }
     currentState.lanes.forEach(n => {
         if (n.built) {
-            actions.push({ type: "serve", nodeId: n.id }); // includes discard
+            actions.push({ type: "serve", nodeId: n.id });
             actions.push({ type: "uchiwa", nodeId: n.id });
         }
     });
@@ -568,7 +569,7 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
     } else if (action.type === "serve") {
         const lbl = getCookLabel(node.type, node.cookState);
         const isOwn = node.owner === playerIndex;
-        if (lbl === "burnt") score += 25; // discard
+        if (lbl === "burnt") score += 25; 
         else if (!isOwn) {
             if (lbl === "perfect") score += (profileName === "thief" ? 80 : 30);
             if (lbl === "okay") score += (profileName === "thief" ? 50 : 10);
@@ -615,10 +616,8 @@ function playAITurn() {
         scored.sort((a, b) => b.score - a.score);
         let best = scored[0].action;
 
-        // 揺らぎ・ミスの処理
         if (scored.length > 1 && Math.random() < levelConf.mistake) best = scored[1].action;
 
-        // 行動実行
         if (best.type === "meat") placeWorker(1);
         else if (best.type === "put") { state.buildMode="sapling"; tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
         else if (best.type === "serve") { state.buildMode="harvest"; tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
@@ -678,7 +677,6 @@ function drawGameScreen(ctx) {
     const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
     const safeTop = 15;
     
-    // ★修正: ターン演出中にも正しいプレイヤーがアクティブに見えるようにする
     const activePlayer = state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer;
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 60, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 60, 2, activePlayer);
@@ -739,7 +737,6 @@ function drawGameScreen(ctx) {
         });
     }
 
-    // ★修正: ターン演出の暗転時、次に操作するプレイヤーの名前を正しく表示する
     if (state.turnSplashTimer > 0) {
         ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; ctx.fillRect(0,0,LAYOUT.CANVAS_WIDTH,LAYOUT.CANVAS_HEIGHT);
         ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
@@ -747,7 +744,6 @@ function drawGameScreen(ctx) {
         ctx.fillText(`P${activePlayer} TURN`, cx, LAYOUT.CANVAS_HEIGHT / 2);
     }
 
-    // ★修正: Codea版のようにアクション後の視覚的なフィードバックを暗転よりも「手前」に描画する
     const now = getTime();
     state.visuals.ghosts.forEach(g => {
         const elapsed = now - g.startTime;
@@ -828,13 +824,20 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-canvas.addEventListener('click', (e) => handleCanvasClick(e, canvas));
-canvas.addEventListener('touchstart', (e) => {
+// ★追加: ゴーストクリック対策
+let lastTouchTime = 0;
+
+canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
+    lastTouchTime = Date.now();
     const touch = e.touches[0];
-    const simulatedEvent = { clientX: touch.clientX, clientY: touch.clientY };
-    handleCanvasClick(simulatedEvent, canvas);
+    handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY }, canvas);
 }, { passive: false });
+
+canvas.addEventListener("click", (e) => {
+    if (Date.now() - lastTouchTime < 500) return;
+    handleCanvasClick(e, canvas);
+});
 
 function loop() {
     resolvePendingTurnFlow();
