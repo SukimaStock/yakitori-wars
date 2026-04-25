@@ -6,7 +6,7 @@ let state = {};
 function initGameState() {
     state = {
         screen: "title",
-        gameMode: "pvp", // "ai" or "pvp"
+        gameMode: "pvp",
         currentStage: 1,
         enemyName: "KENTA",
         aiLevel: 2,
@@ -15,20 +15,18 @@ function initGameState() {
         maxRounds: 13,
         currentPlayer: 1,
         firstPlayer: 1,
-        nextFirstPlayer: 1, // ★修正: 常にP1から開始するように初期値を変更
+        nextFirstPlayer: 1,
         gameOver: false,
         winnerText: "",
         winReason: "",
         isBusy: false,
         isAIThinking: false,
         
-        // --- 新規追加: ルーレット用ステート ---
         startRouletteActive: false,
         startRouletteTimer: 0,
-        startRouletteDuration: 90, // 約1.5秒 (60fps想定)
+        startRouletteDuration: 90,
         startRouletteIndex: 1,
         startRouletteFinalPlayer: null,
-        // ----------------------------------
         
         turnSplashTimer: 0,
         pendingTurnSplash: false,
@@ -48,8 +46,8 @@ function initGameState() {
             { id: "s3", fire: 3, type: "strong", owner: null, cookState: 0, uchiwaBoost: 0, justPlaced: false, built: false }
         ],
         visuals: {
-            buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, ghosts: [], floaters: [],
-            particles: [] // ★新規追加: 煙エフェクトなどのパーティクルを管理
+            buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
+            ghosts: [], floaters: [], particles: [], cancelClick: 0
         }
     };
 }
@@ -67,7 +65,7 @@ let LAYOUT = {
         STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334",
         HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
-BUTTONS: [
+    BUTTONS: [
         { id: "meat", color: "#56657a", icon: "meat", label: "肉" },
         { id: "put", color: "#56657a", icon: "put", label: "置く" },
         { id: "harvest", color: "#56657a", icon: "serve", label: "取る/捨" },
@@ -75,96 +73,25 @@ BUTTONS: [
     ]
 };
 
-// 生肉からタレの焦げ色までの美味しそうなパレット
 const VISUAL_STATES = {
-    RAW: { meat: "#e57373", negi: "#e8f5e9", dot: "#fff" },       // 生肉ピンク、ネギ白
-    OKAY: { meat: "#c07040", negi: "#c8e6c9", dot: "#f90" },      // 火が通った茶色
-    PERFECT: { meat: "#793910", negi: "#81c784", dot: "#ff4" },   // 照り焼きの深い色、ネギの焼き色
-    BURNT: { meat: "#2a1a12", negi: "#1a251a", dot: "#f33" }      // 炭
-};
-// --- ドット絵用のカラーパレット ---
-const ICON_PALETTE = {
-    1: "#ffffff", // 白
-    2: "#d95763", // 肉(赤身)
-    3: "#8c3f5d", // 肉(影)
-    4: "#df7126", // 火(オレンジ)
-    5: "#fbf236", // 火(黄色)
-    6: "#5fcde4", // ダイヤ(水色)
-    7: "#8f563b", // うちわの柄(茶色)
-    8: "#ac3232", // うちわの模様(赤)
-    9: "#e8ede7", // うちわの紙(オフホワイト)
-    10: "#99e550", // ★新規: 置く(緑)
-    11: "#ffcc66"  // ★新規: 取る/捨てる(オレンジ黄色)
+    RAW: { meat: "#e57373", negi: "#e8f5e9", dot: "#fff" },
+    OKAY: { meat: "#c07040", negi: "#c8e6c9", dot: "#f90" },
+    PERFECT: { meat: "#793910", negi: "#81c784", dot: "#ff4" },
+    BURNT: { meat: "#2a1a12", negi: "#1a251a", dot: "#f33" }
 };
 
-// --- アイコンデータ(数字はパレットのインデックス。10はUI指定色) ---
+const ICON_PALETTE = {
+    1: "#ffffff", 2: "#d95763", 3: "#8c3f5d", 4: "#df7126", 5: "#fbf236", 
+    6: "#5fcde4", 7: "#8f563b", 8: "#ac3232", 9: "#e8ede7", 10: "#99e550", 11: "#ffcc66"
+};
+
 const ICON_DATA = {
-    // 肉 (両端に骨がある王道のマンガ肉)
-    meat: [
-        0,0,0,0,0,0,0,0,
-        0,0,2,2,2,2,0,0,
-        0,2,3,2,2,2,2,0,
-        1,3,3,3,2,2,2,1,
-        1,3,3,3,2,2,2,1,
-        0,2,3,2,2,2,2,0,
-        0,0,2,2,2,2,0,0,
-        0,0,0,0,0,0,0,0
-    ],
-// 置く (下矢印を 10:緑 に変更)
-    put: [
-        0,0,0,10,10,0,0,0,
-        0,0,0,10,10,0,0,0,
-        0,0,0,10,10,0,0,0,
-        0,0,0,10,10,0,0,0,
-        10,10,10,10,10,10,10,10,
-        0,10,10,10,10,10,10,0,
-        0,0,10,10,10,10,0,0,
-        0,0,0,10,10,0,0,0
-    ],
-    // 取る/捨てる (上矢印を 11:オレンジ黄色 に変更)
-    serve: [
-        0,0,0,11,11,0,0,0,
-        0,0,11,11,11,11,0,0,
-        0,11,11,11,11,11,11,0,
-        11,11,11,11,11,11,11,11,
-        0,0,0,11,11,0,0,0,
-        0,0,0,11,11,0,0,0,
-        0,0,0,11,11,0,0,0,
-        0,0,0,11,11,0,0,0
-    ],
-// うちわ (縁取りをなくし、白ベースに赤模様)
-    uchiwa: [
-        0,8,8,8,8,8,8,0,
-        8,8,8,8,8,8,8,8,
-        8,8,8,8,8,8,8,8,
-        9,9,9,9,9,9,9,9,
-        0,9,9,7,7,9,9,0,
-        0,0,0,7,7,0,0,0,
-        0,0,0,7,7,0,0,0,
-        0,0,0,7,7,0,0,0
-    ],
-    // スコア/ダイヤ
-    diamond: [
-        0,0,0,1,6,0,0,0,
-        0,0,1,6,6,6,0,0,
-        0,1,6,6,6,6,6,0,
-        1,6,6,6,6,6,6,6,
-        0,6,6,6,6,6,6,0,
-        0,0,6,6,6,6,0,0,
-        0,0,0,6,6,0,0,0,
-        0,0,0,0,0,0,0,0
-    ],
-    // 火 
-    fire: [
-        0,0,0,4,0,0,0,0,
-        0,0,4,5,4,0,0,0,
-        0,4,4,5,4,4,0,0,
-        0,4,5,5,5,4,0,0,
-        4,5,5,5,5,5,4,0,
-        4,4,5,5,5,4,4,0,
-        0,4,4,4,4,4,0,0,
-        0,0,0,0,0,0,0,0
-    ]
+    meat: [0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,2,3,2,2,2,2,0,1,3,3,3,2,2,2,1,1,3,3,3,2,2,2,1,0,2,3,2,2,2,2,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0],
+    put: [0,0,0,10,10,0,0,0,0,0,0,10,10,0,0,0,0,0,0,10,10,0,0,0,0,0,0,10,10,0,0,0,10,10,10,10,10,10,10,10,0,10,10,10,10,10,10,0,0,0,10,10,10,10,0,0,0,0,0,10,10,0,0,0],
+    serve: [0,0,0,11,11,0,0,0,0,0,11,11,11,11,0,0,0,11,11,11,11,11,11,0,11,11,11,11,11,11,11,11,0,0,0,11,11,0,0,0,0,0,0,11,11,0,0,0,0,0,0,11,11,0,0,0,0,0,0,11,11,0,0,0],
+    uchiwa: [0,8,8,8,8,8,8,0,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,0,9,9,7,7,9,9,0,0,0,0,7,7,0,0,0,0,0,0,7,7,0,0,0,0,0,0,7,7,0,0,0],
+    diamond: [0,0,0,1,6,0,0,0,0,0,1,6,6,6,0,0,0,1,6,6,6,6,6,0,1,6,6,6,6,6,6,6,0,6,6,6,6,6,6,0,0,0,6,6,6,6,0,0,0,0,0,6,6,0,0,0,0,0,0,0,0,0,0,0],
+    fire: [0,0,0,4,0,0,0,0,0,0,4,5,4,0,0,0,0,4,4,5,4,4,0,0,0,4,5,5,5,4,0,0,4,5,5,5,5,5,4,0,4,4,5,5,5,4,4,0,0,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0]
 };
 
 function getVisualPalette(status) { return VISUAL_STATES[status] || VISUAL_STATES.RAW; }
@@ -200,6 +127,8 @@ function getCancelButtonBounds() {
     return { x: startX, y, w: btnW, h: btnH };
 }
 
+const getTime = () => performance.now();
+
 // ==========================================
 // 3. game/flow.js - ゲーム進行とスコア
 // ==========================================
@@ -227,12 +156,10 @@ function startGame(mode) {
     state.screen = "game";
     if (mode === "ai") setupAIForStage(1);
     
-    // --- 新規追加: ルーレット開始設定 ---
     state.startRouletteActive = true;
     state.startRouletteTimer = state.startRouletteDuration;
     state.startRouletteIndex = 1;
     state.startRouletteFinalPlayer = null;
-    // ----------------------------------
 }
 
 function nextStage() {
@@ -244,19 +171,14 @@ function nextStage() {
     state.screen = "game";
     setupAIForStage(nextStg);
     
-    // --- 新規追加: 次ステージもルーレット開始 ---
     state.startRouletteActive = true;
     state.startRouletteTimer = state.startRouletteDuration;
     state.startRouletteIndex = 1;
     state.startRouletteFinalPlayer = null;
-    // ----------------------------------------
 }
 
 function updateAllScores() {
-    state.players.forEach((p, i) => {
-        let s = p.servedScore || 0;
-        p.score = s;
-    });
+    state.players.forEach(p => p.score = p.servedScore || 0);
 }
 
 function getBaseHeat(type) {
@@ -266,13 +188,11 @@ function getBaseHeat(type) {
     return 1;
 }
 
-// ★新規追加: 煙エフェクトを発生させる関数
 function spawnSmokeEffect(laneIndex, amount) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
     const stickTop = b.y + b.h * 0.1;
-    const meatY = stickTop + (b.h * 0.7) * 0.4; // お肉の真ん中あたりを計算
-
+    const meatY = stickTop + (b.h * 0.7) * 0.4;
     const numParticles = 5 + amount * 3; 
     
     for (let i = 0; i < numParticles; i++) {
@@ -288,7 +208,6 @@ function spawnSmokeEffect(laneIndex, amount) {
     }
 }
 
-// ★修正: 焼けた時に煙を出す処理を追加
 function advanceAllSkewersAtRoundEnd() {
     state.lanes.forEach((n, index) => {
         if (n.built) {
@@ -296,11 +215,9 @@ function advanceAllSkewersAtRoundEnd() {
             else {
                 const baseHeat = getBaseHeat(n.type);
                 const boost = n.uchiwaBoost || 0;
-                
                 const prevCookState = n.cookState; 
                 n.cookState = Math.min(8, n.cookState + baseHeat + boost);
                 
-                // 実際に数値が上がって焼けた場合、煙を出す
                 if (n.cookState > prevCookState) {
                     spawnSmokeEffect(index, n.cookState - prevCookState); 
                 }
@@ -323,26 +240,17 @@ function consumeWorker() {
     switchTurn();
 }
 
-// ★修正: リズムを整えるため、800ms待ってからターンを切り替える
 function switchTurn() {
-    // 1. ポップアップ演出が終わるまで入力をブロック
     state.isBusy = true;
-
-    // 2. 800ミリ秒待ってから次の処理へ進む
     setTimeout(() => {
         const nextP = 3 - state.currentPlayer;
-        
         if (state.players[nextP - 1].workersRemaining > 0) {
             state.pendingPlayer = nextP;
             state.pendingTurnSplash = true; 
-            if (isAIPlayer(nextP)) {
-                state.pendingAiBreath = true;
-            }
+            if (isAIPlayer(nextP)) state.pendingAiBreath = true;
         } else if (state.players[state.currentPlayer - 1].workersRemaining <= 0) {
             tryEndRound();
         }
-        
-        // 3. 切り替えが終わったら入力を解除
         state.isBusy = false;
     }, 800);
 }
@@ -350,41 +258,30 @@ function switchTurn() {
 function startNewRound() {
     state.round++;
     state.players.forEach(p => p.workersRemaining = 1);
-
     state.buildMode = null;
     state.pendingBox = null;
-
     state.currentPlayer = state.firstPlayer;
     state.pendingPlayer = state.firstPlayer;
-    
     state.pendingTurnSplash = true;
     state.pendingAiBreath = false;
 }
 
-// --- 新規追加: ルーレットの更新処理 ---
 function updateRoulette() {
     if (!state.startRouletteActive) return;
-
     state.startRouletteTimer--;
-
-    // 5フレームごとに表示を切り替え
     if (state.startRouletteTimer % 5 === 0) {
         state.startRouletteIndex = 3 - state.startRouletteIndex;
     }
-
-    // ルーレット終了時の処理
     if (state.startRouletteTimer <= 0) {
         state.startRouletteActive = false;
-        // ランダムに先攻を決定
         state.startRouletteFinalPlayer = Math.random() < 0.5 ? 1 : 2;
-
         state.firstPlayer = state.startRouletteFinalPlayer;
         state.currentPlayer = state.startRouletteFinalPlayer;
         state.pendingPlayer = state.startRouletteFinalPlayer;
         state.pendingTurnSplash = true;
     }
 }
-// ------------------------------------
+
 function tryEndRound() {
     advanceAllSkewersAtRoundEnd();
     
@@ -396,44 +293,22 @@ function tryEndRound() {
         
         if (p1 > p2) {
             if (state.gameMode === "ai") {
-                if (state.currentStage >= 5) {
-                    state.screen = "clear";
-                    state.winnerText = "SURVIVAL CLEAR";
-                } else {
-                    state.screen = "stage_clear";
-                    state.winnerText = "STAGE CLEAR";
-                }
-            } else {
-                state.screen = "gameover";
-                state.winnerText = "P1 Wins!";
-            }
-        } else if (p2 > p1) {
-            state.screen = "gameover";
-            state.winnerText = "P2 Wins!";
-        } else {
-            state.screen = "gameover";
-            state.winnerText = "Draw!";
-        }
+                if (state.currentStage >= 5) { state.screen = "clear"; state.winnerText = "SURVIVAL CLEAR"; }
+                else { state.screen = "stage_clear"; state.winnerText = "STAGE CLEAR"; }
+            } else { state.screen = "gameover"; state.winnerText = "P1 Wins!"; }
+        } else if (p2 > p1) { state.screen = "gameover"; state.winnerText = "P2 Wins!"; } 
+        else { state.screen = "gameover"; state.winnerText = "Draw!"; }
         return;
     }
     startNewRound();
 }
 
 function resolvePendingTurnFlow() {
-    if (state.pendingTurnSplash) { 
-        state.turnSplashTimer = 45; 
-        state.pendingTurnSplash = false; 
-    }
-    if (state.turnSplashTimer > 0) {
-        state.turnSplashTimer--;
-    } else if (state.pendingPlayer !== null) {
-        if (state.pendingAiBreath) { 
-            state.aiBreathTimer = 15; 
-            state.pendingAiBreath = false; 
-        } else if (state.aiBreathTimer <= 0) {
-            state.currentPlayer = state.pendingPlayer;
-            state.pendingPlayer = null;
-        }
+    if (state.pendingTurnSplash) { state.turnSplashTimer = 45; state.pendingTurnSplash = false; }
+    if (state.turnSplashTimer > 0) state.turnSplashTimer--;
+    else if (state.pendingPlayer !== null) {
+        if (state.pendingAiBreath) { state.aiBreathTimer = 15; state.pendingAiBreath = false; }
+        else if (state.aiBreathTimer <= 0) { state.currentPlayer = state.pendingPlayer; state.pendingPlayer = null; }
     }
     if (state.aiBreathTimer > 0) state.aiBreathTimer--;
 }
@@ -454,22 +329,14 @@ function getCookLabel(laneType, cv) {
     return "early";
 }
 
-function canUseMeat(playerIndex) { 
-    return true; 
-}
-
-function canUseSkewer(playerIndex) {
-    return state.players[playerIndex - 1].resources >= 1 && state.lanes.some(l => !l.built);
-}
-
+function canUseMeat(playerIndex) { return true; }
+function canUseSkewer(playerIndex) { return state.players[playerIndex - 1].resources >= 1 && state.lanes.some(l => !l.built); }
 function canUseServe(playerIndex) {
     const p = state.players[playerIndex - 1];
     for (let n of state.lanes) {
         if (n.built) {
             const status = getCookLabel(n.type, n.cookState);
-            if (status === "burnt") return true; 
-            if (n.owner === playerIndex) return true; 
-            if (p.resources >= 1 && (status === "okay" || status === "perfect")) return true; 
+            if (status === "burnt" || n.owner === playerIndex || (p.resources >= 1 && (status === "okay" || status === "perfect"))) return true; 
         }
     }
     return false;
@@ -477,18 +344,17 @@ function canUseServe(playerIndex) {
 
 function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
-    if (boxId === 1) { // Meat
+    if (boxId === 1) { 
         p.resources += 1;
         state.visuals.floaters.push({ type: 'meat_up', targetType: state.currentPlayer === 1 ? 'p1' : 'p2', startTime: performance.now() });
         consumeWorker();
     } else {
-        // ★修正: アニメーションを見せるため、150ミリ秒待ってからモードを切り替える
-        state.isBusy = true; // 待っている間の誤タップを防止
+        state.isBusy = true;
         setTimeout(() => {
-            if (boxId === 2 && p.resources >= 1) state.buildMode = "sapling";
-            else if (boxId === 3) state.buildMode = "harvest";
-            else if (boxId === 4) state.buildMode = "uchiwa";
-            state.isBusy = false; // ロック解除
+            if (boxId === 2 && p.resources >= 1) { state.buildMode = "sapling"; state.pendingBox = boxId; }
+            else if (boxId === 3) { state.buildMode = "harvest"; state.pendingBox = boxId; }
+            else if (boxId === 4) { state.buildMode = "uchiwa"; state.pendingBox = boxId; }
+            state.isBusy = false;
         }, 150);
     }
 }
@@ -498,10 +364,7 @@ function tryBuildNode(node) {
     if (p.resources >= 1 && !node.built) {
         p.resources -= 1;
         state.visuals.floaters.push({ type: 'meat_down', targetType: state.currentPlayer === 1 ? 'p1' : 'p2', startTime: performance.now() });
-        node.built = true;
-        node.owner = state.currentPlayer;
-        node.cookState = 0;
-        node.justPlaced = true;
+        node.built = true; node.owner = state.currentPlayer; node.cookState = 0; node.justPlaced = true;
         state.visuals.placedAt[node.id] = performance.now();
         consumeWorker();
     }
@@ -513,11 +376,14 @@ function tryHarvestNode(node) {
     const isSteal = (node.owner !== null && node.owner !== state.currentPlayer);
     const status = getCookLabel(node.type, node.cookState);
     
-    if (isSteal && status !== "burnt" && status !== "early" && p.resources >= 1) {
-        p.resources -= 1;
-        state.visuals.floaters.push({ type: 'meat_down', targetType: state.currentPlayer === 1 ? 'p1' : 'p2', startTime: performance.now() });
+    if (isSteal) {
+        if (status === "early") return; 
+        if (status !== "burnt") {
+            if (p.resources < 1) return;
+            p.resources -= 1;
+            state.visuals.floaters.push({ type: 'meat_down', targetType: state.currentPlayer === 1 ? 'p1' : 'p2', startTime: performance.now() });
+        }
     }
-    if (isSteal && status === "early") return;
 
     let scoreGained = 0;
     if (status === "burnt") scoreGained = isSteal ? 0 : -2;
@@ -536,13 +402,12 @@ function tryHarvestNode(node) {
         state.visuals.floaters.push({ type: 'star_up', amount: scoreGained, targetType: 'lane', targetIndex: state.lanes.indexOf(node), color: floaterCol, startTime: performance.now() });
     }
     
-    // ★修正: テキストだけでなく、取った瞬間の「串のデータ」も一緒に保存する
     state.visuals.ghosts.push({ 
         laneIndex: state.lanes.indexOf(node), 
         status: status.toUpperCase(), 
         startTime: performance.now(),
-        cookState: node.cookState, // 串を描画するための焼き加減
-        owner: node.owner          // 串を描画するための所有者
+        cookState: node.cookState, 
+        owner: node.owner          
     });
 
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false;
@@ -550,10 +415,7 @@ function tryHarvestNode(node) {
 }
 
 function tryUchiwaNode(node) {
-    if (node.built) {
-        node.uchiwaBoost += 1;
-        consumeWorker();
-    }
+    if (node.built) { node.uchiwaBoost += 1; consumeWorker(); }
 }
 
 function isNodeValidForMode(node, mode) {
@@ -573,7 +435,6 @@ function isNodeValidForMode(node, mode) {
 // ==========================================
 function isInputLocked() {
     if (state.startRouletteActive) return true;
-    
     const cp = state.currentPlayer;
     if (isAIPlayer(cp)) return true;
 
@@ -592,30 +453,21 @@ function handleCanvasClick(event, canvas) {
     const y = event.clientY - rect.top;
 
     if (state.screen === "title") {
-        const cy = LAYOUT.CANVAS_HEIGHT / 2;
-        if (y < cy) startGame("ai"); else startGame("pvp");
-        return;
+        if (y < LAYOUT.CANVAS_HEIGHT / 2) startGame("ai"); else startGame("pvp"); return;
     } else if (state.screen === "gameover" || state.screen === "clear") {
-        initGameState();
-        return;
+        initGameState(); return;
     } else if (state.screen === "stage_clear") {
-        nextStage();
-        return;
+        nextStage(); return;
     }
 
     if (isInputLocked()) return;
 
-if (state.buildMode) {
+    if (state.buildMode) {
         const cb = getCancelButtonBounds();
         if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
-            // ★新規追加: CANCELボタンを押した時間を記録して、150ms後に戻る
             state.visuals.cancelClick = performance.now();
             state.isBusy = true;
-            setTimeout(() => {
-                state.buildMode = null; 
-                state.pendingBox = null; 
-                state.isBusy = false;
-            }, 150);
+            setTimeout(() => { state.buildMode = null; state.pendingBox = null; state.isBusy = false; }, 150);
             return;
         }
 
@@ -635,10 +487,9 @@ if (state.buildMode) {
         return;
     }
 
-for (let i = 0; i < LAYOUT.BUTTONS.length; i++) {
+    for (let i = 0; i < LAYOUT.BUTTONS.length; i++) {
         const b = getButtonBounds(i);
         if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
-            const actionId = LAYOUT.BUTTONS[i].id;
             const boxId = i + 1;
             let canUse = false;
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
@@ -647,7 +498,6 @@ for (let i = 0; i < LAYOUT.BUTTONS.length; i++) {
             if (boxId === 4) canUse = true; 
 
             if (canUse) {
-                // ★新規追加: ボタンを押した瞬間の時間を記録する
                 state.visuals.buttonClicks[i] = performance.now();
                 placeWorker(boxId);
             }
@@ -659,12 +509,6 @@ for (let i = 0; i < LAYOUT.BUTTONS.length; i++) {
 // ==========================================
 // 6. game/ai.js - AIロジック
 // ==========================================
-const BALANCE = {
-    weak: { heat: 1, perfect: [6, 7], okay: [5], pts: {perfect:12, okay:3, early:-5, burnt:-2} },
-    medium: { heat: 2, perfect: [6], okay: [5], pts: {perfect:8, okay:2, early:-5, burnt:-2} },
-    strong: { heat: 3, perfect: [6], okay: [5], pts: {perfect:6, okay:2, early:-5, burnt:-2} }
-};
-
 const AI_LEVEL_CONFIG = {
     1: { rand: 0.40, mistake: 0.30, futWt: 0.10, allowUchiwa: false, topCandRange: 3, scoreNoise: 10, closeThresh: 8, closeRate: 0.35 },
     2: { rand: 0.20, mistake: 0.15, futWt: 0.20, allowUchiwa: true,  topCandRange: 3, scoreNoise: 6,  closeThresh: 6, closeRate: 0.25 },
@@ -676,16 +520,10 @@ const AI_LEVEL_CONFIG = {
 function buildActionCandidates(currentState, playerIndex) {
     const actions = [];
     const p = currentState.players[playerIndex - 1];
-    
     actions.push({ type: "meat" });
-    if (p.resources >= 1) {
-        currentState.lanes.forEach(n => { if (!n.built) actions.push({ type: "put", nodeId: n.id }); });
-    }
+    if (p.resources >= 1) { currentState.lanes.forEach(n => { if (!n.built) actions.push({ type: "put", nodeId: n.id }); }); }
     currentState.lanes.forEach(n => {
-        if (n.built) {
-            actions.push({ type: "serve", nodeId: n.id });
-            actions.push({ type: "uchiwa", nodeId: n.id });
-        }
+        if (n.built) { actions.push({ type: "serve", nodeId: n.id }); actions.push({ type: "uchiwa", nodeId: n.id }); }
     });
     return actions;
 }
@@ -767,14 +605,7 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 }
 
 function playAITurn() {
-    if (state.startRouletteActive) return;
-    if (!isAIPlayer(state.currentPlayer)) return;
-    if (state.screen !== "game" || state.isBusy || state.gameOver || 
-        state.pendingTurnSplash || state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0) return;
-    
-    if (state.players[state.currentPlayer - 1].workersRemaining <= 0) return;
-    if (state.isAIThinking) return;
-
+    if (state.startRouletteActive || !isAIPlayer(state.currentPlayer) || isInputLocked() || state.isAIThinking) return;
     state.isAIThinking = true;
     setTimeout(() => {
         try {
@@ -784,18 +615,12 @@ function playAITurn() {
             let cands = buildActionCandidates(state, state.currentPlayer).filter(a => isActionValidForAI(state, a, state.currentPlayer, profile, levelConf));
             if (cands.length === 0) cands.push({ type: "meat" });
 
-            let scored = cands.map(a => {
-                let s = scoreAIAction(state, a, state.currentPlayer, profile);
-                s += (Math.random() * 2 - 1) * levelConf.scoreNoise;
-                return { action: a, score: s };
-            });
-
+            let scored = cands.map(a => ({ action: a, score: scoreAIAction(state, a, state.currentPlayer, profile) + (Math.random() * 2 - 1) * levelConf.scoreNoise }));
             scored.sort((a, b) => b.score - a.score);
             let best = scored[0].action;
 
             if (scored.length > 1) {
-                const r = Math.random();
-                if (r < levelConf.mistake) {
+                if (Math.random() < levelConf.mistake) {
                     let pool = scored.filter((s, i) => i >= 1 && i <= 2 && (scored[0].score - s.score) <= 15);
                     if (pool.length > 0) best = pool[Math.floor(Math.random() * pool.length)].action;
                 } else if (Math.random() < levelConf.rand) {
@@ -803,9 +628,7 @@ function playAITurn() {
                     if (pool.length > 1) best = pool[Math.floor(Math.random() * pool.length)].action;
                 } else {
                     let second = scored[1];
-                    if ((scored[0].score - second.score) <= levelConf.closeThresh) {
-                        if (Math.random() < levelConf.closeRate) best = second.action;
-                    }
+                    if ((scored[0].score - second.score) <= levelConf.closeThresh && Math.random() < levelConf.closeRate) best = second.action;
                 }
             }
 
@@ -822,15 +645,9 @@ function playAITurn() {
 // ==========================================
 // 7. render/render.js - 描画処理
 // ==========================================
-const getTime = () => performance.now();
-
-// ★新規追加: フェードイン・フェードアウトの透明度を計算する関数
 function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
-    if (currentTimer > maxTimer - fadeFrames) {
-        return Math.max(0, (maxTimer - currentTimer) / fadeFrames);
-    } else if (currentTimer < fadeFrames) {
-        return Math.max(0, currentTimer / fadeFrames);
-    }
+    if (currentTimer > maxTimer - fadeFrames) return Math.max(0, (maxTimer - currentTimer) / fadeFrames);
+    if (currentTimer < fadeFrames) return Math.max(0, currentTimer / fadeFrames);
     return 1.0; 
 }
 
@@ -839,68 +656,35 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     ctx.fillRect(x, y, w, h);
 
     if (isPressed) {
-        // ★変更: 押されている時は内側に濃い影をつけて凹みを表現
-        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-        ctx.fillRect(x, y, w, h);
-        
-        ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-        ctx.fillRect(x, y, w, 6); // 上の影
-        ctx.fillRect(x, y, 6, h); // 左の影
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(x, y, w, 6); ctx.fillRect(x, y, 6, h);
     } else {
-        // 通常時は出っ張った表現(ハイライトと影)
-        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-        ctx.fillRect(x, y, w, 4); 
-        ctx.fillRect(x, y, 4, h); 
-
-        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-        ctx.fillRect(x, y + h - 6, w, 6); 
-        ctx.fillRect(x + w - 4, y, 4, h); 
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h); 
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(x, y + h - 6, w, 6); ctx.fillRect(x + w - 4, y, 4, h); 
     }
 }
+
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi) {
     ctx.fillStyle = baseColor;
-    
     if (isNegi) {
-        const nx = x + 4;
-        const nw = w - 8;
-        ctx.fillRect(nx, y, nw, h);
-        
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        ctx.fillRect(nx + 2, y + 2, nw - 4, 4);
-        
-        ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-        ctx.fillRect(nx, y + h - 6, nw, 6);
-        ctx.fillRect(nx + nw - 4, y, 4, h);
+        const nx = x + 4; const nw = w - 8; ctx.fillRect(nx, y, nw, h);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)"; ctx.fillRect(nx + 2, y + 2, nw - 4, 4);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(nx, y + h - 6, nw, 6); ctx.fillRect(nx + nw - 4, y, 4, h);
     } else {
-        ctx.fillRect(x + 4, y, w - 8, h); 
-        ctx.fillRect(x, y + 4, w, h - 8); 
-        
-        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-        ctx.fillRect(x + 6, y + 4, w - 16, 4); 
-        ctx.fillRect(x + 4, y + 8, 4, 6);      
-        
-        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-        ctx.fillRect(x + 4, y + h - 8, w - 8, 8);  
-        ctx.fillRect(x + w - 6, y + 6, 4, h - 14); 
+        ctx.fillRect(x + 4, y, w - 8, h); ctx.fillRect(x, y + 4, w, h - 8); 
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)"; ctx.fillRect(x + 6, y + 4, w - 16, 4); ctx.fillRect(x + 4, y + 8, 4, 6);      
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x + 4, y + h - 8, w - 8, 8); ctx.fillRect(x + w - 6, y + 6, 4, h - 14); 
     }
 }
 
 function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     const data = ICON_DATA[iconId]; if (!data) return;
     const isDisabled = (color === "#888"); 
-    
     for (let i = 0; i < 64; i++) {
         const val = data[i];
         if (val !== 0) {
-            const x = (i % 8) * scale; 
-            const y = Math.floor(i / 8) * scale;
-            
-            if (isDisabled) {
-                ctx.fillStyle = "#888"; 
-            } else {
-                ctx.fillStyle = ICON_PALETTE[val] || color;
-            }
-            ctx.fillRect(cx - (4 * scale) + x, cy - (4 * scale) + y, scale, scale);
+            ctx.fillStyle = isDisabled ? "#888" : (ICON_PALETTE[val] || color);
+            ctx.fillRect(cx - (4 * scale) + (i % 8) * scale, cy - (4 * scale) + Math.floor(i / 8) * scale, scale, scale);
         }
     }
 }
@@ -909,10 +693,8 @@ function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     state.visuals.floaters = state.visuals.floaters.filter(f => now - f.startTime < 800);
-    ctx.fillStyle = LAYOUT.COLORS.BG;
-    ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-    const cx = LAYOUT.CANVAS_WIDTH / 2;
-    const cy = LAYOUT.CANVAS_HEIGHT / 2;
+    ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    const cx = LAYOUT.CANVAS_WIDTH / 2; const cy = LAYOUT.CANVAS_HEIGHT / 2;
 
     if (state.screen === "title") {
         ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center";
@@ -929,37 +711,65 @@ function render(ctx) {
         ctx.font = "24px monospace";
         ctx.fillStyle = state.winnerText.includes("P2") ? LAYOUT.COLORS.P2 : LAYOUT.COLORS.P1;
         ctx.fillText(state.winnerText, cx, cy);
-        ctx.fillStyle = "#fff"; ctx.font = "16px monospace";
-        ctx.fillText("Tap to Continue", cx, cy + 80);
+        ctx.fillStyle = "#fff"; ctx.font = "16px monospace"; ctx.fillText("Tap to Continue", cx, cy + 80);
     }
 }
 
 function drawGameScreen(ctx) {
     const cx = LAYOUT.CANVAS_WIDTH / 2;
-    const cy = LAYOUT.CANVAS_HEIGHT / 2;
+    const cy = LAYOUT.CANVAS_HEIGHT / 2; 
     const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
     const safeTop = 15;
-    
-    // ★新規追加: アニメーション計算のために、現在の時間を関数の先頭で取
     const now = getTime();
-    // 1. Ghosts (状態テキストと飛んでいく串)
-    state.visuals.ghosts.forEach(g => {
-        const elapsed = now - g.startTime;
-        const progress = Math.min(1, elapsed / 800);
+    
+    const activePlayer = state.startRouletteActive ? state.startRouletteIndex : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
+
+    drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
+    drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
+
+    ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
+    ctx.fillText(`ROUND ${state.round}`, cx, safeTop + 25);
+    if (state.gameMode === "ai") {
+        ctx.font = "14px monospace"; ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45);
+    }
+
+    state.lanes.forEach((lane, i) => {
+        const b = getLaneBounds(i);
+        drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
+        ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
+
+        ctx.strokeStyle = "#555"; ctx.lineWidth = 2; ctx.beginPath();
+        for (let j = 1; j <= 5; j++) { const barY = b.y + (b.h * j / 6); ctx.moveTo(b.x, barY); ctx.lineTo(b.x + b.w, barY); }
+        [0.2, 0.8].forEach(ratio => { const barX = b.x + b.w * ratio; ctx.moveTo(barX, b.y); ctx.lineTo(barX, b.y + b.h); });
+        ctx.stroke();
+
+        const gradient = ctx.createLinearGradient(0, b.y + b.h - 50, 0, b.y + b.h);
+        gradient.addColorStop(0, "rgba(255, 50, 0, 0)"); gradient.addColorStop(1, `rgba(255, 60, 10, ${0.15 + lane.fire * 0.15})`);
+        ctx.fillStyle = gradient; ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
+
+        if (state.buildMode && isNodeValidForMode(lane, state.buildMode)) {
+            const alpha = 0.15 + Math.sin(now / 150) * 0.1;
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`; ctx.fillRect(b.x, b.y, b.w, b.h);
+        }
+
+        const laneCx = b.x + b.w/2;
         
-        // 0から-150まで上にフワッとスライドする計算
-        const yOffset = -150 * (1 - Math.pow(1 - progress, 3)); 
-        ctx.globalAlpha = 1 - progress;
-        
-        const b = getLaneBounds(g.laneIndex);
-        const laneCx = b.x + b.w / 2;
-        const p = getVisualPalette(g.status);
-        
-        // ★基準位置:飛んでいく串の先端のY座標
-        const stickH = b.h * 0.7; 
-        const stickTop = b.y + b.h * 0.1 + yOffset; 
-        
-        if (g.cookState !== undefined) {
+        if (lane.built) {
+            const status = getCookLabel(lane.type, lane.cookState);
+            const p = getVisualPalette(status.toUpperCase());
+            
+            const placedTime = state.visuals.placedAt[lane.id] || 0;
+            const elapsedPlace = now - placedTime;
+            let yOffset = 0;
+            if (elapsedPlace < 300) {
+                const t = elapsedPlace / 300;
+                yOffset = -80 * (1 - Math.pow(t, 3)); 
+            }
+
+            const stickH = b.h * 0.7; 
+            const baseStickTop = b.y + b.h * 0.1; 
+            const stickTop = baseStickTop + yOffset; 
+            
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); 
             ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx-2, stickTop, 4, stickH);
             
@@ -969,17 +779,119 @@ function drawGameScreen(ctx) {
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false);
             
+            ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+            ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
+            
+            const cv = Math.min(lane.cookState || 0, 6);
+            const dotSize = 8; const dotGap = 4;  
+            const gridW = 3 * dotSize + 2 * dotGap; const gridH = 2 * dotSize + dotGap;
+            const dotStartX = laneCx - gridW / 2; const dotStartY = baseStickTop + stickH + 12;
+
+            drawBevelRect(ctx, dotStartX - 6, dotStartY - 6, gridW + 12, gridH + 12, "#242430");
+
+            for (let j = 0; j < 6; j++) {
+                const col = j % 3; const row = Math.floor(j / 3);
+                const dx = dotStartX + col * (dotSize + dotGap); const dy = dotStartY + row * (dotSize + dotGap);
+                if (j < cv) {
+                    ctx.fillStyle = p.dot; ctx.fillRect(dx, dy, dotSize, dotSize);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
+                } else {
+                    ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dy, dotSize, dotSize);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; ctx.fillRect(dx, dy + dotSize - 1, dotSize, 1);
+                }
+            }
+        }
+        
+        const fireScale = 2.5; const fireSize = 8 * fireScale; const fireGap = 4; 
+        const totalFireW = (fireSize * lane.fire) + (fireGap * (lane.fire - 1));
+        const startFireX = laneCx - totalFireW / 2 + fireSize / 2;
+        for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + fireGap), b.y + b.h + 22, "#fa3", fireScale);
+    });
+
+    for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
+        let p = state.visuals.particles[i]; p.life++;
+        if (p.life >= p.maxLife) { state.visuals.particles.splice(i, 1); continue; }
+        p.x += p.vx; p.y += p.vy;
+        const ratio = p.life / p.maxLife;
+        ctx.globalAlpha = 0.6 * (1 - ratio); ctx.fillStyle = "#e0e0e0"; ctx.beginPath();
+        ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1.0; 
+
+    if (state.buildMode) {
+        const cb = getCancelButtonBounds();
+        const clickTime = state.visuals.cancelClick || 0;
+        const isPressed = (now - clickTime < 150);
+        drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
+        const offset = isPressed ? 3 : 0;
+        ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign="center";
+        ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
+    } else {
+        LAYOUT.BUTTONS.forEach((btn, i) => {
+            const b = getButtonBounds(i);
+            const boxId = i + 1;
+            let canUse = false;
+            if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
+            if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
+            if (boxId === 3) canUse = canUseServe(state.currentPlayer);
+            if (boxId === 4) canUse = true; 
+
+            const clickTime = state.visuals.buttonClicks[i] || 0;
+            const isPressed = (now - clickTime < 150);
+            const isLocked = isInputLocked() && !isPressed;
+            const baseColor = (canUse && !isLocked) ? btn.color : "#445";
+
+            drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
+            const offset = isPressed ? 3 : 0;
+            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
+        });
+    }
+
+    if (state.startRouletteActive) {
+        const fadeAlpha = getFadeAlpha(state.startRouletteTimer, state.startRouletteDuration, 15);
+        ctx.globalAlpha = fadeAlpha; 
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; const bandH = 120; ctx.fillRect(0, cy - bandH/2, LAYOUT.CANVAS_WIDTH, bandH);
+        ctx.fillStyle = state.startRouletteIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        ctx.font = "bold 48px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${state.startRouletteIndex}`, cx, cy + 20);
+        ctx.fillStyle = "#fff"; ctx.font = "20px monospace"; ctx.fillText("WHO GOES FIRST?", cx, cy - 30);
+        ctx.globalAlpha = 1.0; 
+    } else if (state.turnSplashTimer > 0) {
+        const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
+        ctx.globalAlpha = fadeAlpha; 
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; const bandH = 80; ctx.fillRect(0, cy - bandH/2, LAYOUT.CANVAS_WIDTH, bandH);
+        ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        ctx.font = "bold 32px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
+        ctx.globalAlpha = 1.0; 
+    }
+
+    state.visuals.ghosts.forEach(g => {
+        const elapsed = now - g.startTime;
+        const progress = Math.min(1, elapsed / 800);
+        const yOffset = -150 * (1 - Math.pow(1 - progress, 3)); 
+        ctx.globalAlpha = 1 - progress;
+        
+        const b = getLaneBounds(g.laneIndex);
+        const laneCx = b.x + b.w / 2;
+        const p = getVisualPalette(g.status);
+        
+        const stickH = b.h * 0.7; 
+        const stickTop = b.y + b.h * 0.1 + yOffset; 
+        
+        if (g.cookState !== undefined) {
+            ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); 
+            ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx-2, stickTop, 4, stickH);
+            const meatW = b.w * 0.6; const meatH = stickH * 0.2; const meatX = laneCx - meatW/2;
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false);
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true);
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false);
             ctx.fillStyle = g.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
         }
 
         ctx.fillStyle = p.dot || "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
-        
-        // ★修正: PERFECTなどの文字を「飛んでいく串の少し上」にしっかり追従させる
         ctx.fillText(g.status, laneCx, stickTop - 20); 
     });
 
-    // 2. Floaters (スコアや肉の増減)
     state.visuals.floaters.forEach(f => {
         const elapsed = now - f.startTime;
         const progress = Math.min(1, elapsed / 800);
@@ -989,15 +901,10 @@ function drawGameScreen(ctx) {
         if (f.targetType === 'lane') {
             const b = getLaneBounds(f.targetIndex);
             fx = b.x + b.w / 2; 
-            
-            // ★修正: レーン上のスコアも、串と全く同じスピード・計算式で飛ばす
             const yOffset = -150 * (1 - Math.pow(1 - progress, 3)); 
             const stickTop = b.y + b.h * 0.1 + yOffset;
-            
-            // PERFECTの文字(stickTop - 20)のさらに上(-45)に配置して被りを防ぐ
             fy = stickTop - 45; 
         } else {
-            // 中央の肉増減表示は今まで通りゆっくり上に
             fx = LAYOUT.CANVAS_WIDTH / 2; 
             fy = (LAYOUT.CANVAS_HEIGHT / 2 - 100) - (progress * 50);
         }
@@ -1028,20 +935,14 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     }
     
     ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
-    ctx.font = "bold 18px monospace"; 
-    ctx.textAlign = "left";
-    ctx.fillText(`P${idx}`, x + 10, y + 25);
+    ctx.font = "bold 18px monospace"; ctx.textAlign = "left"; ctx.fillText(`P${idx}`, x + 10, y + 25);
     
     drawDotIcon(ctx, "diamond", x + 20, y + 45, "#6cf", 2);
-    ctx.fillStyle = "#fff"; 
-    ctx.font = "bold 16px monospace";
-    ctx.textAlign = "right";
-    ctx.fillText(`${player.score}`, x + w - 10, y + 50);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 16px monospace"; ctx.textAlign = "right"; ctx.fillText(`${player.score}`, x + w - 10, y + 50);
     
     const meatCount = player.resources || 0;
     drawDotIcon(ctx, "meat", x + 20, y + 65, "#f77", 2);
-    ctx.fillStyle = "#fff"; 
-    ctx.fillText(`${meatCount}`, x + w - 10, y + 70);
+    ctx.fillStyle = "#fff"; ctx.fillText(`${meatCount}`, x + w - 10, y + 70);
 }
 
 // ==========================================
@@ -1049,12 +950,10 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
 // ==========================================
 window.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById("game");
-    
     if (!canvas) {
         console.error("エラー: canvas#game が見つかりません。");
         return;
     }
-
     const ctx = canvas.getContext("2d");
 
     document.body.style.margin = "0";
@@ -1068,39 +967,25 @@ window.addEventListener("DOMContentLoaded", () => {
         const dpr = window.devicePixelRatio || 1;
         const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
         const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
-        LAYOUT.CANVAS_WIDTH = vw;
-        LAYOUT.CANVAS_HEIGHT = vh;
-        canvas.width = vw * dpr;
-        canvas.height = vh * dpr;
-        canvas.style.width = vw + "px";
-        canvas.style.height = vh + "px";
+        LAYOUT.CANVAS_WIDTH = vw; LAYOUT.CANVAS_HEIGHT = vh;
+        canvas.width = vw * dpr; canvas.height = vh * dpr;
+        canvas.style.width = vw + "px"; canvas.style.height = vh + "px";
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    window.addEventListener("resize", resize);
-    resize();
+    window.addEventListener("resize", resize); resize();
 
     let lastTouchTime = 0;
-
     canvas.addEventListener("touchstart", (e) => {
-        e.preventDefault();
-        lastTouchTime = Date.now();
-        const touch = e.touches[0];
-        handleCanvasClick({ clientX: touch.clientX, clientY: touch.clientY }, canvas);
+        e.preventDefault(); lastTouchTime = Date.now();
+        handleCanvasClick({ clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }, canvas);
     }, { passive: false });
-
     canvas.addEventListener("click", (e) => {
         if (Date.now() - lastTouchTime < 500) return;
         handleCanvasClick(e, canvas);
     });
 
     function loop() {
-        updateRoulette();
-        resolvePendingTurnFlow();
-        render(ctx);
-        playAITurn();
-        requestAnimationFrame(loop);
+        updateRoulette(); resolvePendingTurnFlow(); render(ctx); playAITurn(); requestAnimationFrame(loop);
     }
-    
     loop();
 });
