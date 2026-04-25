@@ -584,12 +584,18 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 }
 
 function playAITurn() {
+    // 自分のターンでない場合や、演出中の場合は何もしない
     if (state.screen !== "game" || state.currentPlayer !== 2 || state.isBusy || state.gameOver || 
         state.pendingTurnSplash || state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0) return;
     
+    // 行動力がなければ何もしない
     if (state.players[1].workersRemaining <= 0) return;
 
+    // ★修正: AIが既に思考中の場合は、重複して行動を予約しないようにブロック
+    if (state.isAIThinking) return;
+
     state.isAIThinking = true;
+    
     setTimeout(() => {
         const levelConf = AI_LEVEL_CONFIG[state.aiLevel] || AI_LEVEL_CONFIG[2];
         const profile = state.aiProfile;
@@ -606,16 +612,18 @@ function playAITurn() {
         scored.sort((a, b) => b.score - a.score);
         let best = scored[0].action;
 
-        // Mistake / Randomness logic
+        // Mistake / Randomness logic (揺らぎとミスの処理)
         if (scored.length > 1 && Math.random() < levelConf.mistake) best = scored[1].action;
 
+        // 決定した行動を実行
         if (best.type === "meat") placeWorker(1);
         else if (best.type === "put") { state.buildMode="sapling"; tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
         else if (best.type === "serve") { state.buildMode="harvest"; tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
         else if (best.type === "uchiwa") { state.buildMode="uchiwa"; tryUchiwaNode(state.lanes.find(l=>l.id===best.nodeId)); }
         
+        // 思考終了
         state.isAIThinking = false;
-    }, 450);
+    }, 450); // AIが行動するまでの待機時間(0.45秒)
 }
 
 // ==========================================
