@@ -6,7 +6,7 @@ let state = {};
 function initGameState() {
     state = {
         screen: "title",
-        gameMode: "pvp",
+        gameMode: "pvp", // "ai" or "pvp"
         currentStage: 1,
         enemyName: "KENTA",
         aiLevel: 2,
@@ -436,6 +436,9 @@ function isNodeValidForMode(node, mode) {
 function isInputLocked() {
     if (state.startRouletteActive) return true;
     const cp = state.currentPlayer;
+    
+    // ★修正箇所: ここで AIプレイヤー を人間が操作できないようにロックしますが、
+    // 別の場所(playAITurn)ではこれを呼ばないように修正しました。
     if (isAIPlayer(cp)) return true;
 
     return state.screen !== "game" || 
@@ -605,7 +608,13 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 }
 
 function playAITurn() {
-    if (state.startRouletteActive || !isAIPlayer(state.currentPlayer) || isInputLocked() || state.isAIThinking) return;
+    // ★修正箇所: isInputLocked() を呼ばず、ゲームの状態を直接確認してバグを回避
+    if (!isAIPlayer(state.currentPlayer)) return;
+    if (state.screen !== "game" || state.isBusy || state.isAIThinking || state.gameOver) return;
+    if (state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0) return;
+    if (state.startRouletteActive) return;
+    if (state.players[state.currentPlayer - 1].workersRemaining <= 0) return;
+
     state.isAIThinking = true;
     setTimeout(() => {
         try {
@@ -789,32 +798,29 @@ function drawGameScreen(ctx) {
 
             drawBevelRect(ctx, dotStartX - 6, dotStartY - 6, gridW + 12, gridH + 12, "#242430");
 
-for (let j = 0; j < 6; j++) {
+            for (let j = 0; j < 6; j++) {
                 const col = j % 3; const row = Math.floor(j / 3);
                 const dx = dotStartX + col * (dotSize + dotGap); 
                 const dy = dotStartY + row * (dotSize + dotGap);
 
                 if (j < cv) {
-                    // 既に焼けている(点灯)マス
                     ctx.fillStyle = p.dot; ctx.fillRect(dx, dy, dotSize, dotSize);
                     ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
                 } else {
-                    // まだ焼けていない(消灯)マス
                     ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dy, dotSize, dotSize);
                     ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; ctx.fillRect(dx, dy + dotSize - 1, dotSize, 1);
                     
-                    // ★新規追加: うちわ選択中、"次の1マス" (j === cv) だけをフワッと点滅させる
+                    // ★追加: うちわ選択中、"次の1マス" (j === cv) だけをフワッと点滅させる
                     if (state.buildMode === "uchiwa" && isNodeValidForMode(lane, "uchiwa") && j === cv) {
-                        // サイン波を使って、0.2 〜 0.8 の間で透明度を滑らかに上下させる
                         const alpha = 0.2 + Math.abs(Math.sin(now / 150)) * 0.6; 
-                        
                         ctx.globalAlpha = alpha;
-                        ctx.fillStyle = p.dot; // 予測される色で光らせる
+                        ctx.fillStyle = p.dot; 
                         ctx.fillRect(dx, dy, dotSize, dotSize);
-                        ctx.globalAlpha = 1.0; // 必ず透明度を1.0に戻す
+                        ctx.globalAlpha = 1.0; 
                     }
                 }
             }
+        }
         
         const fireScale = 2.5; const fireSize = 8 * fireScale; const fireGap = 4; 
         const totalFireW = (fireSize * lane.fire) + (fireGap * (lane.fire - 1));
