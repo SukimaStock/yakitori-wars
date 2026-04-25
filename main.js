@@ -124,13 +124,15 @@ function getCancelButtonBounds() {
 // ==========================================
 // 3. game/flow.js - ゲーム進行とスコア
 // ==========================================
+// ↓ ここから
 const STAGE_CONFIG = {
     1: { profile: "gambler", level: 1, enemyName: "KENTA" },
-    2: { profile: "master",  level: 1, enemyName: "MAKOTO" },
-    3: { profile: "thief",   level: 1, enemyName: "HIDEKI" },
-    4: { profile: "gambler", level: 2, enemyName: "KENTA" },
-    5: { profile: "reader",  level: 2, enemyName: "TETSUYA" }
+    2: { profile: "thief",   level: 2, enemyName: "HIDEKI" },
+    3: { profile: "reader",  level: 3, enemyName: "TETSUYA" },
+    4: { profile: "master",  level: 4, enemyName: "MAKOTO" },
+    5: { profile: "master",  level: 5, enemyName: "BOSS" }
 };
+// ↑ ここまでを上書きします
 
 function setupAIForStage(stageNumber) {
     const conf = STAGE_CONFIG[stageNumber];
@@ -531,15 +533,6 @@ const BALANCE = {
     strong: { heat: 3, perfect: [6], okay: [5], pts: {perfect:6, okay:2, early:-5, burnt:-2} }
 };
 
-// 勝ち抜き方式のステージ設定(ステージ1〜5で徐々に強くなる)
-const STAGE_CONFIG = {
-    1: { profile: "gambler", level: 1, enemyName: "KENTA" },
-    2: { profile: "thief",   level: 2, enemyName: "HIDEKI" },
-    3: { profile: "reader",  level: 3, enemyName: "TETSUYA" },
-    4: { profile: "master",  level: 4, enemyName: "MAKOTO" },
-    5: { profile: "master",  level: 5, enemyName: "BOSS" } // 最終ステージ
-};
-
 // AIの全レベル(1〜5)のパラメータ
 const AI_LEVEL_CONFIG = {
     1: { rand: 0.40, mistake: 0.30, futWt: 0.10, allowUchiwa: false, topCandRange: 3, scoreNoise: 10, closeThresh: 8, closeRate: 0.35 },
@@ -700,7 +693,6 @@ function playAITurn() {
         }
     }, 450);
 }
-
 // ==========================================
 // 7. render/render.js - 描画処理
 // ==========================================
