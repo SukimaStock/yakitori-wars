@@ -437,10 +437,6 @@ function isInputLocked() {
     if (state.startRouletteActive) return true;
     const cp = state.currentPlayer;
     
-    // ★修正箇所: ここで AIプレイヤー を人間が操作できないようにロックしますが、
-    // 別の場所(playAITurn)ではこれを呼ばないように修正しました。
-    if (isAIPlayer(cp)) return true;
-
     return state.screen !== "game" || 
            state.isBusy || state.isAIThinking ||
            state.pendingPlayer !== null || 
@@ -463,7 +459,7 @@ function handleCanvasClick(event, canvas) {
         nextStage(); return;
     }
 
-    if (isInputLocked()) return;
+    if (isInputLocked() || isAIPlayer(state.currentPlayer)) return;
 
     if (state.buildMode) {
         const cb = getCancelButtonBounds();
@@ -608,7 +604,6 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 }
 
 function playAITurn() {
-    // ★修正箇所: isInputLocked() を呼ばず、ゲームの状態を直接確認してバグを回避
     if (!isAIPlayer(state.currentPlayer)) return;
     if (state.screen !== "game" || state.isBusy || state.isAIThinking || state.gameOver) return;
     if (state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0) return;
@@ -810,7 +805,6 @@ function drawGameScreen(ctx) {
                     ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dy, dotSize, dotSize);
                     ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; ctx.fillRect(dx, dy + dotSize - 1, dotSize, 1);
                     
-                    // ★追加: うちわ選択中、"次の1マス" (j === cv) だけをフワッと点滅させる
                     if (state.buildMode === "uchiwa" && isNodeValidForMode(lane, "uchiwa") && j === cv) {
                         const alpha = 0.2 + Math.abs(Math.sin(now / 150)) * 0.6; 
                         ctx.globalAlpha = alpha;
@@ -918,6 +912,7 @@ function drawGameScreen(ctx) {
         ctx.globalAlpha = 1 - progress;
 
         let fx, fy;
+        let isMeat = f.type.includes('meat');
         if (f.targetType === 'lane') {
             const b = getLaneBounds(f.targetIndex);
             fx = b.x + b.w / 2; 
@@ -930,13 +925,20 @@ function drawGameScreen(ctx) {
         }
 
         ctx.textAlign = "center";
+        
+        // ★肉アイコンを使った描画
         if (f.type === 'meat_up') {
-            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; ctx.fillText("+1 肉", fx, fy);
+            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; 
+            drawDotIcon(ctx, "meat", fx - 25, fy - 10, "#fff", 3);
+            ctx.fillText("+1", fx + 15, fy);
         } else if (f.type === 'meat_down') {
-            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; ctx.fillText("-1 肉", fx, fy);
+            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; 
+            drawDotIcon(ctx, "meat", fx - 25, fy - 10, "#fff", 3);
+            ctx.fillText("-1", fx + 15, fy);
         } else if (f.type === 'star_up') {
             ctx.fillStyle = f.color; ctx.font = "bold 32px monospace";
-            const prefix = f.amount > 0 ? "+" : ""; ctx.fillText(`${prefix}${f.amount}`, fx, fy);
+            const prefix = f.amount > 0 ? "+" : ""; 
+            ctx.fillText(`${prefix}${f.amount}`, fx, fy);
         }
     });
     ctx.globalAlpha = 1.0;
@@ -948,10 +950,14 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     
     drawBevelRect(ctx, x, y, w, h, baseColor);
     
+    // ★呼吸するような光(パルス効果)
     if (active) {
+        const pulse = (Math.sin(getTime() / 200) + 1) / 2; // 0.0 ~ 1.0
         ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2 + pulse * 4;       
+        ctx.globalAlpha = 0.5 + pulse * 0.5; 
         ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+        ctx.globalAlpha = 1.0;               
     }
     
     ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
