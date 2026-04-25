@@ -828,61 +828,94 @@ function drawGameScreen(ctx) {
         ctx.font = "14px monospace"; ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45);
     }
 
-    state.lanes.forEach((lane, i) => {
+state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i);
-        ctx.fillStyle = LAYOUT.COLORS.PANEL_BG; ctx.fillRect(b.x, b.y, b.w, b.h);
-        if (state.buildMode && isNodeValidForMode(lane, state.buildMode)) {
-            ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(b.x, b.y, b.w, b.h);
-        }
-        ctx.strokeStyle = "#444"; ctx.strokeRect(b.x, b.y, b.w, b.h);
-        const laneCx = b.x + b.w/2;
 
+        // 1. 焼き網の外枠(立体的な金属フレーム)
+        drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
+
+        // 2. 炭火の空間(奥深く暗い色)
+        ctx.fillStyle = "#0a0a0f";
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+
+        // 3. 鉄格子(焼き網)を描画
+        ctx.strokeStyle = "#555";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        // 横棒 (5本)
+        for (let j = 1; j <= 5; j++) {
+            const barY = b.y + (b.h * j / 6);
+            ctx.moveTo(b.x, barY);
+            ctx.lineTo(b.x + b.w, barY);
+        }
+        // 縦棒 (左右2本の支柱)
+        [0.2, 0.8].forEach(ratio => {
+            const barX = b.x + b.w * ratio;
+            ctx.moveTo(barX, b.y);
+            ctx.lineTo(barX, b.y + b.h);
+        });
+        ctx.stroke();
+
+        // 4. 炭火のぼんやりした赤い光(下部)
+        // 火力(lane.fire)が強いほど赤く明るく光る
+        const gradient = ctx.createLinearGradient(0, b.y + b.h - 50, 0, b.y + b.h);
+        gradient.addColorStop(0, "rgba(255, 50, 0, 0)");
+        gradient.addColorStop(1, `rgba(255, 60, 10, ${0.15 + lane.fire * 0.15})`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
+
+        // 5. アクション選択時のハイライト
+        if (state.buildMode && isNodeValidForMode(lane, state.buildMode)) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+        }
+
+        const laneCx = b.x + b.w/2;
+        
+        // 6. 串と肉の描画
         if (lane.built) {
             const status = getCookLabel(lane.type, lane.cookState);
             const p = getVisualPalette(status.toUpperCase());
             const stickH = b.h * 0.7; const stickTop = b.y + b.h * 0.1;
+            
+            // 串(少し影をつける)
+            ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); // 影
             ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx-2, stickTop, 4, stickH);
+            
             const meatW = b.w * 0.6; const meatH = stickH * 0.2; const meatX = laneCx - meatW/2;
+            
+            // 肉とネギ
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.1, meatW, meatH);
             ctx.fillStyle = p.negi; ctx.fillRect(meatX, stickTop + stickH*0.35, meatW, meatH);
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.6, meatW, meatH);
-
-            // --- 変更: 焼け具合のドット表示 (3x2グリッド) ---
-            const cv = Math.min(lane.cookState || 0, 6); // 最大6ドット
-            const dotSize = 6;
-            const dotGap = 2;
+            
+            // 焼け具合のドット表示 (3x2グリッド)
+            const cv = Math.min(lane.cookState || 0, 6);
+            const dotSize = 6; const dotGap = 2;
             const gridW = 3 * dotSize + 2 * dotGap;
             const gridH = 2 * dotSize + dotGap;
             const dotStartX = laneCx - gridW / 2;
-            const dotStartY = stickTop + stickH * 0.85; // お肉の下に配置
+            const dotStartY = stickTop + stickH * 0.85;
 
-            // 1. 串の線を隠すためのダークパネル(背景)を描画
-            ctx.fillStyle = "rgba(15, 15, 25, 0.95)"; // ほぼ黒のパネル
-            // ドットの周囲に2pxの余白を持たせて四角を描く
+            ctx.fillStyle = "rgba(15, 15, 25, 0.95)";
             ctx.fillRect(dotStartX - 2, dotStartY - 2, gridW + 4, gridH + 4);
 
-            // 2. ドットの描画
             for (let j = 0; j < 6; j++) {
-                const col = j % 3;
-                const row = Math.floor(j / 3);
+                const col = j % 3; const row = Math.floor(j / 3);
                 const dx = dotStartX + col * (dotSize + dotGap);
                 const dy = dotStartY + row * (dotSize + dotGap);
-
-                if (j < cv) {
-                    ctx.fillStyle = p.dot; // 焼けている部分の色
-                } else {
-                    // 未点灯のドットを少し明るいグレーにして見やすくする
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; 
-                }
+                ctx.fillStyle = (j < cv) ? p.dot : "rgba(255, 255, 255, 0.15)";
                 ctx.fillRect(dx, dy, dotSize, dotSize);
             }
-            // ---------------------------------------------------
-
+            
+            // 所有者マーク(P1 or P2 の三角形)
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
         }
+        
+        // 7. 火力アイコンを枠の下(外側)に移動
         ctx.fillStyle = "#fff"; ctx.font = "14px sans-serif";
-        ctx.fillText("🔥".repeat(lane.fire), laneCx, b.y + b.h - 10);
+        ctx.fillText("🔥".repeat(lane.fire), laneCx, b.y + b.h + 20);
     });
 
     if (state.buildMode) {
