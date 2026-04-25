@@ -776,6 +776,18 @@ function playAITurn() {
 // 7. render/render.js - 描画処理
 // ==========================================
 const getTime = () => performance.now();
+
+// ★新規追加: フェードイン・フェードアウトの透明度を計算する関数
+function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
+    if (currentTimer > maxTimer - fadeFrames) {
+        // 現れる時 (少しずつ濃くなる)
+        return Math.max(0, (maxTimer - currentTimer) / fadeFrames);
+    } else if (currentTimer < fadeFrames) {
+        // 消える時 (少しずつ薄くなる)
+        return Math.max(0, currentTimer / fadeFrames);
+    }
+    return 1.0; // それ以外の時間は完全に表示
+}
 // 立体的なパネル(ボタンやUI枠)を描画する関数
 function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     // 影とハイライトの色を計算(簡易的)
@@ -882,6 +894,7 @@ function render(ctx) {
 
 function drawGameScreen(ctx) {
     const cx = LAYOUT.CANVAS_WIDTH / 2;
+    const cy = LAYOUT.CANVAS_HEIGHT / 2; // ★新規追加: 画面中央のY座標
     const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
     const safeTop = 15;
 
@@ -1037,20 +1050,51 @@ state.lanes.forEach((lane, i) => {
         });
     }
 
-    // --- 新規追加: ルーレットの描画 ---
+// --- 新規追加: ルーレットの描画 ---
     if (state.startRouletteActive) {
-        ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; 
-        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+        const maxTime = state.startRouletteDuration;
+        // 15フレームかけてフェードイン・アウト
+        const fadeAlpha = getFadeAlpha(state.startRouletteTimer, maxTime, 15);
+        
+        ctx.globalAlpha = fadeAlpha; // 全体の透明度を設定
+        
+        // 画面全体ではなく、中央の「帯」だけを描画
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; 
+        const bandH = 120; // 帯の高さ
+        ctx.fillRect(0, cy - bandH/2, LAYOUT.CANVAS_WIDTH, bandH);
 
         ctx.fillStyle = state.startRouletteIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
         ctx.font = "bold 48px monospace"; 
         ctx.textAlign = "center";
-        ctx.fillText(`P${state.startRouletteIndex}`, cx, LAYOUT.CANVAS_HEIGHT / 2 + 10);
+        ctx.fillText(`P${state.startRouletteIndex}`, cx, cy + 20);
 
         ctx.fillStyle = "#fff";
         ctx.font = "bold 24px monospace";
-        ctx.fillText("WHO GOES FIRST?", cx, LAYOUT.CANVAS_HEIGHT / 2 - 40);
+        ctx.fillText("WHO GOES FIRST?", cx, cy - 30);
+        
+        ctx.globalAlpha = 1.0; // 透明度を元に戻す
     } 
+    // 既存のターンスプラッシュ
+    else if (state.turnSplashTimer > 0) {
+        const maxTime = 45; // state.turnSplashTimerの初期値
+        // 10フレームかけてフェードイン・アウト
+        const fadeAlpha = getFadeAlpha(state.turnSplashTimer, maxTime, 10);
+        
+        ctx.globalAlpha = fadeAlpha; // 全体の透明度を設定
+
+        // 画面全体ではなく、中央の「帯」だけを描画
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; 
+        const bandH = 80; // 帯の高さ
+        ctx.fillRect(0, cy - bandH/2, LAYOUT.CANVAS_WIDTH, bandH);
+
+        ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        ctx.font = "bold 32px monospace"; 
+        ctx.textAlign = "center";
+        ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
+        
+        ctx.globalAlpha = 1.0; // 透明度を元に戻す
+    }
+    // ------------------------------------
     // 既存のターンスプラッシュ
     else if (state.turnSplashTimer > 0) {
         ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; ctx.fillRect(0,0,LAYOUT.CANVAS_WIDTH,LAYOUT.CANVAS_HEIGHT);
