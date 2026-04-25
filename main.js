@@ -299,7 +299,6 @@ function getCookLabel(laneType, cv) {
     return "early";
 }
 
-// ★修正: 肉の所持上限(2未満)を追加
 function canUseMeat(playerIndex) { 
     return state.players[playerIndex - 1].resources < 2; 
 }
@@ -601,29 +600,32 @@ function playAITurn() {
 
     state.isAIThinking = true;
     setTimeout(() => {
-        const levelConf = AI_LEVEL_CONFIG[state.aiLevel] || AI_LEVEL_CONFIG[2];
-        const profile = state.aiProfile;
-        
-        let cands = buildActionCandidates(state, state.currentPlayer).filter(a => isActionValidForAI(state, a, state.currentPlayer, profile, levelConf));
-        if (cands.length === 0) cands.push({ type: "meat" });
+        try {
+            const levelConf = AI_LEVEL_CONFIG[state.aiLevel] || AI_LEVEL_CONFIG[2];
+            const profile = state.aiProfile;
+            
+            let cands = buildActionCandidates(state, state.currentPlayer).filter(a => isActionValidForAI(state, a, state.currentPlayer, profile, levelConf));
+            if (cands.length === 0) cands.push({ type: "meat" });
 
-        let scored = cands.map(a => {
-            let s = scoreAIAction(state, a, state.currentPlayer, profile);
-            s += (Math.random() * 2 - 1) * levelConf.scoreNoise;
-            return { action: a, score: s };
-        });
+            let scored = cands.map(a => {
+                let s = scoreAIAction(state, a, state.currentPlayer, profile);
+                s += (Math.random() * 2 - 1) * levelConf.scoreNoise;
+                return { action: a, score: s };
+            });
 
-        scored.sort((a, b) => b.score - a.score);
-        let best = scored[0].action;
+            scored.sort((a, b) => b.score - a.score);
+            let best = scored[0].action;
 
-        if (scored.length > 1 && Math.random() < levelConf.mistake) best = scored[1].action;
+            if (scored.length > 1 && Math.random() < levelConf.mistake) best = scored[1].action;
 
-        if (best.type === "meat") placeWorker(1);
-        else if (best.type === "put") { state.buildMode="sapling"; tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
-        else if (best.type === "serve") { state.buildMode="harvest"; tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
-        else if (best.type === "uchiwa") { state.buildMode="uchiwa"; tryUchiwaNode(state.lanes.find(l=>l.id===best.nodeId)); }
-        
-        state.isAIThinking = false;
+            if (best.type === "meat") placeWorker(1);
+            else if (best.type === "put") { state.buildMode="sapling"; tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
+            else if (best.type === "serve") { state.buildMode="harvest"; tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
+            else if (best.type === "uchiwa") { state.buildMode="uchiwa"; tryUchiwaNode(state.lanes.find(l=>l.id===best.nodeId)); }
+        } finally {
+            // エラーが発生しても必ず思考フラグを解除し、進行不能(ソフトロック)を防ぐ
+            state.isAIThinking = false;
+        }
     }, 450);
 }
 
@@ -690,9 +692,12 @@ function drawGameScreen(ctx) {
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i);
         ctx.fillStyle = LAYOUT.COLORS.PANEL_BG; ctx.fillRect(b.x, b.y, b.w, b.h);
-        if (state.buildMode && isLaneValidForAction(lane, state.buildMode)) {
+        
+        // ★修正: 未定義だった isLaneValidForAction を isNodeValidForMode に変更
+        if (state.buildMode && isNodeValidForMode(lane, state.buildMode)) {
             ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(b.x, b.y, b.w, b.h);
         }
+        
         ctx.strokeStyle = "#444"; ctx.strokeRect(b.x, b.y, b.w, b.h);
         const laneCx = b.x + b.w/2;
         
@@ -824,7 +829,6 @@ function resize() {
 window.addEventListener("resize", resize);
 resize();
 
-// ★追加: ゴーストクリック対策
 let lastTouchTime = 0;
 
 canvas.addEventListener("touchstart", (e) => {
