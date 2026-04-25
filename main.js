@@ -22,12 +22,12 @@ function initGameState() {
         isBusy: false,
         isAIThinking: false,
         
-        // ★新しいルーレット用の変数( : と , を使います)
+        // ★ルーレット用の変数
         startRouletteActive: false,
-        startRouletteInterval: 4,
-        startRouletteTickTimer: 4,
-        startRouletteCount: 0,
-        startRouletteMaxCount: 16,
+        startRouletteInterval: 4,     // 次の切り替わりまでのフレーム数(初期値)
+        startRouletteTickTimer: 4,    // 現在のカウントダウン
+        startRouletteCount: 0,        // 何回切り替わったか
+        startRouletteMaxCount: 16,    // 合計何回切り替わったら止まるか
         startRouletteIndex: 1,
         startRouletteFinalPlayer: null,
         
@@ -54,6 +54,7 @@ function initGameState() {
         }
     };
 }
+initGameState();
 
 // ==========================================
 // 2. render/layout.js - 定数とレイアウト設定
@@ -158,7 +159,7 @@ function startGame(mode) {
     state.screen = "game";
     if (mode === "ai") setupAIForStage(1);
     
-    // ★新しいルーレット変数の初期化
+    // ★ルーレットの初期化
     state.startRouletteActive = true;
     state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4;
@@ -176,7 +177,7 @@ function nextStage() {
     state.screen = "game";
     setupAIForStage(nextStg);
     
-    // ★新しいルーレット変数の初期化
+    // ★ルーレットの初期化
     state.startRouletteActive = true;
     state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4;
@@ -184,6 +185,7 @@ function nextStage() {
     state.startRouletteIndex = 1;
     state.startRouletteFinalPlayer = null;
 }
+
 function updateAllScores() {
     state.players.forEach(p => p.score = p.servedScore || 0);
 }
@@ -290,7 +292,7 @@ function updateRoulette() {
         // 規定回数に達したら終了
         if (state.startRouletteCount >= state.startRouletteMaxCount) {
             state.startRouletteActive = false;
-            // 最終的なプレイヤーを決定(最後のアニメーションに合わせてセット)
+            // 最終的なプレイヤーを決定
             state.startRouletteFinalPlayer = state.startRouletteIndex;
             state.firstPlayer = state.startRouletteFinalPlayer;
             state.currentPlayer = state.startRouletteFinalPlayer;
@@ -545,6 +547,7 @@ function buildActionCandidates(currentState, playerIndex) {
     return actions;
 }
 
+// ★修正: AIが焦げた串をコスト0で掃除できるようにするロジック
 function isActionValidForAI(currentState, action, playerIndex, profileName, levelConf) {
     const p = currentState.players[playerIndex - 1];
     const node = currentState.lanes.find(l => l.id === action.nodeId);
@@ -559,10 +562,9 @@ function isActionValidForAI(currentState, action, playerIndex, profileName, leve
         if (isOwn) { 
             if (lbl === "early") return false; 
         } else {
-            // ★修正: 相手の串の場合
-            if (lbl === "early") return false; // 生焼けは奪えない
+            if (lbl === "early") return false; 
             if (lbl !== "burnt" && p.resources < 1) return false; // 焦げ以外を奪うには肉が必要
-            // 焦げ(burnt)の場合は肉が0でも許可され、無料で掃除します!
+            // 焦げ(burnt)の場合は肉が0でも許可され、無料で掃除します
         }
         return true;
     }
@@ -605,11 +607,10 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
         const lbl = getCookLabel(node.type, node.cookState);
         const isOwn = node.owner === playerIndex;
         
-        // ★修正: 焦げた串の評価をCodea版に近づけました
         if (lbl === "burnt") {
             score += 25; 
-            if (profileName === "master") score += 20; // 達人は焦げを即座に処分する
-            if (profileName === "gambler") score -= 10; // ギャンブラーは掃除を後回しにしがち
+            if (profileName === "master") score += 20; 
+            if (profileName === "gambler") score -= 10; 
         } else if (!isOwn) {
             if (lbl === "perfect") score += (profileName === "thief" ? 80 : 30);
             if (lbl === "okay") score += (profileName === "thief" ? 50 : 10);
@@ -953,7 +954,6 @@ function drawGameScreen(ctx) {
 
         ctx.textAlign = "center";
         
-        // ★肉アイコンを使った描画
         if (f.type === 'meat_up') {
             ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; 
             drawDotIcon(ctx, "meat", fx - 25, fy - 10, "#fff", 3);
@@ -977,9 +977,8 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     
     drawBevelRect(ctx, x, y, w, h, baseColor);
     
-    // ★呼吸するような光(パルス効果)
     if (active) {
-        const pulse = (Math.sin(getTime() / 200) + 1) / 2; // 0.0 ~ 1.0
+        const pulse = (Math.sin(getTime() / 200) + 1) / 2; 
         ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
         ctx.lineWidth = 2 + pulse * 4;       
         ctx.globalAlpha = 0.5 + pulse * 0.5; 
