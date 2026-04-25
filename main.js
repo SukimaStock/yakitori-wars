@@ -537,10 +537,14 @@ function isActionValidForAI(currentState, action, playerIndex, profileName, leve
         if (!node) return false;
         const isOwn = node.owner === playerIndex;
         const lbl = getCookLabel(node.type, node.cookState);
-        if (isOwn) { if (lbl === "early") return false; } 
-        else {
-            if (p.resources < 1 && lbl !== "burnt") return false;
-            if (lbl === "early" || lbl === "burnt") return false; 
+        
+        if (isOwn) { 
+            if (lbl === "early") return false; 
+        } else {
+            // ★修正: 相手の串の場合
+            if (lbl === "early") return false; // 生焼けは奪えない
+            if (lbl !== "burnt" && p.resources < 1) return false; // 焦げ以外を奪うには肉が必要
+            // 焦げ(burnt)の場合は肉が0でも許可され、無料で掃除します!
         }
         return true;
     }
@@ -582,8 +586,13 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
     } else if (action.type === "serve") {
         const lbl = getCookLabel(node.type, node.cookState);
         const isOwn = node.owner === playerIndex;
-        if (lbl === "burnt") score += 25; 
-        else if (!isOwn) {
+        
+        // ★修正: 焦げた串の評価をCodea版に近づけました
+        if (lbl === "burnt") {
+            score += 25; 
+            if (profileName === "master") score += 20; // 達人は焦げを即座に処分する
+            if (profileName === "gambler") score -= 10; // ギャンブラーは掃除を後回しにしがち
+        } else if (!isOwn) {
             if (lbl === "perfect") score += (profileName === "thief" ? 80 : 30);
             if (lbl === "okay") score += (profileName === "thief" ? 50 : 10);
         } else {
