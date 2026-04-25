@@ -66,9 +66,9 @@ let LAYOUT = {
         STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334",
         HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
-    BUTTONS: [
+BUTTONS: [
         { id: "meat", color: "#c55", icon: "meat", label: "肉" },
-        { id: "put", color: "#678", icon: "put", label: "置く" },
+        { id: "put", color: "#38c", icon: "put", label: "置く" }, // ←ここを #678 から #38c に変更
         { id: "harvest", color: "#484", icon: "serve", label: "取る/捨" },
         { id: "uchiwa", color: "#d63", icon: "uchiwa", label: "うちわ" }
     ]
@@ -339,7 +339,7 @@ function getCookLabel(laneType, cv) {
 }
 
 function canUseMeat(playerIndex) { 
-    return state.players[playerIndex - 1].resources < 2; 
+    return true; // Codea版に合わせて無制限に変更
 }
 
 function canUseSkewer(playerIndex) {
@@ -764,7 +764,7 @@ function drawGameScreen(ctx) {
         ctx.strokeStyle = "#444"; ctx.strokeRect(b.x, b.y, b.w, b.h);
         const laneCx = b.x + b.w/2;
         
-        if (lane.built) {
+if (lane.built) {
             const status = getCookLabel(lane.type, lane.cookState);
             const p = getVisualPalette(status.toUpperCase());
             const stickH = b.h * 0.7; const stickTop = b.y + b.h * 0.1;
@@ -773,6 +773,29 @@ function drawGameScreen(ctx) {
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.1, meatW, meatH);
             ctx.fillStyle = p.negi; ctx.fillRect(meatX, stickTop + stickH*0.35, meatW, meatH);
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.6, meatW, meatH);
+            
+            // --- 新規追加: 焼け具合のドット表示 (3x2グリッド) ---
+            const cv = Math.min(lane.cookState || 0, 6); // 最大6ドット
+            const dotSize = 6;
+            const dotGap = 2;
+            const gridW = 3 * dotSize + 2 * dotGap;
+            const dotStartX = laneCx - gridW / 2;
+            const dotStartY = stickTop + stickH * 0.85; // お肉の下に配置
+
+            for (let j = 0; j < 6; j++) {
+                const col = j % 3;
+                const row = Math.floor(j / 3);
+                const dx = dotStartX + col * (dotSize + dotGap);
+                const dy = dotStartY + row * (dotSize + dotGap);
+
+                if (j < cv) {
+                    ctx.fillStyle = p.dot; // 焼けている部分の色
+                } else {
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; // 未到達の部分は半透明の黒
+                }
+                ctx.fillRect(dx, dy, dotSize, dotSize);
+            }
+            // ---------------------------------------------------
             
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
