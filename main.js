@@ -28,13 +28,7 @@ const state = {
         { id: "s3", fire: 3, type: "strong", owner: null, cook: 0, uchiwaBoost: 0, justPlaced: false }
     ],
     visuals: {
-        buttonClicks: {},
-        buttonErrors: {},
-        laneErrors: {},
-        laneFlashes: {},
-        placedAt: {},
-        ghosts: [],
-        floaters: []
+        buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, ghosts: [], floaters: []
     }
 };
 
@@ -60,29 +54,24 @@ function resetGameState() {
 // ==========================================
 // 2. render/layout.js - 定数とレイアウト設定
 // ==========================================
-const LAYOUT = {
-    CANVAS_WIDTH: 800,
-    CANVAS_HEIGHT: 600,
+// ★変更: 画面サイズを動的に変更できるよう、letで定義し初期値を持たせます
+let LAYOUT = {
+    CANVAS_WIDTH: window.innerWidth,
+    CANVAS_HEIGHT: window.innerHeight,
     COLORS: {
         BG: "#161620", 
-        TEXT_MAIN: "#fff",
-        TEXT_DIM: "#aaa",
-        P1: "#3c96ff",
-        P2: "#ff5078",
-        NEUTRAL: "#333",
-        PANEL_BG: "#242430",
-        OVERLAY_BG: "rgba(0, 0, 0, 0.7)",
-        STICK: "#dca",
-        FIRE_BASE: "#e53",
-        FIRE_BOOST: "#fa3",
-        DOT_OFF: "#334",
+        TEXT_MAIN: "#fff", TEXT_DIM: "#aaa",
+        P1: "#3c96ff", P2: "#ff5078",
+        NEUTRAL: "#333", PANEL_BG: "#242430", OVERLAY_BG: "rgba(0, 0, 0, 0.7)",
+        STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334",
         HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
+    // ★変更: ボタンに表示用の日本語ラベルを追加
     BUTTONS: [
-        { id: "meat", color: "#c55", icon: "meat" },
-        { id: "put", color: "#678", icon: "put" },
-        { id: "harvest", color: "#484", icon: "serve" },
-        { id: "uchiwa", color: "#d63", icon: "uchiwa" }
+        { id: "meat", color: "#c55", icon: "meat", label: "肉" },
+        { id: "put", color: "#678", icon: "put", label: "置く" },
+        { id: "harvest", color: "#484", icon: "serve", label: "取る" },
+        { id: "uchiwa", color: "#d63", icon: "uchiwa", label: "うちわ" }
     ]
 };
 
@@ -102,20 +91,34 @@ const ICON_DATA = {
 
 function getVisualPalette(status) { return VISUAL_STATES[status] || VISUAL_STATES.RAW; }
 
+// ★変更: 焼き台を中央に横3列で並べるよう計算式を変更
 function getLaneBounds(index) {
-    const w = 600; const h = 90;
-    const x = (LAYOUT.CANVAS_WIDTH - w) / 2;
-    const y = 170 + index * (h + 15);
-    return { x, y, w, h };
+    const laneW = Math.min(90, LAYOUT.CANVAS_WIDTH * 0.28);
+    const laneH = Math.min(180, LAYOUT.CANVAS_HEIGHT * 0.3);
+    const gap = 15;
+    const totalW = (laneW * 3) + (gap * 2);
+    const startX = (LAYOUT.CANVAS_WIDTH - totalW) / 2;
+    // 画面中央より少し上に配置
+    const y = LAYOUT.CANVAS_HEIGHT / 2 - laneH / 2 - 40;
+    
+    return { x: startX + index * (laneW + gap), y, w: laneW, h: laneH };
 }
 
+// ★変更: アクションボタンを下部に2x2で配置するよう計算式を変更
 function getButtonBounds(index) {
-    const count = LAYOUT.BUTTONS.length;
-    const w = 120; const h = 80; const gap = 20;
-    const totalW = (w * count) + (gap * (count - 1));
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const btnW = Math.min(150, LAYOUT.CANVAS_WIDTH * 0.42);
+    const btnH = Math.min(80, LAYOUT.CANVAS_HEIGHT * 0.12);
+    const gapX = 15;
+    const gapY = 15;
+    const totalW = (btnW * 2) + gapX;
     const startX = (LAYOUT.CANVAS_WIDTH - totalW) / 2;
-    const y = 500;
-    return { x: startX + index * (w + gap), y, w, h };
+    // 画面下部から一定の余白を取る
+    const totalH = (btnH * 2) + gapY;
+    const y = LAYOUT.CANVAS_HEIGHT - totalH - Math.max(30, LAYOUT.CANVAS_HEIGHT * 0.05);
+
+    return { x: startX + col * (btnW + gapX), y: y + row * (btnH + gapY), w: btnW, h: btnH };
 }
 
 // ==========================================
@@ -298,19 +301,11 @@ function isLaneValidForAction(laneIndex, actionId) {
     return false;
 }
 
-// ==========================================
-// 5. game/input.js - 入力処理 (handleCanvasClickのみ修正)
-// ==========================================
-
+// ★変更: 画面サイズと描画サイズが1:1になったため、スケール計算を省きタッチ判定をシンプル化
 function handleCanvasClick(event, canvas) {
     const rect = canvas.getBoundingClientRect();
-    
-    // ★修正: canvas.width(高解像度)ではなく、LAYOUT.CANVAS_WIDTH(800)を基準にスケールを計算します
-    const scaleX = LAYOUT.CANVAS_WIDTH / rect.width;
-    const scaleY = LAYOUT.CANVAS_HEIGHT / rect.height;
-    
-    const x = (event.clientX - rect.left) * scaleX;
-    const y = (event.clientY - rect.top) * scaleY;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
 
     if (state.screen === "title") { startSurvivalGame(); return; }
     else if (state.screen === "gameover") { state.screen = "title"; return; }
@@ -326,7 +321,9 @@ function handleCanvasClick(event, canvas) {
     if (state.buildMode) {
         for (let i = 0; i < state.lanes.length; i++) {
             const l = getLaneBounds(i);
-            if (x >= l.x && x <= l.x + l.w && y >= l.y && y <= l.y + l.h) {
+            // 余白を含めて少し大きめに判定(スマホで押しやすく)
+            const padding = 10;
+            if (x >= l.x - padding && x <= l.x + l.w + padding && y >= l.y - padding && y <= l.y + l.h + padding) {
                 tryExecuteSelectedAction(i);
                 return;
             }
@@ -418,60 +415,99 @@ function render(ctx) {
     state.visuals.floaters = state.visuals.floaters.filter(f => now - f.startTime < 800);
     ctx.fillStyle = LAYOUT.COLORS.BG;
     ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    
+    // ★変更: 画面中央を動的に取得
+    const cx = LAYOUT.CANVAS_WIDTH / 2;
+    const cy = LAYOUT.CANVAS_HEIGHT / 2;
+
     if (state.screen === "title") {
-        ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "40px monospace"; ctx.textAlign = "center";
-        ctx.fillText("YAKITORI WARS", 400, 250);
-        ctx.font = "24px monospace"; ctx.fillText("Click/Touch to Start", 400, 350);
+        ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center";
+        ctx.fillText("YAKITORI WARS", cx, cy - 50);
+        ctx.font = "20px monospace"; ctx.fillText("Tap to Start", cx, cy + 20);
     } else if (state.screen === "game") {
         drawGameScreen(ctx);
     } else if (state.screen === "gameover") {
-        ctx.fillStyle = "#fff"; ctx.font = "40px monospace"; ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", 400, 250);
-        ctx.fillText(`WINNER: ${state.winner}`, 400, 320);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 36px monospace"; ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", cx, cy - 30);
+        ctx.font = "24px monospace";
+        ctx.fillText(`WINNER: ${state.winner}`, cx, cy + 20);
+        ctx.font = "16px monospace";
+        ctx.fillText("Tap to Retry", cx, cy + 80);
     }
 }
 
 function drawGameScreen(ctx) {
-    // Top Bar
-    drawPlayerPanel(ctx, state.players[0], 20, 20, 140, 70, 1);
-    drawPlayerPanel(ctx, state.players[1], 640, 20, 140, 70, 2);
-    ctx.fillStyle = "#fff"; ctx.font = "bold 24px monospace"; ctx.textAlign = "center";
-    ctx.fillText(`ROUND ${state.round}`, 400, 50);
-    ctx.font = "18px monospace"; ctx.fillText(state.enemyName, 400, 90);
+    const cx = LAYOUT.CANVAS_WIDTH / 2;
+    
+    // ★変更: ヘッダーパネル(P1/P2/ラウンド)を画面サイズに合わせて配置
+    const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
+    const panelH = 60;
+    const safeTop = 15;
+    
+    drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, panelH, 1);
+    drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, panelH, 2);
+    
+    ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
+    ctx.fillText(`ROUND ${state.round}`, cx, safeTop + 25);
+    ctx.font = "16px monospace"; ctx.fillText(state.enemyName, cx, safeTop + 50);
 
-    // Lanes
+    // ★変更: 焼き台の描画(縦向きにデザインし直し)
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i); const now = getTime();
         ctx.fillStyle = LAYOUT.COLORS.PANEL_BG; ctx.fillRect(b.x, b.y, b.w, b.h);
+        
         if (state.buildMode && isLaneValidForAction(i, state.buildMode)) {
             ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.fillRect(b.x, b.y, b.w, b.h);
         }
         ctx.strokeStyle = "#444"; ctx.strokeRect(b.x, b.y, b.w, b.h);
         
-        const cx = b.x + b.w/2;
+        const laneCx = b.x + b.w/2;
+        
         if (lane.owner) {
             const p = getVisualPalette(getCookStatus(lane));
-            ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(cx-2, b.y+10, 4, 70);
-            ctx.fillStyle = p.meat; ctx.fillRect(cx-15, b.y+20, 30, 15);
-            ctx.fillStyle = p.negi; ctx.fillRect(cx-15, b.y+40, 30, 15);
-            ctx.fillStyle = p.meat; ctx.fillRect(cx-15, b.y+60, 30, 15);
+            // 串を縦方向に配置
+            const stickH = b.h * 0.7;
+            const stickTop = b.y + b.h * 0.1;
+            ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx-2, stickTop, 4, stickH);
+            
+            const meatW = b.w * 0.6;
+            const meatH = stickH * 0.2;
+            const meatX = laneCx - meatW/2;
+            
+            ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.1, meatW, meatH);
+            ctx.fillStyle = p.negi; ctx.fillRect(meatX, stickTop + stickH*0.35, meatW, meatH);
+            ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.6, meatW, meatH);
         }
+
+        // 火力アイコン(🔥)を下部に表示
+        ctx.fillStyle = "#fff";
+        ctx.font = "14px sans-serif";
+        ctx.fillText("🔥".repeat(lane.fire), laneCx, b.y + b.h - 10);
     });
 
-    // Buttons
+    // ★変更: ボタンの描画(ラベル付きで分かりやすく)
     LAYOUT.BUTTONS.forEach((btn, i) => {
         const b = getButtonBounds(i);
         const canUse = canSelectAction(btn.id) && !isPlayerInputLocked();
         ctx.fillStyle = canUse ? btn.color : "#445";
         ctx.fillRect(b.x, b.y, b.w, b.h);
-        if (state.buildMode === btn.id) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.strokeRect(b.x, b.y, b.w, b.h); }
-        drawDotIcon(ctx, btn.icon, b.x + b.w/2, b.y + b.h/2, "#fff", 5);
+        
+        if (state.buildMode === btn.id) { 
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.strokeRect(b.x, b.y, b.w, b.h); 
+        }
+        
+        // アイコンとテキストを縦に並べる
+        drawDotIcon(ctx, btn.icon, b.x + b.w/2, b.y + b.h/2 - 10, canUse ? "#fff" : "#888", 3);
+        ctx.fillStyle = canUse ? "#fff" : "#aaa";
+        ctx.font = "bold 14px monospace";
+        ctx.fillText(btn.label, b.x + b.w/2, b.y + b.h - 10);
     });
 
-    // Overlay
+    // オーバーレイ(ターンスプラッシュ等)
     if (state.turnSplashTimer > 0) {
-        ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,800,600);
-        ctx.fillStyle = "#fff"; ctx.font = "40px monospace"; ctx.fillText("NEXT CHEF", 400, 300);
+        ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; ctx.fillRect(0,0,LAYOUT.CANVAS_WIDTH,LAYOUT.CANVAS_HEIGHT);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 32px monospace"; 
+        ctx.fillText("NEXT CHEF", cx, LAYOUT.CANVAS_HEIGHT / 2);
     }
 }
 
@@ -480,51 +516,45 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx) {
     ctx.fillStyle = LAYOUT.COLORS.PANEL_BG; ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = active ? (idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2) : "#444";
     ctx.lineWidth = active ? 4 : 2; ctx.strokeRect(x, y, w, h);
-    ctx.fillStyle = "#fff"; ctx.font = "14px monospace"; ctx.textAlign = "center";
-    ctx.fillText(`P${idx} SCORE:${player.score}`, x+w/2, y+30);
-    ctx.fillText(`MEAT:${player.meat}`, x+w/2, y+55);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
+    ctx.fillText(`P${idx}`, x+w/2, y+20);
+    ctx.font = "12px monospace";
+    ctx.fillText(`SCORE:${player.score}`, x+w/2, y+38);
+    ctx.fillText(`MEAT:${player.meat}`, x+w/2, y+54);
 }
 
 // ==========================================
 // 8. main.js - セットアップとスマホ対応
 // ==========================================
-
-// ★修正: 新規作成をやめ、HTMLのcanvasを取得する
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-// ★修正: flex指定を削除し、不要なスタイルを整理
 document.body.style.margin = "0";
 document.body.style.padding = "0";
 document.body.style.backgroundColor = "#111";
 document.body.style.height = "100vh";
 document.body.style.overflow = "hidden";
-document.body.style.touchAction = "none"; // スクロール防止
+document.body.style.touchAction = "none"; // スクロール・ズーム防止
 
-// ★修正: ご提案いただいた新しいresize関数
+// ★変更: 画面サイズを論理サイズとして適用し、縦画面でもピッタリ収まるようにします
 function resize() {
     const dpr = window.devicePixelRatio || 1;
-
+    // iOS Safari などのバー領域を考慮した安全な高さを取得
     const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
     const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
 
-    const scale = Math.min(
-        vw / LAYOUT.CANVAS_WIDTH,
-        vh / LAYOUT.CANVAS_HEIGHT
-    );
+    LAYOUT.CANVAS_WIDTH = vw;
+    LAYOUT.CANVAS_HEIGHT = vh;
 
-    const cssWidth = Math.floor(LAYOUT.CANVAS_WIDTH * scale);
-    const cssHeight = Math.floor(LAYOUT.CANVAS_HEIGHT * scale);
+    canvas.width = vw * dpr;
+    canvas.height = vh * dpr;
 
-    canvas.width = LAYOUT.CANVAS_WIDTH * dpr;
-    canvas.height = LAYOUT.CANVAS_HEIGHT * dpr;
-
-    canvas.style.width = cssWidth + "px";
-    canvas.style.height = cssHeight + "px";
-
+    canvas.style.width = vw + "px";
+    canvas.style.height = vh + "px";
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
+
 window.addEventListener("resize", resize);
 resize();
 
