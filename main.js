@@ -209,6 +209,7 @@ function switchTurn() {
             state.pendingAiBreath = true;
         }
     } else if (state.players[state.currentPlayer - 1].workersRemaining <= 0) {
+        // 全員の行動が終了したら、0.6秒待ってからラウンド終了処理へ
         setTimeout(() => tryEndRound(), 600);
     }
 }
@@ -267,7 +268,7 @@ function tryEndRound() {
 
 function resolvePendingTurnFlow() {
     if (state.pendingTurnSplash) { 
-        state.turnSplashTimer = 45; 
+        state.turnSplashTimer = 45; // 演出タイマーをセット
         state.pendingTurnSplash = false; 
     }
     if (state.turnSplashTimer > 0) {
@@ -277,6 +278,7 @@ function resolvePendingTurnFlow() {
             state.aiBreathTimer = 15; 
             state.pendingAiBreath = false; 
         } else if (state.aiBreathTimer <= 0) {
+            // スプラッシュ演出が完全に終わってから操作権限を移譲する
             state.currentPlayer = state.pendingPlayer;
             state.pendingPlayer = null;
         }
@@ -309,9 +311,9 @@ function canUseServe(playerIndex) {
     for (let n of state.lanes) {
         if (n.built) {
             const status = getCookLabel(n.type, n.cookState);
-            if (status === "burnt") return true;
-            if (n.owner === playerIndex) return true;
-            if (p.resources >= 1 && (status === "okay" || status === "perfect")) return true;
+            if (status === "burnt") return true; // clean up
+            if (n.owner === playerIndex) return true; // harvest own
+            if (p.resources >= 1 && (status === "okay" || status === "perfect")) return true; // steal
         }
     }
     return false;
@@ -410,7 +412,7 @@ function isNodeValidForMode(node, mode) {
 // ==========================================
 function isInputLocked() {
     const cp = state.currentPlayer;
-    // AIのターンは人間の入力を受け付けない
+    // AIのターンは人間の入力を完全にロック
     if (isAIPlayer(cp)) return true;
 
     return state.screen !== "game" || 
@@ -588,15 +590,12 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 }
 
 function playAITurn() {
-    // 現在のプレイヤーがAIでない場合は絶対に動かない
     if (!isAIPlayer(state.currentPlayer)) return;
 
     if (state.screen !== "game" || state.isBusy || state.gameOver || 
         state.pendingTurnSplash || state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0) return;
     
     if (state.players[state.currentPlayer - 1].workersRemaining <= 0) return;
-
-    // すでに思考中の場合は重複して実行しない
     if (state.isAIThinking) return;
 
     state.isAIThinking = true;
@@ -679,8 +678,10 @@ function drawGameScreen(ctx) {
     const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
     const safeTop = 15;
     
-    drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 60, 1);
-    drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 60, 2);
+    // ★修正: ターン演出中にも正しいプレイヤーがアクティブに見えるようにする
+    const activePlayer = state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer;
+    drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 60, 1, activePlayer);
+    drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 60, 2, activePlayer);
     
     ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
     ctx.fillText(`ROUND ${state.round}`, cx, safeTop + 25);
@@ -707,7 +708,6 @@ function drawGameScreen(ctx) {
             ctx.fillStyle = p.negi; ctx.fillRect(meatX, stickTop + stickH*0.35, meatW, meatH);
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.6, meatW, meatH);
             
-            // Owner marker
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
         }
@@ -728,7 +728,7 @@ function drawGameScreen(ctx) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
             if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
-            if (boxId === 4) canUse = true; // Uchiwa validates on tap
+            if (boxId === 4) canUse = true; 
             
             const isLocked = isInputLocked();
             ctx.fillStyle = (canUse && !isLocked) ? btn.color : "#445";
@@ -739,16 +739,56 @@ function drawGameScreen(ctx) {
         });
     }
 
+    // ★修正: ターン演出の暗転時、次に操作するプレイヤーの名前を正しく表示する
     if (state.turnSplashTimer > 0) {
         ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; ctx.fillRect(0,0,LAYOUT.CANVAS_WIDTH,LAYOUT.CANVAS_HEIGHT);
-        ctx.fillStyle = state.currentPlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
         ctx.font = "bold 32px monospace"; 
-        ctx.fillText(`P${state.currentPlayer} TURN`, cx, LAYOUT.CANVAS_HEIGHT / 2);
+        ctx.fillText(`P${activePlayer} TURN`, cx, LAYOUT.CANVAS_HEIGHT / 2);
     }
+
+    // ★修正: Codea版のようにアクション後の視覚的なフィードバックを暗転よりも「手前」に描画する
+    const now = getTime();
+    state.visuals.ghosts.forEach(g => {
+        const elapsed = now - g.startTime;
+        const progress = Math.min(1, elapsed / 1000);
+        const yOffset = -progress * 50;
+        ctx.globalAlpha = 1 - progress;
+        const b = getLaneBounds(g.laneIndex);
+        const p = getVisualPalette(g.status);
+        ctx.fillStyle = p.dot || "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
+        ctx.fillText(g.status, b.x + b.w/2, b.y + b.h/2 + yOffset);
+    });
+
+    state.visuals.floaters.forEach(f => {
+        const elapsed = now - f.startTime;
+        const progress = Math.min(1, elapsed / 800);
+        const yOffset = -progress * 40;
+        ctx.globalAlpha = 1 - progress;
+        
+        let fx, fy;
+        if (f.targetType === 'p1') { fx = panelW / 2 + 10; fy = safeTop + 70; }
+        else if (f.targetType === 'p2') { fx = LAYOUT.CANVAS_WIDTH - panelW / 2 - 10; fy = safeTop + 70; }
+        else if (f.targetType === 'lane') {
+            const b = getLaneBounds(f.targetIndex);
+            fx = b.x + b.w/2; fy = b.y;
+        }
+        
+        ctx.textAlign = "center";
+        if (f.type === 'meat_up') {
+            ctx.fillStyle = "#fa3"; ctx.font = "bold 20px monospace"; ctx.fillText("+1 肉", fx, fy + yOffset);
+        } else if (f.type === 'meat_down') {
+            ctx.fillStyle = "#f33"; ctx.font = "bold 20px monospace"; ctx.fillText("-1 肉", fx, fy + yOffset);
+        } else if (f.type === 'star_up') {
+            ctx.fillStyle = f.color; ctx.font = "bold 24px monospace";
+            const prefix = f.amount > 0 ? "+" : ""; ctx.fillText(`${prefix}${f.amount}`, fx, fy + yOffset);
+        }
+    });
+    ctx.globalAlpha = 1.0;
 }
 
-function drawPlayerPanel(ctx, player, x, y, w, h, idx) {
-    const active = state.currentPlayer === idx;
+function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
+    const active = activePlayer === idx;
     ctx.fillStyle = LAYOUT.COLORS.PANEL_BG; ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = active ? (idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2) : "#444";
     ctx.lineWidth = active ? 4 : 2; ctx.strokeRect(x, y, w, h);
