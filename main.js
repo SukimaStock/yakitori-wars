@@ -138,25 +138,30 @@ function startGame(mode) {
     state.gameMode = mode;
     state.screen = "game";
     if (mode === "ai") setupAIForStage(1);
+    
+    // ゲーム開始時も演出を挟む
+    state.currentPlayer = 1;
+    state.pendingPlayer = 1;
+    state.pendingTurnSplash = true;
 }
 
 function nextStage() {
     const nextStg = state.currentStage + 1;
-    if (nextStg > 5) return; // All clear handling
+    if (nextStg > 5) return;
     const prevMode = state.gameMode;
     initGameState();
     state.gameMode = prevMode;
     state.screen = "game";
     setupAIForStage(nextStg);
+    
+    state.currentPlayer = 1;
+    state.pendingPlayer = 1;
+    state.pendingTurnSplash = true;
 }
 
 function updateAllScores() {
     state.players.forEach((p, i) => {
         let s = p.servedScore || 0;
-        state.lanes.forEach(n => {
-            // Power/Mine logic omitted as per Codea's base structure simplification, 
-            // but keeping standard serve score intact
-        });
         p.score = s;
     });
 }
@@ -182,6 +187,10 @@ function advanceAllSkewersAtRoundEnd() {
     });
 }
 
+function isAIPlayer(playerIndex) {
+    return state.gameMode === "ai" && playerIndex === 2;
+}
+
 function consumeWorker() {
     const p = state.players[state.currentPlayer - 1];
     p.workersRemaining -= 1;
@@ -191,21 +200,13 @@ function consumeWorker() {
     switchTurn();
 }
 
-function isAIPlayer(playerIndex) {
-    return state.gameMode === "ai" && playerIndex === 2;
-}
-
 function switchTurn() {
     const nextP = 3 - state.currentPlayer;
     if (state.players[nextP - 1].workersRemaining > 0) {
+        state.pendingPlayer = nextP;
+        state.pendingTurnSplash = true;
         if (isAIPlayer(nextP)) {
-            state.pendingPlayer = nextP;
-            state.pendingTurnSplash = true;
             state.pendingAiBreath = true;
-        } else {
-            state.currentPlayer = nextP;
-            state.turnSplashTimer = 0;
-            state.pendingPlayer = null;
         }
     } else if (state.players[state.currentPlayer - 1].workersRemaining <= 0) {
         setTimeout(() => tryEndRound(), 600);
@@ -216,7 +217,6 @@ function startNewRound() {
     state.round++;
     state.players.forEach(p => p.workersRemaining = 1);
     
-    // Toggle first player
     state.firstPlayer = state.nextFirstPlayer;
     state.nextFirstPlayer = 3 - state.firstPlayer;
     const nextP = state.firstPlayer;
@@ -224,14 +224,10 @@ function startNewRound() {
     state.buildMode = null;
     state.pendingBox = null;
 
+    state.pendingPlayer = nextP;
+    state.pendingTurnSplash = true;
     if (isAIPlayer(nextP)) {
-        state.pendingPlayer = nextP;
-        state.pendingTurnSplash = true;
         state.pendingAiBreath = true;
-    } else {
-        state.currentPlayer = nextP;
-        state.turnSplashTimer = 0;
-        state.pendingPlayer = null;
     }
 }
 
@@ -270,12 +266,17 @@ function tryEndRound() {
 }
 
 function resolvePendingTurnFlow() {
-    if (state.pendingTurnSplash) { state.turnSplashTimer = 45; state.pendingTurnSplash = false; }
+    if (state.pendingTurnSplash) { 
+        state.turnSplashTimer = 45; 
+        state.pendingTurnSplash = false; 
+    }
     if (state.turnSplashTimer > 0) {
         state.turnSplashTimer--;
     } else if (state.pendingPlayer !== null) {
-        if (state.pendingAiBreath) { state.aiBreathTimer = 15; state.pendingAiBreath = false; }
-        else if (state.aiBreathTimer <= 0) {
+        if (state.pendingAiBreath) { 
+            state.aiBreathTimer = 15; 
+            state.pendingAiBreath = false; 
+        } else if (state.aiBreathTimer <= 0) {
             state.currentPlayer = state.pendingPlayer;
             state.pendingPlayer = null;
         }
@@ -408,14 +409,17 @@ function isNodeValidForMode(node, mode) {
 // 5. game/input.js - 入力処理
 // ==========================================
 function isInputLocked() {
+    const cp = state.currentPlayer;
+    // AIのターンは人間の入力を受け付けない
+    if (isAIPlayer(cp)) return true;
+
     return state.screen !== "game" || 
-           state.currentPlayer !== 1 || 
            state.isBusy || state.isAIThinking ||
            state.pendingPlayer !== null || 
            state.turnSplashTimer > 0 || 
            state.aiBreathTimer > 0 ||
            state.gameOver ||
-           state.players[0].workersRemaining <= 0;
+           state.players[cp - 1].workersRemaining <= 0;
 }
 
 function handleCanvasClick(event, canvas) {
@@ -465,10 +469,10 @@ function handleCanvasClick(event, canvas) {
             const actionId = LAYOUT.BUTTONS[i].id;
             const boxId = i + 1;
             let canUse = false;
-            if (boxId === 1) canUse = canUseMeat(1);
-            if (boxId === 2) canUse = canUseSkewer(1);
-            if (boxId === 3) canUse = canUseServe(1);
-            if (boxId === 4) canUse = true; // uchiwa always selectable, validated on tap
+            if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
+            if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
+            if (boxId === 3) canUse = canUseServe(state.currentPlayer);
+            if (boxId === 4) canUse = true; // Uchiwa validates on tap
 
             if (canUse) placeWorker(boxId);
             return;
@@ -584,27 +588,27 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 }
 
 function playAITurn() {
-    // 自分のターンでない場合や、演出中の場合は何もしない
-    if (state.screen !== "game" || state.currentPlayer !== 2 || state.isBusy || state.gameOver || 
+    // 現在のプレイヤーがAIでない場合は絶対に動かない
+    if (!isAIPlayer(state.currentPlayer)) return;
+
+    if (state.screen !== "game" || state.isBusy || state.gameOver || 
         state.pendingTurnSplash || state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0) return;
     
-    // 行動力がなければ何もしない
-    if (state.players[1].workersRemaining <= 0) return;
+    if (state.players[state.currentPlayer - 1].workersRemaining <= 0) return;
 
-    // ★修正: AIが既に思考中の場合は、重複して行動を予約しないようにブロック
+    // すでに思考中の場合は重複して実行しない
     if (state.isAIThinking) return;
 
     state.isAIThinking = true;
-    
     setTimeout(() => {
         const levelConf = AI_LEVEL_CONFIG[state.aiLevel] || AI_LEVEL_CONFIG[2];
         const profile = state.aiProfile;
         
-        let cands = buildActionCandidates(state, 2).filter(a => isActionValidForAI(state, a, 2, profile, levelConf));
+        let cands = buildActionCandidates(state, state.currentPlayer).filter(a => isActionValidForAI(state, a, state.currentPlayer, profile, levelConf));
         if (cands.length === 0) cands.push({ type: "meat" });
 
         let scored = cands.map(a => {
-            let s = scoreAIAction(state, a, 2, profile);
+            let s = scoreAIAction(state, a, state.currentPlayer, profile);
             s += (Math.random() * 2 - 1) * levelConf.scoreNoise;
             return { action: a, score: s };
         });
@@ -612,18 +616,17 @@ function playAITurn() {
         scored.sort((a, b) => b.score - a.score);
         let best = scored[0].action;
 
-        // Mistake / Randomness logic (揺らぎとミスの処理)
+        // 揺らぎ・ミスの処理
         if (scored.length > 1 && Math.random() < levelConf.mistake) best = scored[1].action;
 
-        // 決定した行動を実行
+        // 行動実行
         if (best.type === "meat") placeWorker(1);
         else if (best.type === "put") { state.buildMode="sapling"; tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
         else if (best.type === "serve") { state.buildMode="harvest"; tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
         else if (best.type === "uchiwa") { state.buildMode="uchiwa"; tryUchiwaNode(state.lanes.find(l=>l.id===best.nodeId)); }
         
-        // 思考終了
         state.isAIThinking = false;
-    }, 450); // AIが行動するまでの待機時間(0.45秒)
+    }, 450);
 }
 
 // ==========================================
@@ -722,9 +725,9 @@ function drawGameScreen(ctx) {
             const b = getButtonBounds(i);
             const boxId = i + 1;
             let canUse = false;
-            if (boxId === 1) canUse = canUseMeat(1);
-            if (boxId === 2) canUse = canUseSkewer(1);
-            if (boxId === 3) canUse = canUseServe(1);
+            if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
+            if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
+            if (boxId === 3) canUse = canUseServe(state.currentPlayer);
             if (boxId === 4) canUse = true; // Uchiwa validates on tap
             
             const isLocked = isInputLocked();
