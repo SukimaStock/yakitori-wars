@@ -789,18 +789,32 @@ function drawGameScreen(ctx) {
 
             drawBevelRect(ctx, dotStartX - 6, dotStartY - 6, gridW + 12, gridH + 12, "#242430");
 
-            for (let j = 0; j < 6; j++) {
+for (let j = 0; j < 6; j++) {
                 const col = j % 3; const row = Math.floor(j / 3);
-                const dx = dotStartX + col * (dotSize + dotGap); const dy = dotStartY + row * (dotSize + dotGap);
+                const dx = dotStartX + col * (dotSize + dotGap); 
+                const dy = dotStartY + row * (dotSize + dotGap);
+
                 if (j < cv) {
+                    // 既に焼けている(点灯)マス
                     ctx.fillStyle = p.dot; ctx.fillRect(dx, dy, dotSize, dotSize);
                     ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
                 } else {
+                    // まだ焼けていない(消灯)マス
                     ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dy, dotSize, dotSize);
                     ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; ctx.fillRect(dx, dy + dotSize - 1, dotSize, 1);
+                    
+                    // ★新規追加: うちわ選択中、"次の1マス" (j === cv) だけをフワッと点滅させる
+                    if (state.buildMode === "uchiwa" && isNodeValidForMode(lane, "uchiwa") && j === cv) {
+                        // サイン波を使って、0.2 〜 0.8 の間で透明度を滑らかに上下させる
+                        const alpha = 0.2 + Math.abs(Math.sin(now / 150)) * 0.6; 
+                        
+                        ctx.globalAlpha = alpha;
+                        ctx.fillStyle = p.dot; // 予測される色で光らせる
+                        ctx.fillRect(dx, dy, dotSize, dotSize);
+                        ctx.globalAlpha = 1.0; // 必ず透明度を1.0に戻す
+                    }
                 }
             }
-        }
         
         const fireScale = 2.5; const fireSize = 8 * fireScale; const fireGap = 4; 
         const totalFireW = (fireSize * lane.fire) + (fireGap * (lane.fire - 1));
