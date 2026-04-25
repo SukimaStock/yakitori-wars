@@ -306,31 +306,6 @@ function tryEndRound() {
     startNewRound();
 }
 
-// --- 新規追加: ルーレットの更新処理 ---
-function updateRoulette() {
-    if (!state.startRouletteActive) return;
-
-    state.startRouletteTimer--;
-
-    // 5フレームごとに表示を切り替え
-    if (state.startRouletteTimer % 5 === 0) {
-        state.startRouletteIndex = 3 - state.startRouletteIndex;
-    }
-
-    // ルーレット終了時の処理
-    if (state.startRouletteTimer <= 0) {
-        state.startRouletteActive = false;
-        // ランダムに先攻を決定
-        state.startRouletteFinalPlayer = Math.random() < 0.5 ? 1 : 2;
-
-        state.firstPlayer = state.startRouletteFinalPlayer;
-        state.currentPlayer = state.startRouletteFinalPlayer;
-        state.pendingPlayer = state.startRouletteFinalPlayer;
-        state.pendingTurnSplash = true;
-    }
-}
-// ------------------------------------
-
 function resolvePendingTurnFlow() {
     if (state.pendingTurnSplash) { 
         state.turnSplashTimer = 45; 
@@ -791,13 +766,13 @@ function drawGameScreen(ctx) {
     const cx = LAYOUT.CANVAS_WIDTH / 2;
     const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
     const safeTop = 15;
-    
+
     // ルーレット中は activePlayer のハイライトを一旦 P1/P2 両方オフにするか、インデックスに合わせます
     const activePlayer = state.startRouletteActive ? state.startRouletteIndex : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
-    
+
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
-    
+
     ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
     ctx.fillText(`ROUND ${state.round}`, cx, safeTop + 25);
     if (state.gameMode === "ai") {
@@ -812,8 +787,8 @@ function drawGameScreen(ctx) {
         }
         ctx.strokeStyle = "#444"; ctx.strokeRect(b.x, b.y, b.w, b.h);
         const laneCx = b.x + b.w/2;
-        
-if (lane.built) {
+
+        if (lane.built) {
             const status = getCookLabel(lane.type, lane.cookState);
             const p = getVisualPalette(status.toUpperCase());
             const stickH = b.h * 0.7; const stickTop = b.y + b.h * 0.1;
@@ -822,8 +797,8 @@ if (lane.built) {
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.1, meatW, meatH);
             ctx.fillStyle = p.negi; ctx.fillRect(meatX, stickTop + stickH*0.35, meatW, meatH);
             ctx.fillStyle = p.meat; ctx.fillRect(meatX, stickTop + stickH*0.6, meatW, meatH);
-            
-// --- 変更: 焼け具合のドット表示 (3x2グリッド) ---
+
+            // --- 変更: 焼け具合のドット表示 (3x2グリッド) ---
             const cv = Math.min(lane.cookState || 0, 6); // 最大6ドット
             const dotSize = 6;
             const dotGap = 2;
@@ -853,7 +828,7 @@ if (lane.built) {
                 ctx.fillRect(dx, dy, dotSize, dotSize);
             }
             // ---------------------------------------------------
-            
+
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
         }
@@ -861,7 +836,7 @@ if (lane.built) {
         ctx.fillText("🔥".repeat(lane.fire), laneCx, b.y + b.h - 10);
     });
 
-if (state.buildMode) {
+    if (state.buildMode) {
         const cb = getCancelButtonBounds();
         drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33");
         ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace";
@@ -875,27 +850,28 @@ if (state.buildMode) {
             if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
             if (boxId === 4) canUse = true; 
-            
+
             const isLocked = isInputLocked();
             const baseColor = (canUse && !isLocked) ? btn.color : "#445";
-            
+
             // 立体的なボタンを描画
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor);
-            
+
             // アイコンを中央に大きく配置(ラベル文字はあえて描画しない)
             drawDotIcon(ctx, btn.icon, b.x + b.w/2, b.y + b.h/2, (canUse && !isLocked) ? "#fff" : "#888", 4);
         });
     }
+
     // --- 新規追加: ルーレットの描画 ---
     if (state.startRouletteActive) {
         ctx.fillStyle = LAYOUT.COLORS.OVERLAY_BG; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-        
+
         ctx.fillStyle = state.startRouletteIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
         ctx.font = "bold 48px monospace"; 
         ctx.textAlign = "center";
         ctx.fillText(`P${state.startRouletteIndex}`, cx, LAYOUT.CANVAS_HEIGHT / 2 + 10);
-        
+
         ctx.fillStyle = "#fff";
         ctx.font = "bold 24px monospace";
         ctx.fillText("WHO GOES FIRST?", cx, LAYOUT.CANVAS_HEIGHT / 2 - 40);
@@ -921,13 +897,12 @@ if (state.buildMode) {
         ctx.fillText(g.status, b.x + b.w/2, b.y + b.h/2 + yOffset);
     });
 
-// (drawGameScreen関数の中の終盤あたりにあります)
     state.visuals.floaters.forEach(f => {
         const elapsed = now - f.startTime;
         const progress = Math.min(1, elapsed / 800);
         const yOffset = -progress * 50; // フワッと上に消える移動量
         ctx.globalAlpha = 1 - progress;
-        
+
         let fx, fy;
         if (f.targetType === 'p1' || f.targetType === 'p2') {
             // ★変更: 肉の増減は画面中央(やや上)に集約する
@@ -940,9 +915,9 @@ if (state.buildMode) {
             fx = b.x + b.w/2; 
             fy = b.y - 10;
         }
-        
+
         ctx.textAlign = "center";
-        
+
         // ★変更: 文字サイズを少し大きくして視認性をアップ
         if (f.type === 'meat_up') {
             ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; 
