@@ -113,13 +113,13 @@ const ICON_DATA = {
         0,0,11,0,0,0,0,0,
         0,0,11,0,0,0,0,0
     ],
-    serve_plate: [ // 焼けた肉+皿(取った結果をイメージ)
+    serve_plate:[
         0,0,0,0,0,0,0,0,
-        0,0,7,7,7,0,0,0,
-        0,0,7,7,7,0,0,0,
-        0,0,11,11,11,0,0,0,
-        0,0,7,7,7,0,0,0,
-        0,0,7,7,7,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        0,0,7,7,10,7,7,0,
+        0,11,7,7,10,7,7,11,
         1,1,1,1,1,1,1,1,
         0,1,1,1,1,1,1,0
     ],
@@ -820,7 +820,9 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
         const status = getCookLabel(lane.type, lane.cookState);
         isPerfect = (status === "perfect");
         const heat = getBaseHeat(lane.type);
-        isDanger = (status !== "burnt" && getCookLabel(lane.type, lane.cookState + heat) === "burnt");
+        const boost = lane.uchiwaBoost || 0; // ★追加: うちわの余熱を取得
+        // ★修正: うちわの余熱も含めて「次に焦げるか」を正確に判定
+        isDanger = (status !== "burnt" && getCookLabel(lane.type, lane.cookState + heat + boost) === "burnt");
     }
 
     const baseAlpha = isPerfect ? 1.0 : 0.95;
@@ -963,7 +965,6 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     
     ctx.globalAlpha = 1.0;
 }
-
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
@@ -1016,7 +1017,6 @@ function drawGameScreen(ctx) {
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
 
     ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
-    // ★ 修正: ラウンドの終わりを可視化
     ctx.fillText(`ROUND ${state.round} / ${state.maxRounds}`, cx, safeTop + 25);
     if (state.gameMode === "ai") {
         ctx.font = "14px monospace"; ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45);
@@ -1097,7 +1097,6 @@ function drawGameScreen(ctx) {
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
 
-            // ★ 追加: 焦げる直前の「ヤバい感」の煙を少し出す
             const heat = getBaseHeat(lane.type);
             const nextStatus = getCookLabel(lane.type, lane.cookState + heat);
             if (status !== "burnt" && nextStatus === "burnt") {
@@ -1109,6 +1108,7 @@ function drawGameScreen(ctx) {
         
         let cv = 0;
         let nextCv = 0;
+        let baseHeatPreview = 0; // ★追加: 基本火力でのプレビュー位置
         let dotColor = "#fff";
         let previewColor = "rgba(255, 255, 255, 0.3)";
 
@@ -1116,6 +1116,7 @@ function drawGameScreen(ctx) {
             cv = Math.min(lane.cookState || 0, 6);
             const heat = getBaseHeat(lane.type);
             const boost = lane.uchiwaBoost || 0;
+            baseHeatPreview = cv + heat;
             nextCv = cv + heat + boost;
 
             if (state.buildMode === "uchiwa" && isFlashable) {
@@ -1146,7 +1147,12 @@ function drawGameScreen(ctx) {
                 ctx.fillStyle = dotColor; ctx.fillRect(dx, dy, dotSize, dotSize);
                 ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
             } else if (j < nextCv) {
-                ctx.fillStyle = previewColor; ctx.fillRect(dx, dy, dotSize, dotSize);
+                let cellColor = previewColor;
+                // ★追加: 通常時のプレビューで、うちわ余熱による追加分を少し色付けして知らせる
+                if (state.buildMode !== "uchiwa" && lane.uchiwaBoost > 0 && j >= baseHeatPreview) {
+                    cellColor = "rgba(255, 136, 85, 0.4)"; // トークンと同系色の控えめな色
+                }
+                ctx.fillStyle = cellColor; ctx.fillRect(dx, dy, dotSize, dotSize);
             } else {
                 ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dy, dotSize, dotSize);
             }
@@ -1157,13 +1163,38 @@ function drawGameScreen(ctx) {
         const startFireX = laneCx - totalFireW / 2 + fireSize / 2;
         for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 40, "#fa3", fireScale);
 
+        // ★追加: レーン内に「余熱トークン」を表示する
+        if (lane.uchiwaBoost > 0) {
+            // ゆっくり呼吸するアニメーション
+            const pulse = (Math.sin(now / 500) + 1) / 2;
+            const alpha = 0.3 + 0.4 * pulse; 
+            ctx.globalAlpha = alpha;
+
+            // レーン内の右下(邪魔にならない場所)に配置
+            const tokenX = b.x + b.w - 18;
+            const tokenY = b.y + b.h - 18;
+            const tokenColor = "#f85"; // 余熱感のあるオレンジ色
+            
+            drawDotIcon(ctx, "fire", tokenX, tokenY, tokenColor, 1.5);
+            ctx.fillStyle = tokenColor;
+            ctx.font = "bold 12px monospace";
+            ctx.textAlign = "left";
+            
+            // 視認性を少し上げるために影を追加
+            ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+            ctx.shadowBlur = 2;
+            ctx.fillText(`+${lane.uchiwaBoost}`, tokenX + 6, tokenY + 4);
+            ctx.shadowBlur = 0; // リセット
+            
+            ctx.globalAlpha = 1.0;
+        }
+
         // ★ ヒントをレーン上部に描画
         drawLaneHint(ctx, lane, i, state.buildMode, activePlayer, pResources);
     });
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
 }
-
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
     const cx = LAYOUT.CANVAS_WIDTH / 2;
     const cy = LAYOUT.CANVAS_HEIGHT / 2;
