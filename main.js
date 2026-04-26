@@ -1,4 +1,4 @@
-// # main.js
+// # main.js - YAKITORI WARS: Affordance & Clarity Update (完全版)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -13,7 +13,7 @@ function initGameState() {
         aiLevel: 2,
         aiProfile: "master",
         round: 1,
-        maxRounds: 13,
+        maxRounds: 13, // 全13ラウンド
         currentPlayer: 1,
         firstPlayer: 1,
         nextFirstPlayer: 1,
@@ -56,7 +56,7 @@ function initGameState() {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
             ghosts: [], 
             floaters: [],
-            statusMessages: [], // 状態表示ゾーン(RESULT ZONE)用
+            statusMessages: [], // 状態表示ゾーン用
             particles: [], 
             cancelClick: 0, 
             titleClick: null
@@ -77,11 +77,12 @@ let LAYOUT = {
         STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334",
         HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
+    // ボタンの色を機能別に分離(彩度は抑えめ)
     BUTTONS: [
-        { id: "meat", color: "#56657a", icon: "meat", label: "肉" },
-        { id: "put", color: "#56657a", icon: "put_skewer", label: "置く" },
-        { id: "harvest", color: "#56657a", icon: "serve_plate", label: "取る/捨" },
-        { id: "uchiwa", color: "#56657a", icon: "uchiwa", label: "うちわ" }
+        { id: "meat",    color: "#5a7a5a", icon: "meat",         label: "肉" },       // 緑:生産・仕入
+        { id: "put",     color: "#4a6fa5", icon: "put_skewer",   label: "置く" },     // 青:配置
+        { id: "harvest", color: "#a57a4a", icon: "serve_plate",  label: "取る/捨" },  // 橙:収穫・結果
+        { id: "uchiwa",  color: "#8a4a6f", icon: "uchiwa",       label: "うちわ" }    // 紫:特殊
     ]
 };
 
@@ -99,69 +100,33 @@ const ICON_PALETTE = {
 
 const ICON_DATA = {
     meat: [0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,2,3,2,2,2,2,0,1,3,3,3,2,2,2,1,1,3,3,3,2,2,2,1,0,2,3,2,2,2,2,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0],
-    uchiwa: [0,8,8,8,8,8,8,0,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,0,9,9,7,7,9,9,0,0,0,0,7,7,0,0,0,0,0,0,7,7,0,0,0,0,0,0,7,7,0,0,0],
+    uchiwa: [0,8,8,8,8,8,0,6,8,8,8,8,8,8,8,0,8,8,8,8,8,8,8,6,8,8,9,9,9,8,8,0,0,8,9,7,9,8,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0],
     diamond: [0,0,0,1,6,0,0,0,0,0,1,6,6,6,0,0,0,1,6,6,6,6,6,0,1,6,6,6,6,6,6,6,0,6,6,6,6,6,6,0,0,0,6,6,6,6,0,0,0,0,0,6,6,0,0,0,0,0,0,0,0,0,0,0],
     fire: [0,0,0,4,0,0,0,0,0,0,4,5,4,0,0,0,0,4,4,5,4,4,0,0,0,4,5,5,5,4,0,0,4,5,5,5,5,5,4,0,4,4,5,5,5,4,4,0,0,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0],
-    put_skewer: [
-        0,0,0,9,0,0,0,0,
-        0,0,2,2,2,0,0,0,
-        0,0,2,2,2,0,0,0,
-        0,0,10,10,10,0,0,0,
-        0,0,2,2,2,0,0,0,
-        0,0,2,2,2,0,0,0,
-        0,0,0,9,0,0,0,0,
-        0,0,0,0,0,0,0,0
+    put_skewer: [ // 生肉+串(置いた結果をイメージ)
+        0,0,11,0,0,0,0,0,
+        0,2,2,2,0,0,0,0,
+        0,2,2,2,0,0,0,0,
+        0,0,11,0,0,0,0,0,
+        0,2,2,2,0,0,0,0,
+        0,2,2,2,0,0,0,0,
+        0,0,11,0,0,0,0,0,
+        0,0,11,0,0,0,0,0
     ],
-    serve_plate: [
-        0,0,0,11,11,0,0,0,
-        0,0,0,11,11,0,0,0,
-        0,0,0,11,11,0,0,0,
-        0,11,0,11,11,0,11,0,
-        0,0,11,11,11,11,0,0,
-        0,0,0,11,11,0,0,0,
-        1,0,0,0,0,0,0,1,
+    serve_plate: [ // 焼けた肉+皿(取った結果をイメージ)
+        0,0,0,0,0,0,0,0,
+        0,0,7,7,7,0,0,0,
+        0,0,7,7,7,0,0,0,
+        0,0,11,11,11,0,0,0,
+        0,0,7,7,7,0,0,0,
+        0,0,7,7,7,0,0,0,
+        1,1,1,1,1,1,1,1,
         0,1,1,1,1,1,1,0
     ],
-    clock: [
-        0,0,0,0,0,0,0,0,
-        0,0,1,1,1,1,0,0,
-        0,1,0,1,0,0,1,0,
-        0,1,0,1,1,0,1,0,
-        0,1,0,0,0,0,1,0,
-        0,0,1,1,1,1,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0
-    ],
-    warning: [
-        0,0,0,8,8,0,0,0,
-        0,0,8,11,11,8,0,0,
-        0,0,8,11,11,8,0,0,
-        0,0,8,11,11,8,0,0,
-        0,0,8,11,11,8,0,0,
-        0,0,0,8,8,0,0,0,
-        0,0,8,11,11,8,0,0,
-        0,0,0,8,8,0,0,0
-    ],
-    trash: [ 
-        0,0,0,0,0,0,0,0,
-        0,8,8,0,0,8,8,0,
-        0,0,8,8,8,8,0,0,
-        0,0,0,8,8,0,0,0,
-        0,0,8,8,8,8,0,0,
-        0,8,8,0,0,8,8,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0
-    ],
-    up_arrow: [ 
-        0,0,0,1,1,0,0,0,
-        0,0,1,1,1,1,0,0,
-        0,1,1,1,1,1,1,0,
-        0,0,0,1,1,0,0,0,
-        0,0,0,1,1,0,0,0,
-        0,0,0,1,1,0,0,0,
-        0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0
-    ]
+    clock: [0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,1,0,1,0,0,1,0,0,1,0,1,1,0,1,0,0,1,0,0,0,0,1,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    warning: [0,0,0,8,8,0,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,0,8,8,0,0,0,0,0,8,11,11,8,0,0,0,0,0,8,8,0,0,0],
+    trash: [0,0,0,0,0,0,0,0,0,8,8,0,0,8,8,0,0,0,8,8,8,8,0,0,0,0,0,8,8,0,0,0,0,0,8,8,8,8,0,0,0,8,8,0,0,8,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    up_arrow: [0,0,0,1,1,0,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 };
 
 function getVisualPalette(status) { return VISUAL_STATES[status] || VISUAL_STATES.RAW; }
@@ -274,7 +239,7 @@ function spawnSmokeEffect(laneIndex, amount) {
     const laneCx = b.x + b.w / 2;
     const stickTop = b.y + b.h * 0.1;
     const meatY = stickTop + (b.h * 0.7) * 0.4;
-    const numParticles = 5 + amount * 3; 
+    const numParticles = Math.floor(5 + amount * 3); 
     
     for (let i = 0; i < numParticles; i++) {
         state.visuals.particles.push({
@@ -822,11 +787,10 @@ function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     }
 }
 
-// ★ 新規追加:UI感のある角丸背景を描画する機能
-function drawUIPanel(ctx, x, y, w, h) {
-    const r = 4; // 角丸の半径
-    ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+function drawUIPanel(ctx, x, y, w, h, bgColor = "rgba(0, 0, 0, 0.75)", borderColor = "rgba(255, 255, 255, 0.15)") {
+    const r = 4;
+    ctx.fillStyle = bgColor;
+    ctx.strokeStyle = borderColor;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -843,29 +807,50 @@ function drawUIPanel(ctx, x, y, w, h) {
     ctx.stroke();
 }
 
-// ★ 修正:ヒント表示の位置・レイヤー・アニメーション対応
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
-    // 1 ヒント位置を「網の外・上」に固定(b.yは網の上端なので、そこから上に離す)
     const hintY = b.y - 18; 
     const now = getTime();
 
-    // 3 アニメーション(ふわふわ浮遊とゆっくりとした点滅)
-    const floatOffset = Math.sin(now / 200 + laneIndex) * 2;
-    const alphaAnim = 0.85 + Math.sin(now / 300) * 0.15;
+    let isPerfect = false;
+    let isDanger = false;
+
+    if (lane.built) {
+        const status = getCookLabel(lane.type, lane.cookState);
+        isPerfect = (status === "perfect");
+        const heat = getBaseHeat(lane.type);
+        isDanger = (status !== "burnt" && getCookLabel(lane.type, lane.cookState + heat) === "burnt");
+    }
+
+    const baseAlpha = isPerfect ? 1.0 : 0.95;
+    const alphaAnim = baseAlpha + Math.sin(now / 300) * 0.15;
+    
+    let floatOffset = Math.sin(now / 200 + laneIndex) * 2;
+    if (isPerfect) {
+        floatOffset += Math.sin(now / 150); 
+    }
 
     ctx.textAlign = "center";
     ctx.font = "bold 14px monospace";
-    ctx.globalAlpha = alphaAnim;
+    ctx.globalAlpha = Math.min(1.0, alphaAnim);
 
-    // 背景描画用ヘルパー関数
     const drawHintBg = (w) => {
-        // 2 ヒントを「UIレイヤー」として扱う (角丸+ボーダー)
-        drawUIPanel(ctx, laneCx - w / 2, hintY - 14 + floatOffset, w, 28);
+        let bgColor = "rgba(0, 0, 0, 0.75)";
+        let borderColor = "rgba(255, 255, 255, 0.15)";
+        
+        if (isDanger) {
+            bgColor = "rgba(80, 0, 0, 0.85)";
+            borderColor = "rgba(255, 100, 100, 0.4)";
+        } else if (isPerfect) {
+            bgColor = "rgba(40, 40, 0, 0.85)";
+            borderColor = "rgba(255, 255, 150, 0.4)";
+        }
+
+        let displayW = isPerfect ? w + Math.sin(now / 150) * 2 : w; 
+        drawUIPanel(ctx, laneCx - displayW / 2, hintY - 14 + floatOffset, displayW, 28, bgColor, borderColor);
     };
 
-    // アイコン&テキスト描画用ヘルパー
     const drawIconAndText = (icon1, text1, color1, icon2, text2, color2, bgWidth) => {
         drawHintBg(bgWidth);
         const y = hintY + floatOffset;
@@ -930,7 +915,7 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
                     }
                 }
             } else {
-                ctx.globalAlpha = 0.3; // 選択不可の時は薄く
+                ctx.globalAlpha = 0.4; 
                 if (status === "early") { showHint = true; icon1 = "diamond"; text1 = "-5"; color1 = "#f33"; bgWidth = 60; }
             }
         } else {
@@ -945,6 +930,10 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
             } else if (status === "burnt" && isOwn) {
                 showHint = true;
                 icon1 = "diamond"; text1 = "-2"; color1 = "#6cf"; bgWidth = 60;
+            } else if (isDanger) {
+                showHint = true;
+                icon1 = "fire"; text1 = ""; color1 = "#f33";
+                icon2 = "warning"; text2 = ""; color2 = "#f33"; bgWidth = 60;
             }
         }
 
@@ -1027,7 +1016,8 @@ function drawGameScreen(ctx) {
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
 
     ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
-    ctx.fillText(`ROUND ${state.round}`, cx, safeTop + 25);
+    // ★ 修正: ラウンドの終わりを可視化
+    ctx.fillText(`ROUND ${state.round} / ${state.maxRounds}`, cx, safeTop + 25);
     if (state.gameMode === "ai") {
         ctx.font = "14px monospace"; ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45);
     }
@@ -1106,6 +1096,15 @@ function drawGameScreen(ctx) {
 
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
+
+            // ★ 追加: 焦げる直前の「ヤバい感」の煙を少し出す
+            const heat = getBaseHeat(lane.type);
+            const nextStatus = getCookLabel(lane.type, lane.cookState + heat);
+            if (status !== "burnt" && nextStatus === "burnt") {
+                if (Math.random() < 0.04) { 
+                    spawnSmokeEffect(i, 0.3);
+                }
+            }
         }
         
         let cv = 0;
@@ -1219,41 +1218,40 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const isLocked = isInputLocked() && !isPressed;
             const baseColor = (canUse && !isLocked) ? btn.color : "#445";
             
+            // ★ 修正: 押せるボタン全体に弱い呼吸アニメーション
             let applySubtleHighlight = false;
             let pulse = 0;
 
-            if (boxId === 3 && canUse && hasHarvestablePerfect && !isLocked) {
-                pulse = (Math.sin(now / 250) + 1) / 2; 
+            if (canUse && !isLocked) {
+                pulse = (Math.sin(now / 300 + boxId) + 1) / 2; 
                 applySubtleHighlight = true;
             }
 
             if (applySubtleHighlight && !isPressed) {
-                ctx.shadowColor = `rgba(200, 240, 255, ${0.12 + 0.1 * pulse})`;
+                ctx.shadowColor = `rgba(255, 255, 255, ${0.1 + 0.1 * pulse})`;
                 ctx.shadowBlur = 4 + 2 * pulse;
-                ctx.fillStyle = baseColor;
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.05 + 0.05 * pulse})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h);
-                ctx.shadowBlur = 0; 
             }
 
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             
             if (applySubtleHighlight && !isPressed) {
-                ctx.strokeStyle = `rgba(200, 240, 255, ${0.25 + 0.2 * pulse})`;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(b.x - 1, b.y - 1, b.w + 2, b.h + 2);
+                ctx.shadowBlur = 0; 
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 + 0.1 * pulse})`;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(b.x, b.y, b.w, b.h);
             }
 
             const offset = isPressed ? 3 : 0;
-            
             drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
         });
     }
 
-    // ★ 4 5 ルーレット表示の簡略化
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        const bandH = 80; // 高さをすっきり縮小
+        const bandH = 80; 
         ctx.fillRect(0, cy - bandH / 2, LAYOUT.CANVAS_WIDTH, bandH);
         
         let isVisible = true;
@@ -1265,7 +1263,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const displayIndex = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex;
             ctx.fillStyle = displayIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.font = "bold 48px monospace"; ctx.textAlign = "center";
-            ctx.fillText(`P${displayIndex}`, cx, cy + 15); // 中央に揃え直しました
+            ctx.fillText(`P${displayIndex}`, cx, cy + 15);
         }
         
     } else if (state.turnSplashTimer > 0) {
