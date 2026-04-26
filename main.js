@@ -30,6 +30,11 @@ function initGameState() {
         startRouletteIndex: 1,
         startRouletteFinalPlayer: null,
         
+        // ★ 追加: ルーレット終了時の点滅演出用ステータス
+        startRouletteBlinkActive: false,
+        startRouletteBlinkTimer: 0,
+        startRouletteBlinkCount: 0,
+        
         turnSplashTimer: 0,
         pendingTurnSplash: false,
         pendingAiBreath: false,
@@ -74,8 +79,9 @@ let LAYOUT = {
     },
     BUTTONS: [
         { id: "meat", color: "#56657a", icon: "meat", label: "肉" },
-        { id: "put", color: "#56657a", icon: "put", label: "置く" },
-        { id: "harvest", color: "#56657a", icon: "serve", label: "取る/捨" },
+        // ★ 変更: 置く・取るボタンのアイコンを専用のドット絵に変更
+        { id: "put", color: "#56657a", icon: "put_skewer", label: "置く" },
+        { id: "harvest", color: "#56657a", icon: "serve_plate", label: "取る/捨" },
         { id: "uchiwa", color: "#56657a", icon: "uchiwa", label: "うちわ" }
     ]
 };
@@ -94,11 +100,32 @@ const ICON_PALETTE = {
 
 const ICON_DATA = {
     meat: [0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,2,3,2,2,2,2,0,1,3,3,3,2,2,2,1,1,3,3,3,2,2,2,1,0,2,3,2,2,2,2,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0],
-    put: [0,0,0,10,10,0,0,0,0,0,0,10,10,0,0,0,0,0,0,10,10,0,0,0,0,0,0,10,10,0,0,0,10,10,10,10,10,10,10,10,0,10,10,10,10,10,10,0,0,0,10,10,10,10,0,0,0,0,0,10,10,0,0,0],
-    serve: [0,0,0,11,11,0,0,0,0,0,11,11,11,11,0,0,0,11,11,11,11,11,11,0,11,11,11,11,11,11,11,11,0,0,0,11,11,0,0,0,0,0,0,11,11,0,0,0,0,0,0,11,11,0,0,0,0,0,0,11,11,0,0,0],
     uchiwa: [0,8,8,8,8,8,8,0,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,0,9,9,7,7,9,9,0,0,0,0,7,7,0,0,0,0,0,0,7,7,0,0,0,0,0,0,7,7,0,0,0],
     diamond: [0,0,0,1,6,0,0,0,0,0,1,6,6,6,0,0,0,1,6,6,6,6,6,0,1,6,6,6,6,6,6,6,0,6,6,6,6,6,6,0,0,0,6,6,6,6,0,0,0,0,0,6,6,0,0,0,0,0,0,0,0,0,0,0],
-    fire: [0,0,0,4,0,0,0,0,0,0,4,5,4,0,0,0,0,4,4,5,4,4,0,0,0,4,5,5,5,4,0,0,4,5,5,5,5,5,4,0,4,4,5,5,5,4,4,0,0,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0]
+    fire: [0,0,0,4,0,0,0,0,0,0,4,5,4,0,0,0,0,4,4,5,4,4,0,0,0,4,5,5,5,4,0,0,4,5,5,5,5,5,4,0,4,4,5,5,5,4,4,0,0,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0],
+    
+    // ★ 追加: 新しい縦向き焼き鳥アイコン(置く)
+    put_skewer: [
+        0,0,0,7,7,0,0,0,
+        0,0,2,2,2,2,0,0,
+        0,0,2,2,2,2,0,0,
+        0,0,10,10,10,10,0,0,
+        0,0,10,10,10,10,0,0,
+        0,0,2,2,2,2,0,0,
+        0,0,2,2,2,2,0,0,
+        0,0,0,7,7,0,0,0
+    ],
+    // ★ 追加: 新しい横向き焼き鳥+お皿アイコン(取る)
+    serve_plate: [
+        0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,
+        7,2,2,10,10,2,2,7,
+        7,2,2,10,10,2,2,7,
+        0,0,0,0,0,0,0,0,
+        0,1,1,1,1,1,1,0,
+        0,0,1,1,1,1,0,0,
+        0,0,0,0,0,0,0,0
+    ]
 };
 
 function getVisualPalette(status) { return VISUAL_STATES[status] || VISUAL_STATES.RAW; }
@@ -169,6 +196,7 @@ function startGame(mode) {
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
     state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
+    state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
 
@@ -187,6 +215,7 @@ function nextStage() {
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
     state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
+    state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
 
@@ -280,24 +309,41 @@ function startNewRound() {
 }
 
 function updateRoulette() {
-    if (!state.startRouletteActive) return;
+    // ★ 変更: ルーレット回転後の点滅(Blink)フェーズを追加
+    if (state.startRouletteActive) {
+        state.startRouletteTickTimer--;
 
-    state.startRouletteTickTimer--;
+        if (state.startRouletteTickTimer <= 0) {
+            state.startRouletteIndex = 3 - state.startRouletteIndex;
+            state.startRouletteCount++;
 
-    if (state.startRouletteTickTimer <= 0) {
-        state.startRouletteIndex = 3 - state.startRouletteIndex;
-        state.startRouletteCount++;
+            state.startRouletteInterval *= 1.15; 
+            state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
 
-        state.startRouletteInterval *= 1.15; 
-        state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
-
-        if (state.startRouletteCount >= state.startRouletteMaxCount) {
-            state.startRouletteActive = false;
-            state.startRouletteFinalPlayer = state.startRouletteIndex;
-            state.firstPlayer = state.startRouletteFinalPlayer;
-            state.currentPlayer = state.startRouletteFinalPlayer;
-            state.pendingPlayer = state.startRouletteFinalPlayer;
-            state.pendingTurnSplash = true;
+            if (state.startRouletteCount >= state.startRouletteMaxCount) {
+                // 回転を止めて点滅フェーズへ移行
+                state.startRouletteActive = false;
+                state.startRouletteBlinkActive = true;
+                state.startRouletteBlinkTimer = 6;
+                state.startRouletteBlinkCount = 0;
+                state.startRouletteFinalPlayer = state.startRouletteIndex;
+            }
+        }
+    } else if (state.startRouletteBlinkActive) {
+        state.startRouletteBlinkTimer--;
+        
+        if (state.startRouletteBlinkTimer <= 0) {
+            state.startRouletteBlinkCount++;
+            state.startRouletteBlinkTimer = 6; // 早めの点滅間隔
+            
+            // 7回目(点灯状態で終了)になったらゲームへ移行
+            if (state.startRouletteBlinkCount >= 7) { 
+                state.startRouletteBlinkActive = false;
+                state.firstPlayer = state.startRouletteFinalPlayer;
+                state.currentPlayer = state.startRouletteFinalPlayer;
+                state.pendingPlayer = state.startRouletteFinalPlayer;
+                state.pendingTurnSplash = true;
+            }
         }
     }
 }
@@ -453,7 +499,7 @@ function isNodeValidForMode(node, mode) {
 // 5. game/input.js - 入力処理
 // ==========================================
 function isInputLocked() {
-    if (state.startRouletteActive) return true;
+    if (state.startRouletteActive || state.startRouletteBlinkActive) return true; // ★ 変更: 点滅中もロック
     const cp = state.currentPlayer;
     
     return state.screen !== "game" || 
@@ -649,7 +695,7 @@ function playAITurn() {
     if (!isAIPlayer(state.currentPlayer)) return;
     if (state.screen !== "game" || state.isBusy || state.isAIThinking || state.gameOver) return;
     if (state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0) return;
-    if (state.startRouletteActive) return;
+    if (state.startRouletteActive || state.startRouletteBlinkActive) return;
     if (state.players[state.currentPlayer - 1].workersRemaining <= 0) return;
 
     state.isAIThinking = true;
@@ -777,7 +823,10 @@ function drawGameScreen(ctx) {
     const safeTop = 15;
     const now = getTime();
     
-    const activePlayer = state.startRouletteActive ? state.startRouletteIndex : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
+    const activePlayer = (state.startRouletteActive || state.startRouletteBlinkActive) ? 
+        (state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex) : 
+        (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
+        
     const pResources = state.players[activePlayer - 1].resources;
 
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
@@ -891,9 +940,6 @@ function drawGameScreen(ctx) {
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
         }
         
-        // =====================================
-        // NEW: 焼き上がりゲージ(進行度)を網の下に1列で描画
-        // =====================================
         let cv = 0;
         let nextCv = 0;
         let dotColor = "#fff";
@@ -919,11 +965,11 @@ function drawGameScreen(ctx) {
             dotColor = getVisualPalette(status.toUpperCase()).dot;
         }
 
-        const dotSize = 8; const dotGap = 2;  // 間隔を狭めて連続性を持たせる
+        const dotSize = 8; const dotGap = 2;  
         const gridW = 6 * dotSize + 5 * dotGap; 
         const gridH = dotSize;
         const dotStartX = laneCx - gridW / 2; 
-        const dotStartY = b.y + b.h + 12;     // 網(b.y + b.h)の下
+        const dotStartY = b.y + b.h + 12;     
 
         drawBevelRect(ctx, dotStartX - 6, dotStartY - 6, gridW + 12, gridH + 12, "#242430");
         for (let j = 0; j < 6; j++) {
@@ -939,9 +985,6 @@ function drawGameScreen(ctx) {
             }
         }
         
-        // =====================================
-        // 火力の描画(ゲージの下へ移動)
-        // =====================================
         const fireScale = 2.5; const fireSize = 8 * fireScale;
         const totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1));
         const startFireX = laneCx - totalFireW / 2 + fireSize / 2;
@@ -989,20 +1032,35 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const baseColor = (canUse && !isLocked) ? btn.color : "#445";
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             const offset = isPressed ? 3 : 0;
+            
+            // アイコン描画(利用不可の時は自動でグレーアウトされます)
             drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
         });
     }
 
-    if (state.startRouletteActive) {
+    // ★ 変更: ルーレット表示と点滅(Blink)演出
+    if (state.startRouletteActive || state.startRouletteBlinkActive) {
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
         const bandH = 120;
         ctx.fillRect(0, cy - bandH / 2, LAYOUT.CANVAS_WIDTH, bandH);
-        ctx.fillStyle = state.startRouletteIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-        ctx.font = "bold 48px monospace"; ctx.textAlign = "center";
-        ctx.fillText(`P${state.startRouletteIndex}`, cx, cy + 20);
+        
+        let isVisible = true;
+        if (state.startRouletteBlinkActive) {
+            // カウントが偶数の時だけ表示することで点滅させる
+            isVisible = state.startRouletteBlinkCount % 2 === 0;
+        }
+
+        if (isVisible) {
+            const displayIndex = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex;
+            ctx.fillStyle = displayIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+            ctx.font = "bold 48px monospace"; ctx.textAlign = "center";
+            ctx.fillText(`P${displayIndex}`, cx, cy + 20);
+        }
+        
         ctx.fillStyle = "#fff"; ctx.font = "20px monospace";
         ctx.fillText("WHO GOES FIRST?", cx, cy - 30);
+        
     } else if (state.turnSplashTimer > 0) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
         ctx.globalAlpha = fadeAlpha; 
