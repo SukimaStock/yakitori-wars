@@ -739,8 +739,6 @@ function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     state.visuals.floaters = state.visuals.floaters.filter(f => now - f.startTime < 800);
-    
-    // ★ 変更: RESULT ZONE用の寿命を1000msから1200msに変更
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => now - m.startTime < 1200);
 
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -891,12 +889,21 @@ function drawGameScreen(ctx) {
             
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
-            
-            const cv = Math.min(lane.cookState || 0, 6);
+        }
+        
+        // =====================================
+        // NEW: 焼き上がりゲージ(進行度)を網の下に1列で描画
+        // =====================================
+        let cv = 0;
+        let nextCv = 0;
+        let dotColor = "#fff";
+        let previewColor = "rgba(255, 255, 255, 0.3)";
+
+        if (lane.built) {
+            cv = Math.min(lane.cookState || 0, 6);
             const heat = getBaseHeat(lane.type);
             const boost = lane.uchiwaBoost || 0;
-            let nextCv = cv + heat + boost;
-            let previewColor = "rgba(255, 255, 255, 0.3)";
+            nextCv = cv + heat + boost;
 
             if (state.buildMode === "uchiwa" && isFlashable) {
                 const uchiwaPred = cv + heat + 1;
@@ -908,30 +915,37 @@ function drawGameScreen(ctx) {
             } else {
                 nextCv = Math.min(6, nextCv);
             }
+            const status = getCookLabel(lane.type, lane.cookState);
+            dotColor = getVisualPalette(status.toUpperCase()).dot;
+        }
 
-            const dotSize = 8; const dotGap = 4;  
-            const gridW = 3 * dotSize + 2 * dotGap; const gridH = 2 * dotSize + dotGap;
-            const dotStartX = laneCx - gridW / 2; const dotStartY = baseStickTop + stickH + 12;
+        const dotSize = 8; const dotGap = 2;  // 間隔を狭めて連続性を持たせる
+        const gridW = 6 * dotSize + 5 * dotGap; 
+        const gridH = dotSize;
+        const dotStartX = laneCx - gridW / 2; 
+        const dotStartY = b.y + b.h + 12;     // 網(b.y + b.h)の下
 
-            drawBevelRect(ctx, dotStartX - 6, dotStartY - 6, gridW + 12, gridH + 12, "#242430");
-            for (let j = 0; j < 6; j++) {
-                const dx = dotStartX + (j % 3) * (dotSize + dotGap); 
-                const dy = dotStartY + Math.floor(j / 3) * (dotSize + dotGap);
-                if (j < cv) {
-                    ctx.fillStyle = p.dot; ctx.fillRect(dx, dy, dotSize, dotSize);
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
-                } else if (j < nextCv) {
-                    ctx.fillStyle = previewColor; ctx.fillRect(dx, dy, dotSize, dotSize);
-                } else {
-                    ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dy, dotSize, dotSize);
-                }
+        drawBevelRect(ctx, dotStartX - 6, dotStartY - 6, gridW + 12, gridH + 12, "#242430");
+        for (let j = 0; j < 6; j++) {
+            const dx = dotStartX + j * (dotSize + dotGap); 
+            const dy = dotStartY;
+            if (j < cv) {
+                ctx.fillStyle = dotColor; ctx.fillRect(dx, dy, dotSize, dotSize);
+                ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
+            } else if (j < nextCv) {
+                ctx.fillStyle = previewColor; ctx.fillRect(dx, dy, dotSize, dotSize);
+            } else {
+                ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dy, dotSize, dotSize);
             }
         }
         
+        // =====================================
+        // 火力の描画(ゲージの下へ移動)
+        // =====================================
         const fireScale = 2.5; const fireSize = 8 * fireScale;
         const totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1));
         const startFireX = laneCx - totalFireW / 2 + fireSize / 2;
-        for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 22, "#fa3", fireScale);
+        for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 40, "#fa3", fireScale);
     });
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
@@ -1025,7 +1039,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.fillText(g.status, laneCx, stickTop - 20); 
     });
 
-    // ★ 変更: 5. 状態表示ゾーン (RESULT ZONE) のアニメーション修正
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime;
         
@@ -1033,16 +1046,13 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         let yAnimOffset = 0;
 
         if (elapsed < 120) {
-            // 1. Appear (0〜120ms): 透明度 0 -> 1、少し下(10px)から定位置へ
             const p = elapsed / 120;
             alpha = p;
             yAnimOffset = 10 * (1 - p);
         } else if (elapsed < 770) {
-            // 2. Hold (120〜770ms): 完全に表示したまま定位置で止まる
             alpha = 1;
             yAnimOffset = 0;
         } else {
-            // 3. Exit (770〜1200ms): 透明度 1 -> 0、少し上(-15px)へ抜けて消える
             const p = Math.min(1, (elapsed - 770) / 430);
             alpha = 1 - p;
             yAnimOffset = -15 * p;
@@ -1051,7 +1061,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
 
         const fx = cx;
-        // 定位置のY=130に、複数スタック時のオフセット(idx * 32)とアニメーションを足す
         const fy = 130 + (idx * 32) + yAnimOffset;
 
         ctx.textAlign = "center";
