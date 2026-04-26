@@ -22,12 +22,11 @@ function initGameState() {
         isBusy: false,
         isAIThinking: false,
         
-        // ★ルーレット用の変数
         startRouletteActive: false,
-        startRouletteInterval: 4,     // 次の切り替わりまでのフレーム数
-        startRouletteTickTimer: 4,    // 現在のカウントダウン
-        startRouletteCount: 0,        // 何回切り替わったか
-        startRouletteMaxCount: 16,    // 合計何回切り替わったら止まるか
+        startRouletteInterval: 4,     
+        startRouletteTickTimer: 4,    
+        startRouletteCount: 0,        
+        startRouletteMaxCount: 16,    
         startRouletteIndex: 1,
         startRouletteFinalPlayer: null,
         
@@ -50,7 +49,7 @@ function initGameState() {
         ],
         visuals: {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
-            ghosts: [], floaters: [], particles: [], cancelClick: 0
+            ghosts: [], floaters: [], particles: [], cancelClick: 0, titleClick: null // ★ titleClickを追加
         }
     };
 }
@@ -159,14 +158,12 @@ function startGame(mode) {
     state.screen = "game";
     if (mode === "ai") setupAIForStage(1);
     
-    // ★ルーレットの初期化
     state.startRouletteActive = true;
     state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    // ★修正: 15回(P2)か16回(P1)のどちらかで止まるようにランダム化
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); // 15か16でランダム
     state.startRouletteFinalPlayer = null;
 }
 
@@ -179,16 +176,15 @@ function nextStage() {
     state.screen = "game";
     setupAIForStage(nextStg);
     
-    // ★ルーレットの初期化
     state.startRouletteActive = true;
     state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    // ★修正: 15回(P2)か16回(P1)のどちらかで止まるようにランダム化
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); // 15か16でランダム
     state.startRouletteFinalPlayer = null;
 }
+
 function updateAllScores() {
     state.players.forEach(p => p.score = p.servedScore || 0);
 }
@@ -287,11 +283,9 @@ function updateRoulette() {
         state.startRouletteIndex = 3 - state.startRouletteIndex;
         state.startRouletteCount++;
 
-        // ★こだわりポイント: インターバルを1.15倍ずつ長くして減速させる
         state.startRouletteInterval *= 1.15; 
         state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
 
-        // 規定回数に達したら終了
         if (state.startRouletteCount >= state.startRouletteMaxCount) {
             state.startRouletteActive = false;
             state.startRouletteFinalPlayer = state.startRouletteIndex;
@@ -454,6 +448,8 @@ function isNodeValidForMode(node, mode) {
 // ==========================================
 // 5. game/input.js - 入力処理
 // ==========================================
+
+// ★修正: AIのターン中は完全に人間用のUIをロックし、ピカッと光るのを防ぐ
 function isInputLocked() {
     if (state.startRouletteActive) return true;
     const cp = state.currentPlayer;
@@ -464,7 +460,8 @@ function isInputLocked() {
            state.turnSplashTimer > 0 || 
            state.aiBreathTimer > 0 ||
            state.gameOver ||
-           state.players[cp - 1].workersRemaining <= 0;
+           state.players[cp - 1].workersRemaining <= 0 ||
+           isAIPlayer(cp); 
 }
 
 function handleCanvasClick(event, canvas) {
@@ -472,15 +469,32 @@ function handleCanvasClick(event, canvas) {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
+    // ★修正: タイトル画面の当たり判定を正確にし、押下アニメーション用ディレイを追加
     if (state.screen === "title") {
-        if (y < LAYOUT.CANVAS_HEIGHT / 2) startGame("ai"); else startGame("pvp"); return;
+        if (state.isBusy) return;
+        const cx = LAYOUT.CANVAS_WIDTH / 2;
+        const cy = LAYOUT.CANVAS_HEIGHT / 2;
+        
+        const btnAi = { x: cx - 120, y: cy - 30, w: 240, h: 60 };
+        const btnPvp = { x: cx - 120, y: cy + 50, w: 240, h: 60 };
+
+        if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) {
+            state.visuals.titleClick = "ai";
+            state.isBusy = true;
+            setTimeout(() => { startGame("ai"); }, 150);
+        } else if (x >= btnPvp.x && x <= btnPvp.x + btnPvp.w && y >= btnPvp.y && y <= btnPvp.y + btnPvp.h) {
+            state.visuals.titleClick = "pvp";
+            state.isBusy = true;
+            setTimeout(() => { startGame("pvp"); }, 150);
+        }
+        return;
     } else if (state.screen === "gameover" || state.screen === "clear") {
         initGameState(); return;
     } else if (state.screen === "stage_clear") {
         nextStage(); return;
     }
 
-    if (isInputLocked() || isAIPlayer(state.currentPlayer)) return;
+    if (isInputLocked()) return;
 
     if (state.buildMode) {
         const cb = getCancelButtonBounds();
@@ -548,7 +562,6 @@ function buildActionCandidates(currentState, playerIndex) {
     return actions;
 }
 
-// ★修正: AIが焦げた串をコスト0で掃除できるようにするロジック
 function isActionValidForAI(currentState, action, playerIndex, profileName, levelConf) {
     const p = currentState.players[playerIndex - 1];
     const node = currentState.lanes.find(l => l.id === action.nodeId);
@@ -728,13 +741,21 @@ function render(ctx) {
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     const cx = LAYOUT.CANVAS_WIDTH / 2; const cy = LAYOUT.CANVAS_HEIGHT / 2;
 
+    // ★修正: タイトル画面のボタンも立体的にし、押下表現を追加
     if (state.screen === "title") {
         ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center";
         ctx.fillText("YAKITORI WARS", cx, cy - 80);
-        ctx.fillStyle = "#3c96ff"; ctx.fillRect(cx - 120, cy - 30, 240, 60);
-        ctx.fillStyle = "#fff"; ctx.font = "20px monospace"; ctx.fillText("VS AI (SURVIVAL)", cx, cy + 6);
-        ctx.fillStyle = "#ff5078"; ctx.fillRect(cx - 120, cy + 50, 240, 60);
-        ctx.fillStyle = "#fff"; ctx.fillText("VS PLAYER", cx, cy + 86);
+        
+        const aiPressed = state.visuals.titleClick === "ai";
+        drawBevelRect(ctx, cx - 120, cy - 30, 240, 60, "#3c96ff", aiPressed);
+        ctx.fillStyle = "#fff"; ctx.font = "20px monospace"; 
+        ctx.fillText("VS AI (SURVIVAL)", cx, cy - 30 + 36 + (aiPressed ? 3 : 0));
+        
+        const pvpPressed = state.visuals.titleClick === "pvp";
+        drawBevelRect(ctx, cx - 120, cy + 50, 240, 60, "#ff5078", pvpPressed);
+        ctx.fillStyle = "#fff"; 
+        ctx.fillText("VS PLAYER", cx, cy + 50 + 36 + (pvpPressed ? 3 : 0));
+        
     } else if (state.screen === "game") {
         drawGameScreen(ctx);
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
@@ -889,7 +910,6 @@ function drawGameScreen(ctx) {
         });
     }
 
-    // ★修正: ルーレットのシンプル描画(NaNによる画面のブラックアウトを回避)
     if (state.startRouletteActive) {
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
