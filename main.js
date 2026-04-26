@@ -31,7 +31,6 @@ function initGameState() {
         startRouletteIndex: 1,
         startRouletteFinalPlayer: null,
         
-        // ★ 追加: ルーレット終了時の点滅演出用ステータス
         startRouletteBlinkActive: false,
         startRouletteBlinkTimer: 0,
         startRouletteBlinkCount: 0,
@@ -80,7 +79,6 @@ let LAYOUT = {
     },
     BUTTONS: [
         { id: "meat", color: "#56657a", icon: "meat", label: "肉" },
-        // ★ 変更: 置く・取るボタンのアイコンを専用のドット絵に変更
         { id: "put", color: "#56657a", icon: "put_skewer", label: "置く" },
         { id: "harvest", color: "#56657a", icon: "serve_plate", label: "取る/捨" },
         { id: "uchiwa", color: "#56657a", icon: "uchiwa", label: "うちわ" }
@@ -104,8 +102,6 @@ const ICON_DATA = {
     uchiwa: [0,8,8,8,8,8,8,0,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,0,9,9,7,7,9,9,0,0,0,0,7,7,0,0,0,0,0,0,7,7,0,0,0,0,0,0,7,7,0,0,0],
     diamond: [0,0,0,1,6,0,0,0,0,0,1,6,6,6,0,0,0,1,6,6,6,6,6,0,1,6,6,6,6,6,6,6,0,6,6,6,6,6,6,0,0,0,6,6,6,6,0,0,0,0,0,6,6,0,0,0,0,0,0,0,0,0,0,0],
     fire: [0,0,0,4,0,0,0,0,0,0,4,5,4,0,0,0,0,4,4,5,4,4,0,0,0,4,5,5,5,4,0,0,4,5,5,5,5,5,4,0,4,4,5,5,5,4,4,0,0,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0],
-    
-    // ★ 追加: 新しい縦向き焼き鳥アイコン(置く)
     put_skewer: [
         0,0,0,0,0,0,0,0,
         0,2,2,10,10,2,2,0,
@@ -116,7 +112,6 @@ const ICON_DATA = {
         0,0,6,0,0,6,0,0,
         0,0,0,6,6,0,0,0
     ],
-    // ★ 追加: 新しい横向き焼き鳥+お皿アイコン(取る)
     serve_plate: [
         0,0,0,10,10,0,0,0,
         0,0,10,0,0,10,0,0,
@@ -142,8 +137,6 @@ function getLaneBounds(index) {
 }
 
 function getButtonBounds(index) {
-    // 表示位置の並び替え (0:左上(肉), 1:右上(置く), 2:左下(うちわ), 3:右下(取る))
-    // 元のindexロジック: 0(肉), 1(置く), 2(取る), 3(うちわ)
     const positionMap = [0, 1, 3, 2];
     const displayIndex = positionMap[index];
     const col = displayIndex % 2;
@@ -315,7 +308,6 @@ function startNewRound() {
 }
 
 function updateRoulette() {
-    // ★ 変更: ルーレット回転後の点滅(Blink)フェーズを追加
     if (state.startRouletteActive) {
         state.startRouletteTickTimer--;
 
@@ -327,7 +319,6 @@ function updateRoulette() {
             state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
 
             if (state.startRouletteCount >= state.startRouletteMaxCount) {
-                // 回転を止めて点滅フェーズへ移行
                 state.startRouletteActive = false;
                 state.startRouletteBlinkActive = true;
                 state.startRouletteBlinkTimer = 6;
@@ -340,9 +331,8 @@ function updateRoulette() {
         
         if (state.startRouletteBlinkTimer <= 0) {
             state.startRouletteBlinkCount++;
-            state.startRouletteBlinkTimer = 6; // 早めの点滅間隔
+            state.startRouletteBlinkTimer = 6; 
             
-            // 7回目(点灯状態で終了)になったらゲームへ移行
             if (state.startRouletteBlinkCount >= 7) { 
                 state.startRouletteBlinkActive = false;
                 state.firstPlayer = state.startRouletteFinalPlayer;
@@ -414,12 +404,9 @@ function canUseServe(playerIndex) {
     return false;
 }
 
-// ★★★ Added/Modified Start ★★★
-// うちわは、どこかのレーンに焼き鳥が置かれている場合のみ使用可能
 function canUseUchiwa(playerIndex) { 
     return state.lanes.some(l => l.built); 
 }
-// ★★★ Added/Modified End ★★★
 
 function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
@@ -512,7 +499,7 @@ function isNodeValidForMode(node, mode) {
 // 5. game/input.js - 入力処理
 // ==========================================
 function isInputLocked() {
-    if (state.startRouletteActive || state.startRouletteBlinkActive) return true; // ★ 変更: 点滅中もロック
+    if (state.startRouletteActive || state.startRouletteBlinkActive) return true;
     const cp = state.currentPlayer;
     
     return state.screen !== "game" || 
@@ -589,9 +576,7 @@ function handleCanvasClick(event, canvas) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
             if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
-            // ★★★ Added/Modified Start ★★★
             if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
-            // ★★★ Added/Modified End ★★★
 
             if (canUse) {
                 state.visuals.buttonClicks[i] = performance.now();
@@ -917,6 +902,7 @@ function drawGameScreen(ctx) {
 
             if (showSparkle) {
                 ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
+                // ★ 変更: 取るボタンと同じ周期(now / 127)で連動発光するように調整(周期0.8秒)
                 [{x:-25, y:15, o:0}, {x:25, y:45, o:2}, {x:-20, y:75, o:4}].forEach(sp => {
                     ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin((now / 250) + sp.o));
                     ctx.fillRect(laneCx + sp.x - 1, stickTop + sp.y - 3, 2, 6);
@@ -1023,6 +1009,26 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     }
     ctx.globalAlpha = 1.0; 
 
+    // ★★★ Added/Modified Start ★★★
+    // アクティブなプレイヤーにとって「獲得可能で、かつPERFECT」な串が存在するかを判定
+    let hasHarvestablePerfect = false;
+    if (!state.buildMode && !isInputLocked()) {
+        const pResources = state.players[activePlayer - 1].resources;
+        for (let lane of state.lanes) {
+            if (lane.built) {
+                const status = getCookLabel(lane.type, lane.cookState);
+                const isOwn = lane.owner === activePlayer;
+                const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
+                
+                if (status === "perfect" && (isOwn || canSteal)) {
+                    hasHarvestablePerfect = true;
+                    break;
+                }
+            }
+        }
+    }
+    // ★★★ Added/Modified End ★★★
+
     if (state.buildMode) {
         const cb = getCancelButtonBounds();
         const clickTime = state.visuals.cancelClick || 0;
@@ -1039,23 +1045,52 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
             if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
-            // ★★★ Added/Modified Start ★★★
             if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
-            // ★★★ Added/Modified End ★★★
 
             const clickTime = state.visuals.buttonClicks[i] || 0;
             const isPressed = (now - clickTime < 150);
             const isLocked = isInputLocked() && !isPressed;
-            const baseColor = (canUse && !isLocked) ? btn.color : "#445";
-            drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
+            
+            // ★★★ Added/Modified Start ★★★
+            // 「取る」ボタン(boxId 3)の脈動エフェクトと色変更の処理
+            let drawBounds = { ...b };
+            let drawColor = (canUse && !isLocked) ? btn.color : "#445";
+            let iconScale = 4;
+            let applyGlow = false;
+            let pulse = 0;
+
+            if (boxId === 3 && canUse && hasHarvestablePerfect && !isLocked) {
+                // now / 250 -> 0.8秒ごとにループ(キラキラ演出と同期)
+                pulse = Math.abs(Math.sin(now / 250)); 
+                const scale = 1.0 + 0.1 * pulse; // 1.0〜1.1に脈動
+                
+                drawBounds.w = b.w * scale;
+                drawBounds.h = b.h * scale;
+                drawBounds.x = b.x - (drawBounds.w - b.w) / 2;
+                drawBounds.y = b.y - (drawBounds.h - b.h) / 2;
+                
+                drawColor = "#d67a29"; // 暖色系(オレンジ)に変更
+                iconScale = 4 * scale;
+                applyGlow = true;
+            }
+
+            // 背面のグローエフェクト描画
+            if (applyGlow && !isPressed) {
+                ctx.shadowColor = `rgba(255, 220, 100, ${0.3 + 0.7 * pulse})`;
+                ctx.shadowBlur = 15 + 15 * pulse;
+                ctx.fillStyle = drawColor;
+                ctx.fillRect(drawBounds.x, drawBounds.y, drawBounds.w, drawBounds.h);
+                ctx.shadowBlur = 0; // 他の描画に影響しないようリセット
+            }
+
+            drawBevelRect(ctx, drawBounds.x, drawBounds.y, drawBounds.w, drawBounds.h, drawColor, isPressed);
             const offset = isPressed ? 3 : 0;
             
-            // アイコン描画(利用不可の時は自動でグレーアウトされます)
-            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
+            drawDotIcon(ctx, btn.icon, drawBounds.x + drawBounds.w/2 + offset, drawBounds.y + drawBounds.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", iconScale);
+            // ★★★ Added/Modified End ★★★
         });
     }
 
-    // ★ 変更: ルーレット表示と点滅(Blink)演出
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
@@ -1064,7 +1099,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         
         let isVisible = true;
         if (state.startRouletteBlinkActive) {
-            // カウントが偶数の時だけ表示することで点滅させる
             isVisible = state.startRouletteBlinkCount % 2 === 0;
         }
 
