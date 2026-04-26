@@ -902,7 +902,6 @@ function drawGameScreen(ctx) {
 
             if (showSparkle) {
                 ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
-                // ★ 変更: 取るボタンと同じ周期(now / 127)で連動発光するように調整(周期0.8秒)
                 [{x:-25, y:15, o:0}, {x:25, y:45, o:2}, {x:-20, y:75, o:4}].forEach(sp => {
                     ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin((now / 250) + sp.o));
                     ctx.fillRect(laneCx + sp.x - 1, stickTop + sp.y - 3, 2, 6);
@@ -1009,7 +1008,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     }
     ctx.globalAlpha = 1.0; 
 
-    // ★★★ Added/Modified Start ★★★
     // アクティブなプレイヤーにとって「獲得可能で、かつPERFECT」な串が存在するかを判定
     let hasHarvestablePerfect = false;
     if (!state.buildMode && !isInputLocked()) {
@@ -1027,7 +1025,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             }
         }
     }
-    // ★★★ Added/Modified End ★★★
 
     if (state.buildMode) {
         const cb = getCancelButtonBounds();
@@ -1050,43 +1047,42 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const clickTime = state.visuals.buttonClicks[i] || 0;
             const isPressed = (now - clickTime < 150);
             const isLocked = isInputLocked() && !isPressed;
+            const baseColor = (canUse && !isLocked) ? btn.color : "#445";
             
             // ★★★ Added/Modified Start ★★★
-            // 「取る」ボタン(boxId 3)の脈動エフェクトと色変更の処理
-            let drawBounds = { ...b };
-            let drawColor = (canUse && !isLocked) ? btn.color : "#445";
-            let iconScale = 4;
-            let applyGlow = false;
+            // 「取る」ボタン(boxId 3)の控えめな強調演出
+            let applySubtleHighlight = false;
             let pulse = 0;
 
             if (boxId === 3 && canUse && hasHarvestablePerfect && !isLocked) {
-                // now / 250 -> 0.8秒ごとにループ(キラキラ演出と同期)
-                pulse = Math.abs(Math.sin(now / 250)); 
-                const scale = 1.0 + 0.1 * pulse; // 1.0〜1.1に脈動
-                
-                drawBounds.w = b.w * scale;
-                drawBounds.h = b.h * scale;
-                drawBounds.x = b.x - (drawBounds.w - b.w) / 2;
-                drawBounds.y = b.y - (drawBounds.h - b.h) / 2;
-                
-                drawColor = "#d67a29"; // 暖色系(オレンジ)に変更
-                iconScale = 4 * scale;
-                applyGlow = true;
+                // 1.5〜2秒周期のゆったりした呼吸 (now / 250 で sinの周期は約1.57秒)
+                pulse = (Math.sin(now / 250) + 1) / 2; // 0.0 〜 1.0 に正規化
+                applySubtleHighlight = true;
             }
 
-            // 背面のグローエフェクト描画
-            if (applyGlow && !isPressed) {
-                ctx.shadowColor = `rgba(255, 220, 100, ${0.3 + 0.7 * pulse})`;
-                ctx.shadowBlur = 15 + 15 * pulse;
-                ctx.fillStyle = drawColor;
-                ctx.fillRect(drawBounds.x, drawBounds.y, drawBounds.w, drawBounds.h);
+            // 背面の弱いグローエフェクト描画
+            if (applySubtleHighlight && !isPressed) {
+                // 色は薄い水色、α0.12〜0.22、shadowBlur 4〜6
+                ctx.shadowColor = `rgba(200, 240, 255, ${0.12 + 0.1 * pulse})`;
+                ctx.shadowBlur = 4 + 2 * pulse;
+                ctx.fillStyle = baseColor;
+                ctx.fillRect(b.x, b.y, b.w, b.h);
                 ctx.shadowBlur = 0; // 他の描画に影響しないようリセット
             }
 
-            drawBevelRect(ctx, drawBounds.x, drawBounds.y, drawBounds.w, drawBounds.h, drawColor, isPressed);
+            drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
+            
+            // 外枠のゆっくりとした明滅エフェクト
+            if (applySubtleHighlight && !isPressed) {
+                // α0.25〜0.45、線幅2px
+                ctx.strokeStyle = `rgba(200, 240, 255, ${0.25 + 0.2 * pulse})`;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(b.x - 1, b.y - 1, b.w + 2, b.h + 2);
+            }
+
             const offset = isPressed ? 3 : 0;
             
-            drawDotIcon(ctx, btn.icon, drawBounds.x + drawBounds.w/2 + offset, drawBounds.y + drawBounds.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", iconScale);
+            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
             // ★★★ Added/Modified End ★★★
         });
     }
