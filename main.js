@@ -142,14 +142,12 @@ function getLaneBounds(index) {
 }
 
 function getButtonBounds(index) {
-    // ★★★ Added/Modified Start ★★★
     // 表示位置の並び替え (0:左上(肉), 1:右上(置く), 2:左下(うちわ), 3:右下(取る))
     // 元のindexロジック: 0(肉), 1(置く), 2(取る), 3(うちわ)
     const positionMap = [0, 1, 3, 2];
     const displayIndex = positionMap[index];
     const col = displayIndex % 2;
     const row = Math.floor(displayIndex / 2);
-    // ★★★ Added/Modified End ★★★
     
     const btnW = Math.min(150, LAYOUT.CANVAS_WIDTH * 0.42);
     const btnH = Math.min(80, LAYOUT.CANVAS_HEIGHT * 0.12);
@@ -416,6 +414,13 @@ function canUseServe(playerIndex) {
     return false;
 }
 
+// ★★★ Added/Modified Start ★★★
+// うちわは、どこかのレーンに焼き鳥が置かれている場合のみ使用可能
+function canUseUchiwa(playerIndex) { 
+    return state.lanes.some(l => l.built); 
+}
+// ★★★ Added/Modified End ★★★
+
 function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
     if (boxId === 1) { 
@@ -584,7 +589,9 @@ function handleCanvasClick(event, canvas) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
             if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
-            if (boxId === 4) canUse = true; 
+            // ★★★ Added/Modified Start ★★★
+            if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
+            // ★★★ Added/Modified End ★★★
 
             if (canUse) {
                 state.visuals.buttonClicks[i] = performance.now();
@@ -1032,7 +1039,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);
             if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer);
-            if (boxId === 4) canUse = true; 
+            // ★★★ Added/Modified Start ★★★
+            if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
+            // ★★★ Added/Modified End ★★★
 
             const clickTime = state.visuals.buttonClicks[i] || 0;
             const isPressed = (now - clickTime < 150);
