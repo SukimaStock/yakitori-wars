@@ -122,7 +122,6 @@ const ICON_DATA = {
         0,7,7,10,10,7,7,0,
         0,0,0,0,0,0,0,0
     ],
-    // --- 新規追加アイコン ---
     clock: [
         0,0,0,0,0,0,0,0,
         0,0,1,1,1,1,0,0,
@@ -133,7 +132,7 @@ const ICON_DATA = {
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0
     ],
-    warning: [ // 警告マーク(!)
+    warning: [ 
         0,0,0,0,0,0,0,0,
         0,0,0,8,8,0,0,0,
         0,0,8,11,11,8,0,0,
@@ -143,7 +142,7 @@ const ICON_DATA = {
         0,0,0,8,8,0,0,0,
         0,0,0,0,0,0,0,0
     ],
-    trash: [ // バツ印 / ゴミ箱
+    trash: [ 
         0,0,0,0,0,0,0,0,
         0,8,8,0,0,8,8,0,
         0,0,8,8,8,8,0,0,
@@ -153,7 +152,7 @@ const ICON_DATA = {
         0,0,0,0,0,0,0,0,
         0,0,0,0,0,0,0,0
     ],
-    up_arrow: [ // 上向き矢印
+    up_arrow: [ 
         0,0,0,1,1,0,0,0,
         0,0,1,1,1,1,0,0,
         0,1,1,1,1,1,1,0,
@@ -432,7 +431,6 @@ function getCookLabel(laneType, cv) {
     return "early";
 }
 
-// ★ 追加:取るモードやヒント表示で使う得点計算ロジック
 function getHarvestScore(node, isSteal, status) {
     if (status === "burnt") return isSteal ? 0 : -2;
     if (status === "early") return -5;
@@ -503,9 +501,7 @@ function tryHarvestNode(node) {
         }
     }
 
-    // ★ 修正:先ほど作成した getHarvestScore 関数を使用するように変更しました
     const scoreGained = getHarvestScore(node, isSteal, status);
-
     p.servedScore += scoreGained;
     
     if (scoreGained !== 0) {
@@ -826,32 +822,80 @@ function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     }
 }
 
-// ★ 新規追加:レーンの上部に結果プレビュー(ヒント)を描画する機能
+// ★ 新規追加:UI感のある角丸背景を描画する機能
+function drawUIPanel(ctx, x, y, w, h) {
+    const r = 4; // 角丸の半径
+    ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+}
+
+// ★ 修正:ヒント表示の位置・レイヤー・アニメーション対応
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
-    const hintY = b.y + 30; // 網の上部、空きスペース
+    // 1 ヒント位置を「網の外・上」に固定(b.yは網の上端なので、そこから上に離す)
+    const hintY = b.y - 18; 
+    const now = getTime();
+
+    // 3 アニメーション(ふわふわ浮遊とゆっくりとした点滅)
+    const floatOffset = Math.sin(now / 200 + laneIndex) * 2;
+    const alphaAnim = 0.85 + Math.sin(now / 300) * 0.15;
 
     ctx.textAlign = "center";
     ctx.font = "bold 14px monospace";
+    ctx.globalAlpha = alphaAnim;
+
+    // 背景描画用ヘルパー関数
+    const drawHintBg = (w) => {
+        // 2 ヒントを「UIレイヤー」として扱う (角丸+ボーダー)
+        drawUIPanel(ctx, laneCx - w / 2, hintY - 14 + floatOffset, w, 28);
+    };
+
+    // アイコン&テキスト描画用ヘルパー
+    const drawIconAndText = (icon1, text1, color1, icon2, text2, color2, bgWidth) => {
+        drawHintBg(bgWidth);
+        const y = hintY + floatOffset;
+        if (icon2) {
+            drawDotIcon(ctx, icon1, laneCx - 20, y, color1, 1.5);
+            ctx.fillStyle = color1; ctx.fillText(text1, laneCx - 5, y + 5);
+            drawDotIcon(ctx, icon2, laneCx + 15, y, color2, 1.5);
+            ctx.fillStyle = color2; ctx.fillText(text2, laneCx + 28, y + 5);
+        } else if (icon1) {
+            drawDotIcon(ctx, icon1, laneCx - 10, y, color1, 2);
+            ctx.fillStyle = color1; ctx.fillText(text1, laneCx + 10, y + 5);
+        }
+    };
 
     if (!lane.built) {
-        // [置くモード (sapling) ]
         if (mode === "sapling") {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-            ctx.fillRect(laneCx - 35, hintY - 15, 70, 30);
-            
+            drawHintBg(70);
+            const y = hintY + floatOffset;
             const heat = getBaseHeat(lane.type);
-            if (heat === 1) { // 弱火
-                drawDotIcon(ctx, "fire", laneCx - 15, hintY, "#fa3", 1.5);
-                drawDotIcon(ctx, "clock", laneCx + 10, hintY, "#6cf", 2);
-            } else if (heat === 2) { // 中火
-                drawDotIcon(ctx, "fire", laneCx, hintY, "#fa3", 2);
-            } else if (heat === 3) { // 強火
-                drawDotIcon(ctx, "fire", laneCx - 15, hintY, "#fa3", 2.5);
-                drawDotIcon(ctx, "warning", laneCx + 15, hintY, "#f33", 1.5);
+            if (heat === 1) { 
+                drawDotIcon(ctx, "fire", laneCx - 15, y, "#fa3", 1.5);
+                drawDotIcon(ctx, "clock", laneCx + 10, y, "#6cf", 2);
+            } else if (heat === 2) { 
+                drawDotIcon(ctx, "fire", laneCx, y, "#fa3", 2);
+            } else if (heat === 3) { 
+                drawDotIcon(ctx, "fire", laneCx - 15, y, "#fa3", 2.5);
+                drawDotIcon(ctx, "warning", laneCx + 15, y, "#f33", 1.5);
             }
         }
+        ctx.globalAlpha = 1.0;
         return;
     }
 
@@ -859,11 +903,11 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     const isOwn = lane.owner === activePlayer;
     const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
 
-    // [通常時] または [取るモード (harvest)]
     if (!mode || mode === "harvest") {
         let showHint = false;
         let icon1 = null, text1 = "", color1 = "";
         let icon2 = null, text2 = "", color2 = "";
+        let bgWidth = 80;
 
         if (mode === "harvest") {
             const isValid = isNodeValidForMode(lane, mode) && (isOwn || pResources >= 1);
@@ -871,75 +915,64 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
                 showHint = true;
                 const score = getHarvestScore(lane, !isOwn, status);
                 if (status === "early") {
-                    icon1 = "diamond"; text1 = "-5"; color1 = "#f33";
+                    icon1 = "diamond"; text1 = "-5"; color1 = "#f33"; bgWidth = 60;
                 } else if (status === "burnt") {
-                    if (isOwn) { icon1 = "diamond"; text1 = "-2"; color1 = "#6cf"; }
-                    else { icon1 = "trash"; text1 = ""; color1 = "#888"; } 
+                    if (isOwn) { icon1 = "diamond"; text1 = "-2"; color1 = "#6cf"; bgWidth = 60; }
+                    else { icon1 = "trash"; text1 = ""; color1 = "#888"; bgWidth = 40; } 
                 } else {
-                    if (!isOwn) { // 相手のものを取る(肉消費)
+                    if (!isOwn) { 
                         icon1 = "meat"; text1 = "-1"; color1 = "#f33";
                         icon2 = "diamond"; text2 = `+${score}`; color2 = (status === "perfect") ? "#ff4" : "#fff";
-                    } else { // 自分のものを取る
+                        bgWidth = 90;
+                    } else { 
                         icon1 = "diamond"; text1 = `+${score}`; color1 = (status === "perfect") ? "#ff4" : "#fff";
+                        bgWidth = 60;
                     }
                 }
             } else {
-                // 選択不可な場合(earlyで他人のものなど)は少し薄く表示
-                ctx.globalAlpha = 0.4;
-                if (status === "early") { showHint = true; icon1 = "diamond"; text1 = "-5"; color1 = "#f33"; }
+                ctx.globalAlpha = 0.3; // 選択不可の時は薄く
+                if (status === "early") { showHint = true; icon1 = "diamond"; text1 = "-5"; color1 = "#f33"; bgWidth = 60; }
             }
         } else {
-            // 通常時(何もボタンを押していない状態のヒント)
             if (status === "perfect" && isOwn) {
                 showHint = true;
                 const score = getHarvestScore(lane, false, status);
-                icon1 = "diamond"; text1 = `+${score}`; color1 = "#ff4";
+                icon1 = "diamond"; text1 = `+${score}`; color1 = "#ff4"; bgWidth = 60;
             } else if ((status === "perfect" || status === "okay") && canSteal) {
                 showHint = true;
                 icon1 = "meat"; text1 = "-1"; color1 = "#f33";
-                icon2 = "serve_plate"; text2 = ""; color2 = "#fff";
+                icon2 = "serve_plate"; text2 = ""; color2 = "#fff"; bgWidth = 80;
             } else if (status === "burnt" && isOwn) {
                 showHint = true;
-                icon1 = "diamond"; text1 = "-2"; color1 = "#6cf";
+                icon1 = "diamond"; text1 = "-2"; color1 = "#6cf"; bgWidth = 60;
             }
         }
 
         if (showHint) {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-            ctx.fillRect(laneCx - 40, hintY - 15, 80, 30);
-
-            if (icon2) {
-                drawDotIcon(ctx, icon1, laneCx - 20, hintY, color1, 1.5);
-                ctx.fillStyle = color1; ctx.fillText(text1, laneCx - 5, hintY + 5);
-                drawDotIcon(ctx, icon2, laneCx + 15, hintY, color2, 1.5);
-                ctx.fillStyle = color2; ctx.fillText(text2, laneCx + 28, hintY + 5);
-            } else if (icon1) {
-                drawDotIcon(ctx, icon1, laneCx - 10, hintY, color1, 2);
-                ctx.fillStyle = color1; ctx.fillText(text1, laneCx + 10, hintY + 5);
-            }
+            drawIconAndText(icon1, text1, color1, icon2, text2, color2, bgWidth);
         }
-        ctx.globalAlpha = 1.0;
     } 
-    // [うちわモード (uchiwa) ]
     else if (mode === "uchiwa" && isNodeValidForMode(lane, mode)) {
         const heat = getBaseHeat(lane.type);
         const nextCookState = lane.cookState + heat + 1;
         const nextStatus = getCookLabel(lane.type, nextCookState);
+        const y = hintY + floatOffset;
 
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-        ctx.fillRect(laneCx - 30, hintY - 15, 60, 30);
+        drawHintBg(60);
 
         if (nextStatus === "perfect") {
-            drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
+            drawDotIcon(ctx, "diamond", laneCx, y, "#ff4", 2);
         } else if (nextStatus === "okay") {
-            drawDotIcon(ctx, "up_arrow", laneCx, hintY, "#fa3", 2);
+            drawDotIcon(ctx, "up_arrow", laneCx, y, "#fa3", 2);
         } else if (nextStatus === "burnt") {
-            drawDotIcon(ctx, "fire", laneCx - 10, hintY, "#f33", 2);
-            drawDotIcon(ctx, "warning", laneCx + 10, hintY, "#f33", 1.5);
+            drawDotIcon(ctx, "fire", laneCx - 10, y, "#f33", 2);
+            drawDotIcon(ctx, "warning", laneCx + 10, y, "#f33", 1.5);
         } else if (nextStatus === "early") {
-            drawDotIcon(ctx, "up_arrow", laneCx, hintY, "#fff", 1.5);
+            drawDotIcon(ctx, "up_arrow", laneCx, y, "#fff", 1.5);
         }
     }
+    
+    ctx.globalAlpha = 1.0;
 }
 
 function render(ctx) {
@@ -1071,7 +1104,6 @@ function drawGameScreen(ctx) {
                 ctx.globalAlpha = 1.0;
             }
 
-            // 古い noticeIcon 描画処理を削除し、オーナーの三角形インジケータのみ残しました
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
         }
@@ -1126,7 +1158,7 @@ function drawGameScreen(ctx) {
         const startFireX = laneCx - totalFireW / 2 + fireSize / 2;
         for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 40, "#fa3", fireScale);
 
-        // ★ 新しく追加した、レーンごとのヒント表示を呼び出します
+        // ★ ヒントをレーン上部に描画
         drawLaneHint(ctx, lane, i, state.buildMode, activePlayer, pResources);
     });
 
@@ -1217,10 +1249,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         });
     }
 
+    // ★ 4 5 ルーレット表示の簡略化
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        const bandH = 120;
+        const bandH = 80; // 高さをすっきり縮小
         ctx.fillRect(0, cy - bandH / 2, LAYOUT.CANVAS_WIDTH, bandH);
         
         let isVisible = true;
@@ -1232,11 +1265,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const displayIndex = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex;
             ctx.fillStyle = displayIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.font = "bold 48px monospace"; ctx.textAlign = "center";
-            ctx.fillText(`P${displayIndex}`, cx, cy + 20);
+            ctx.fillText(`P${displayIndex}`, cx, cy + 15); // 中央に揃え直しました
         }
-        
-        ctx.fillStyle = "#fff"; ctx.font = "20px monospace";
-        ctx.fillText("WHO GOES FIRST?", cx, cy - 30);
         
     } else if (state.turnSplashTimer > 0) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
