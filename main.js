@@ -937,7 +937,10 @@ function drawGameScreen(ctx) {
 
 // 補助:既存のパーティクル/UI描画部分を整理した関数 (drawGameScreenの後半部分)
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
-    // パーティクル
+    const cx = LAYOUT.CANVAS_WIDTH / 2;
+    const cy = LAYOUT.CANVAS_HEIGHT / 2;
+
+    // 1. パーティクル(煙やキラキラ)の描画
     for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
         let p = state.visuals.particles[i]; p.life++;
         if (p.life >= p.maxLife) { state.visuals.particles.splice(i, 1); continue; }
@@ -948,7 +951,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     }
     ctx.globalAlpha = 1.0; 
 
-    // ボタン / キャンセルボタン
+    // 2. 下部のボタン / キャンセルボタンの描画
     if (state.buildMode) {
         const cb = getCancelButtonBounds();
         const clickTime = state.visuals.cancelClick || 0;
@@ -977,10 +980,86 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         });
     }
 
-    // スプラッシュ、ゴースト、フローター等の描画
-    drawOverlays(ctx, now, activePlayer);
-}
+    // 3. ルーレットとターンスプラッシュ(画面中央の大きな文字)
+    if (state.startRouletteActive) {
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        const bandH = 120;
+        ctx.fillRect(0, cy - bandH / 2, LAYOUT.CANVAS_WIDTH, bandH);
+        ctx.fillStyle = state.startRouletteIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        ctx.font = "bold 48px monospace"; ctx.textAlign = "center";
+        ctx.fillText(`P${state.startRouletteIndex}`, cx, cy + 20);
+        ctx.fillStyle = "#fff"; ctx.font = "20px monospace";
+        ctx.fillText("WHO GOES FIRST?", cx, cy - 30);
+    } else if (state.turnSplashTimer > 0) {
+        const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
+        ctx.globalAlpha = fadeAlpha; 
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; const bandH = 80; ctx.fillRect(0, cy - bandH/2, LAYOUT.CANVAS_WIDTH, bandH);
+        ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        ctx.font = "bold 32px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
+    }
+    ctx.globalAlpha = 1.0;
 
+    // 4. ゴースト(収穫したときに焼き鳥が上に飛んでいく演出)
+    state.visuals.ghosts.forEach(g => {
+        const elapsed = now - g.startTime;
+        const progress = Math.min(1, elapsed / 800);
+        const yOffset = -150 * (1 - Math.pow(1 - progress, 3)); 
+        ctx.globalAlpha = 1 - progress;
+        
+        const b = getLaneBounds(g.laneIndex);
+        const laneCx = b.x + b.w / 2;
+        const p = getVisualPalette(g.status);
+        
+        const stickH = b.h * 0.7; 
+        const stickTop = b.y + b.h * 0.1 + yOffset; 
+        
+        if (g.cookState !== undefined) {
+            ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); 
+            ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx-2, stickTop, 4, stickH);
+            const meatW = b.w * 0.6; const meatH = stickH * 0.2; const meatX = laneCx - meatW/2;
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false);
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true);
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false);
+            ctx.fillStyle = g.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+            ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
+        }
+        ctx.fillStyle = p.dot || "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center";
+        ctx.fillText(g.status, laneCx, stickTop - 20); 
+    });
+
+    // 5. フローター(+1 などの点数が浮かび上がる演出)
+    state.visuals.floaters.forEach(f => {
+        const elapsed = now - f.startTime;
+        const progress = Math.min(1, elapsed / 800);
+        ctx.globalAlpha = 1 - progress;
+
+        let fx, fy;
+        if (f.targetType === 'lane') {
+            const b = getLaneBounds(f.targetIndex);
+            fx = b.x + b.w / 2; 
+            const yOffset = -150 * (1 - Math.pow(1 - progress, 3)); 
+            const stickTop = b.y + b.h * 0.1 + yOffset;
+            fy = stickTop - 45; 
+        } else {
+            fx = LAYOUT.CANVAS_WIDTH / 2; 
+            fy = (LAYOUT.CANVAS_HEIGHT / 2 - 100) - (progress * 50);
+        }
+
+        ctx.textAlign = "center";
+        if (f.type === 'meat_up') {
+            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; 
+            drawDotIcon(ctx, "meat", fx - 25, fy - 10, "#fff", 3); ctx.fillText("+1", fx + 15, fy);
+        } else if (f.type === 'meat_down') {
+            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; 
+            drawDotIcon(ctx, "meat", fx - 25, fy - 10, "#fff", 3); ctx.fillText("-1", fx + 15, fy);
+        } else if (f.type === 'star_up') {
+            ctx.fillStyle = f.color; ctx.font = "bold 32px monospace";
+            const prefix = f.amount > 0 ? "+" : ""; ctx.fillText(`${prefix}${f.amount}`, fx, fy);
+        }
+    });
+    ctx.globalAlpha = 1.0;
+}
 // ※ drawOverlays 等、その他の既存描画関数は main.js のままで動作します。
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx;
