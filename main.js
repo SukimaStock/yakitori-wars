@@ -49,7 +49,12 @@ function initGameState() {
         ],
         visuals: {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
-            ghosts: [], floaters: [], particles: [], cancelClick: 0, titleClick: null // ★ titleClickを追加
+            ghosts: [], 
+            floaters: [], // 演出用に残すが、数値通知はstatusMessagesへ移行
+            statusMessages: [], // ★ 新設: 状態表示ゾーン(RESULT ZONE)用
+            particles: [], 
+            cancelClick: 0, 
+            titleClick: null
         }
     };
 }
@@ -163,7 +168,7 @@ function startGame(mode) {
     state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); // 15か16でランダム
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
     state.startRouletteFinalPlayer = null;
 }
 
@@ -181,7 +186,7 @@ function nextStage() {
     state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); // 15か16でランダム
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
     state.startRouletteFinalPlayer = null;
 }
 
@@ -361,7 +366,8 @@ function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
     if (boxId === 1) { 
         p.resources += 1;
-        state.visuals.floaters.push({ type: 'meat_up', targetType: state.currentPlayer === 1 ? 'p1' : 'p2', startTime: performance.now() });
+        // ★ 変更: RESULT ZONEへ通知
+        state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: state.currentPlayer, startTime: performance.now() });
         consumeWorker();
     } else {
         state.isBusy = true;
@@ -378,7 +384,8 @@ function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
     if (p.resources >= 1 && !node.built) {
         p.resources -= 1;
-        state.visuals.floaters.push({ type: 'meat_down', targetType: state.currentPlayer === 1 ? 'p1' : 'p2', startTime: performance.now() });
+        // ★ 変更: RESULT ZONEへ通知
+        state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, startTime: performance.now() });
         node.built = true; node.owner = state.currentPlayer; node.cookState = 0; node.justPlaced = true;
         state.visuals.placedAt[node.id] = performance.now();
         consumeWorker();
@@ -396,7 +403,8 @@ function tryHarvestNode(node) {
         if (status !== "burnt") {
             if (p.resources < 1) return;
             p.resources -= 1;
-            state.visuals.floaters.push({ type: 'meat_down', targetType: state.currentPlayer === 1 ? 'p1' : 'p2', startTime: performance.now() });
+            // ★ 変更: RESULT ZONEへ通知
+            state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, startTime: performance.now() });
         }
     }
 
@@ -413,8 +421,8 @@ function tryHarvestNode(node) {
     p.servedScore += scoreGained;
     
     if (scoreGained !== 0) {
-        const floaterCol = scoreGained > 0 ? (status==="perfect"?"#ff4":"#f90") : "#f33";
-        state.visuals.floaters.push({ type: 'star_up', amount: scoreGained, targetType: 'lane', targetIndex: state.lanes.indexOf(node), color: floaterCol, startTime: performance.now() });
+        // ★ 変更: RESULT ZONEへ通知
+        state.visuals.statusMessages.push({ type: 'score', amount: scoreGained, player: state.currentPlayer, startTime: performance.now() });
     }
     
     state.visuals.ghosts.push({ 
@@ -448,8 +456,6 @@ function isNodeValidForMode(node, mode) {
 // ==========================================
 // 5. game/input.js - 入力処理
 // ==========================================
-
-// ★修正: AIのターン中は完全に人間用のUIをロックし、ピカッと光るのを防ぐ
 function isInputLocked() {
     if (state.startRouletteActive) return true;
     const cp = state.currentPlayer;
@@ -469,7 +475,6 @@ function handleCanvasClick(event, canvas) {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    // ★修正: タイトル画面の当たり判定を正確にし、押下アニメーション用ディレイを追加
     if (state.screen === "title") {
         if (state.isBusy) return;
         const cx = LAYOUT.CANVAS_WIDTH / 2;
@@ -738,10 +743,12 @@ function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     state.visuals.floaters = state.visuals.floaters.filter(f => now - f.startTime < 800);
+    // ★ 寿命管理: 1.0秒で消えるように調整
+    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => now - m.startTime < 1000);
+
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     const cx = LAYOUT.CANVAS_WIDTH / 2; const cy = LAYOUT.CANVAS_HEIGHT / 2;
 
-    // ★修正: タイトル画面のボタンも立体的にし、押下表現を追加
     if (state.screen === "title") {
         ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center";
         ctx.fillText("YAKITORI WARS", cx, cy - 80);
@@ -767,10 +774,6 @@ function render(ctx) {
         ctx.fillStyle = "#fff"; ctx.font = "16px monospace"; ctx.fillText("Tap to Continue", cx, cy + 80);
     }
 }
-
-// ==========================================
-// 7. render/render.js - 描画処理 (アップデート版)
-// ==========================================
 
 function drawGameScreen(ctx) {
     const cx = LAYOUT.CANVAS_WIDTH / 2;
@@ -807,7 +810,6 @@ function drawGameScreen(ctx) {
         gradient.addColorStop(0, "rgba(255, 50, 0, 0)"); gradient.addColorStop(1, `rgba(255, 60, 10, ${0.15 + lane.fire * 0.15})`);
         ctx.fillStyle = gradient; ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
 
-        // ★修正:取れる串だけを正確にハイライト(点滅)させる
         let isValidAction = false;
         let isFlashable = false;
         
@@ -815,7 +817,6 @@ function drawGameScreen(ctx) {
             isValidAction = isNodeValidForMode(lane, state.buildMode);
             isFlashable = isValidAction;
             
-            // 取るモード中、肉がないのに相手の串(焦げ以外)を取ろうとする場合は点滅させない
             if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) {
                 const status = getCookLabel(lane.type, lane.cookState);
                 if (status !== "burnt" && pResources < 1) {
@@ -826,7 +827,6 @@ function drawGameScreen(ctx) {
             if (isFlashable) {
                 const alpha = 0.15 + Math.sin(now / 120) * 0.1;
                 ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                // うちわで焦げる場合の赤ハイライト
                 if (state.buildMode === "uchiwa") {
                     const heat = getBaseHeat(lane.type);
                     const pred = lane.cookState + heat + 1;
@@ -842,8 +842,6 @@ function drawGameScreen(ctx) {
             const status = getCookLabel(lane.type, lane.cookState);
             const isOwn = lane.owner === activePlayer;
             const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
-            
-            // Perfectのキラキラは、自分が取れる時だけ表示
             const showSparkle = (status === "perfect") && (isOwn || canSteal);
 
             const p = getVisualPalette(status.toUpperCase());
@@ -851,7 +849,6 @@ function drawGameScreen(ctx) {
             const baseStickTop = b.y + b.h * 0.1; 
             const stickTop = baseStickTop; 
             
-            // 串の描画(薄くせず、常にハッキリ表示)
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx - 1, stickTop, 4, stickH); 
             ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx - 2, stickTop, 4, stickH);
             const meatW = b.w * 0.6; const meatH = stickH * 0.2; const meatX = laneCx - meatW / 2;
@@ -869,38 +866,25 @@ function drawGameScreen(ctx) {
                 ctx.globalAlpha = 1.0;
             }
 
-            // ★修正:マイナス表示(ペナルティとコスト)のルール通りの可視化
+            // 行動コストの「ヒント」のみレーン近くに描画
             let noticeIcon = null;
             let noticeText = "";
             let noticeColor = "";
 
             if (state.buildMode === "harvest" && isFlashable) {
                 if (isOwn && status === "burnt") {
-                    // 自分の焦げ:ダイヤ(スコア)がマイナス
-                    noticeIcon = "diamond";
-                    noticeText = "-2";
-                    noticeColor = "#6cf";
+                    noticeIcon = "diamond"; noticeText = "-2"; noticeColor = "#6cf";
                 } else if (!isOwn && status !== "burnt") {
-                    // 相手の普通/Perfect:肉がマイナス
-                    noticeIcon = "meat";
-                    noticeText = "-1";
-                    noticeColor = "#f33";
+                    noticeIcon = "meat"; noticeText = "-1"; noticeColor = "#f33";
                 }
-                // ※相手の焦げ(burnt)の場合は何もセットしない=表示なし(コストゼロ)
             } else if (!state.buildMode) {
-                // 通常時のヒント表示
                 if (isOwn && status === "burnt") {
-                    noticeIcon = "diamond";
-                    noticeText = "-2";
-                    noticeColor = "#6cf";
+                    noticeIcon = "diamond"; noticeText = "-2"; noticeColor = "#6cf";
                 } else if (canSteal && status === "perfect") {
-                    noticeIcon = "meat";
-                    noticeText = "-1";
-                    noticeColor = "#f33";
+                    noticeIcon = "meat"; noticeText = "-1"; noticeColor = "#f33";
                 }
             }
 
-            // アイコンとテキストを描画
             if (noticeIcon) {
                 const costX = laneCx + 22;
                 const costY = stickTop + 25;
@@ -909,11 +893,9 @@ function drawGameScreen(ctx) {
                 ctx.fillText(noticeText, costX + 8, costY + 5);
             }
             
-            // 所有者マーカー
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
             
-            // 焼き上がり予測ゲージ
             const cv = Math.min(lane.cookState || 0, 6);
             const heat = getBaseHeat(lane.type);
             const boost = lane.uchiwaBoost || 0;
@@ -959,12 +941,10 @@ function drawGameScreen(ctx) {
     renderParticlesAndOverlay(ctx, now, activePlayer);
 }
 
-// 補助:既存のパーティクル/UI描画部分を整理した関数 (drawGameScreenの後半部分)
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
     const cx = LAYOUT.CANVAS_WIDTH / 2;
     const cy = LAYOUT.CANVAS_HEIGHT / 2;
 
-    // 1. パーティクル(煙やキラキラ)の描画
     for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
         let p = state.visuals.particles[i]; p.life++;
         if (p.life >= p.maxLife) { state.visuals.particles.splice(i, 1); continue; }
@@ -975,7 +955,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     }
     ctx.globalAlpha = 1.0; 
 
-    // 2. 下部のボタン / キャンセルボタンの描画
     if (state.buildMode) {
         const cb = getCancelButtonBounds();
         const clickTime = state.visuals.cancelClick || 0;
@@ -1004,7 +983,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         });
     }
 
-    // 3. ルーレットとターンスプラッシュ(画面中央の大きな文字)
     if (state.startRouletteActive) {
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
@@ -1024,7 +1002,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     }
     ctx.globalAlpha = 1.0;
 
-    // 4. ゴースト(収穫したときに焼き鳥が上に飛んでいく演出)
     state.visuals.ghosts.forEach(g => {
         const elapsed = now - g.startTime;
         const progress = Math.min(1, elapsed / 800);
@@ -1052,39 +1029,46 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.fillText(g.status, laneCx, stickTop - 20); 
     });
 
-    // 5. フローター(+1 などの点数が浮かび上がる演出)
-    state.visuals.floaters.forEach(f => {
-        const elapsed = now - f.startTime;
-        const progress = Math.min(1, elapsed / 800);
+    // ★ 変更: 5. 状態表示ゾーン (RESULT ZONE)
+    // ROUND表示の下あたりに最新の行動結果をまとめて表示する
+    state.visuals.statusMessages.forEach((msg, idx) => {
+        const elapsed = now - msg.startTime;
+        const progress = Math.min(1, elapsed / 1000);
         ctx.globalAlpha = 1 - progress;
 
-        let fx, fy;
-        if (f.targetType === 'lane') {
-            const b = getLaneBounds(f.targetIndex);
-            fx = b.x + b.w / 2; 
-            const yOffset = -150 * (1 - Math.pow(1 - progress, 3)); 
-            const stickTop = b.y + b.h * 0.1 + yOffset;
-            fy = stickTop - 45; 
-        } else {
-            fx = LAYOUT.CANVAS_WIDTH / 2; 
-            fy = (LAYOUT.CANVAS_HEIGHT / 2 - 100) - (progress * 50);
-        }
+        const fx = cx;
+        // 少しずつ浮き上がり、複数の場合は縦に並べる
+        const yOffset = -25 * (1 - Math.pow(1 - progress, 2));
+        const fy = 80 + (idx * 32) + yOffset;
 
         ctx.textAlign = "center";
-        if (f.type === 'meat_up') {
-            ctx.fillStyle = "#fa3"; ctx.font = "bold 28px monospace"; 
-            drawDotIcon(ctx, "meat", fx - 25, fy - 10, "#fff", 3); ctx.fillText("+1", fx + 15, fy);
-        } else if (f.type === 'meat_down') {
-            ctx.fillStyle = "#f33"; ctx.font = "bold 28px monospace"; 
-            drawDotIcon(ctx, "meat", fx - 25, fy - 10, "#fff", 3); ctx.fillText("-1", fx + 15, fy);
-        } else if (f.type === 'star_up') {
-            ctx.fillStyle = f.color; ctx.font = "bold 32px monospace";
-            const prefix = f.amount > 0 ? "+" : ""; ctx.fillText(`${prefix}${f.amount}`, fx, fy);
+        
+        let icon = msg.type === 'meat' ? 'meat' : 'diamond';
+        let text = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
+        let color = "#fff";
+        
+        if (msg.type === 'meat') {
+            color = msg.amount > 0 ? "#fa3" : "#f33"; 
+        } else if (msg.type === 'score') {
+            color = msg.amount > 0 ? "#ff4" : "#f33"; 
         }
+
+        // 背景に薄いパネルを敷く(可読性向上)
+        const txtW = ctx.measureText(text).width + 40;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(fx - txtW/2, fy - 22, txtW, 30);
+
+        ctx.fillStyle = color; 
+        ctx.font = "bold 24px monospace"; 
+        
+        // アイコン描画
+        drawDotIcon(ctx, icon, fx - 25, fy - 8, "#fff", 2.5); 
+        // テキスト描画
+        ctx.fillText(text, fx + 15, fy);
     });
     ctx.globalAlpha = 1.0;
 }
-// ※ drawOverlays 等、その他の既存描画関数は main.js のままで動作します。
+
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx;
     const baseColor = active ? (idx === 1 ? "#2a4a6a" : "#6a2a3a") : LAYOUT.COLORS.PANEL_BG;
@@ -1116,14 +1100,10 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
 // ==========================================
 window.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById("game");
-    if (!canvas) {
-        console.error("エラー: canvas#game が見つかりません。");
-        return;
-    }
+    if (!canvas) return;
     const ctx = canvas.getContext("2d");
 
     document.body.style.margin = "0";
-    document.body.style.padding = "0";
     document.body.style.backgroundColor = "#111";
     document.body.style.height = "100vh";
     document.body.style.overflow = "hidden";
