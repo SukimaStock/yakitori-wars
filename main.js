@@ -50,8 +50,8 @@ function initGameState() {
         visuals: {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
             ghosts: [], 
-            floaters: [], // 演出用に残すが、数値通知はstatusMessagesへ移行
-            statusMessages: [], // ★ 新設: 状態表示ゾーン(RESULT ZONE)用
+            floaters: [],
+            statusMessages: [], // 状態表示ゾーン(RESULT ZONE)用
             particles: [], 
             cancelClick: 0, 
             titleClick: null
@@ -366,7 +366,6 @@ function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
     if (boxId === 1) { 
         p.resources += 1;
-        // ★ 変更: RESULT ZONEへ通知
         state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: state.currentPlayer, startTime: performance.now() });
         consumeWorker();
     } else {
@@ -384,7 +383,6 @@ function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
     if (p.resources >= 1 && !node.built) {
         p.resources -= 1;
-        // ★ 変更: RESULT ZONEへ通知
         state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, startTime: performance.now() });
         node.built = true; node.owner = state.currentPlayer; node.cookState = 0; node.justPlaced = true;
         state.visuals.placedAt[node.id] = performance.now();
@@ -403,7 +401,6 @@ function tryHarvestNode(node) {
         if (status !== "burnt") {
             if (p.resources < 1) return;
             p.resources -= 1;
-            // ★ 変更: RESULT ZONEへ通知
             state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, startTime: performance.now() });
         }
     }
@@ -421,7 +418,6 @@ function tryHarvestNode(node) {
     p.servedScore += scoreGained;
     
     if (scoreGained !== 0) {
-        // ★ 変更: RESULT ZONEへ通知
         state.visuals.statusMessages.push({ type: 'score', amount: scoreGained, player: state.currentPlayer, startTime: performance.now() });
     }
     
@@ -743,7 +739,6 @@ function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     state.visuals.floaters = state.visuals.floaters.filter(f => now - f.startTime < 800);
-    // ★ 寿命管理: 1.0秒で消えるように調整
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => now - m.startTime < 1000);
 
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -866,7 +861,6 @@ function drawGameScreen(ctx) {
                 ctx.globalAlpha = 1.0;
             }
 
-            // 行動コストの「ヒント」のみレーン近くに描画
             let noticeIcon = null;
             let noticeText = "";
             let noticeColor = "";
@@ -1030,16 +1024,15 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     });
 
     // ★ 変更: 5. 状態表示ゾーン (RESULT ZONE)
-    // ROUND表示の下あたりに最新の行動結果をまとめて表示する
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime;
         const progress = Math.min(1, elapsed / 1000);
         ctx.globalAlpha = 1 - progress;
 
         const fx = cx;
-        // 少しずつ浮き上がり、複数の場合は縦に並べる
         const yOffset = -25 * (1 - Math.pow(1 - progress, 2));
-        const fy = 80 + (idx * 32) + yOffset;
+        // ★ 修正: fyの基準値を 80 から 130 に変更して下にずらしました
+        const fy = 130 + (idx * 32) + yOffset;
 
         ctx.textAlign = "center";
         
@@ -1053,7 +1046,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             color = msg.amount > 0 ? "#ff4" : "#f33"; 
         }
 
-        // 背景に薄いパネルを敷く(可読性向上)
         const txtW = ctx.measureText(text).width + 40;
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
         ctx.fillRect(fx - txtW/2, fy - 22, txtW, 30);
@@ -1061,9 +1053,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.fillStyle = color; 
         ctx.font = "bold 24px monospace"; 
         
-        // アイコン描画
         drawDotIcon(ctx, icon, fx - 25, fy - 8, "#fff", 2.5); 
-        // テキスト描画
         ctx.fillText(text, fx + 15, fy);
     });
     ctx.globalAlpha = 1.0;
