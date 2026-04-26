@@ -24,7 +24,7 @@ function initGameState() {
         
         // ★ルーレット用の変数
         startRouletteActive: false,
-        startRouletteInterval: 4,     // 次の切り替わりまでのフレーム数(初期値)
+        startRouletteInterval: 4,     // 次の切り替わりまでのフレーム数
         startRouletteTickTimer: 4,    // 現在のカウントダウン
         startRouletteCount: 0,        // 何回切り替わったか
         startRouletteMaxCount: 16,    // 合計何回切り替わったら止まるか
@@ -281,7 +281,6 @@ function updateRoulette() {
     state.startRouletteTickTimer--;
 
     if (state.startRouletteTickTimer <= 0) {
-        // P1とP2を入れ替え
         state.startRouletteIndex = 3 - state.startRouletteIndex;
         state.startRouletteCount++;
 
@@ -292,7 +291,6 @@ function updateRoulette() {
         // 規定回数に達したら終了
         if (state.startRouletteCount >= state.startRouletteMaxCount) {
             state.startRouletteActive = false;
-            // 最終的なプレイヤーを決定
             state.startRouletteFinalPlayer = state.startRouletteIndex;
             state.firstPlayer = state.startRouletteFinalPlayer;
             state.currentPlayer = state.startRouletteFinalPlayer;
@@ -563,8 +561,7 @@ function isActionValidForAI(currentState, action, playerIndex, profileName, leve
             if (lbl === "early") return false; 
         } else {
             if (lbl === "early") return false; 
-            if (lbl !== "burnt" && p.resources < 1) return false; // 焦げ以外を奪うには肉が必要
-            // 焦げ(burnt)の場合は肉が0でも許可され、無料で掃除します
+            if (lbl !== "burnt" && p.resources < 1) return false; 
         }
         return true;
     }
@@ -889,14 +886,22 @@ function drawGameScreen(ctx) {
         });
     }
 
+    // ★修正: ルーレットのシンプル描画(NaNによる画面のブラックアウトを回避)
     if (state.startRouletteActive) {
-        const fadeAlpha = getFadeAlpha(state.startRouletteTimer, state.startRouletteDuration, 15);
-        ctx.globalAlpha = fadeAlpha; 
-        ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; const bandH = 120; ctx.fillRect(0, cy - bandH/2, LAYOUT.CANVAS_WIDTH, bandH);
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        const bandH = 120;
+        ctx.fillRect(0, cy - bandH / 2, LAYOUT.CANVAS_WIDTH, bandH);
+
         ctx.fillStyle = state.startRouletteIndex === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-        ctx.font = "bold 48px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${state.startRouletteIndex}`, cx, cy + 20);
-        ctx.fillStyle = "#fff"; ctx.font = "20px monospace"; ctx.fillText("WHO GOES FIRST?", cx, cy - 30);
-        ctx.globalAlpha = 1.0; 
+        ctx.font = "bold 48px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`P${state.startRouletteIndex}`, cx, cy + 20);
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "20px monospace";
+        ctx.fillText("WHO GOES FIRST?", cx, cy - 30);
+        ctx.globalAlpha = 1.0;
     } else if (state.turnSplashTimer > 0) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
         ctx.globalAlpha = fadeAlpha; 
