@@ -165,6 +165,8 @@ function startGame(mode) {
     state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
+    // ★修正: 15回(P2)か16回(P1)のどちらかで止まるようにランダム化
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
     state.startRouletteFinalPlayer = null;
 }
 
@@ -183,9 +185,10 @@ function nextStage() {
     state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
+    // ★修正: 15回(P2)か16回(P1)のどちらかで止まるようにランダム化
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
     state.startRouletteFinalPlayer = null;
 }
-
 function updateAllScores() {
     state.players.forEach(p => p.score = p.servedScore || 0);
 }
