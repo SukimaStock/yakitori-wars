@@ -779,11 +779,9 @@ function drawGameScreen(ctx) {
     const safeTop = 15;
     const now = getTime();
     
-    // 現在のターンプレイヤーとリソースの取得
     const activePlayer = state.startRouletteActive ? state.startRouletteIndex : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
     const pResources = state.players[activePlayer - 1].resources;
 
-    // プレイヤーパネル
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
 
@@ -793,35 +791,42 @@ function drawGameScreen(ctx) {
         ctx.font = "14px monospace"; ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45);
     }
 
-    // 各レーンの描画
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i);
         const laneCx = b.x + b.w / 2;
         
-        // 土台描画
         drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
         ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
 
-        // グリッド(網)
         ctx.strokeStyle = "#555"; ctx.lineWidth = 2; ctx.beginPath();
         for (let j = 1; j <= 5; j++) { const barY = b.y + (b.h * j / 6); ctx.moveTo(b.x, barY); ctx.lineTo(b.x + b.w, barY); }
         [0.2, 0.8].forEach(ratio => { const barX = b.x + b.w * ratio; ctx.moveTo(barX, b.y); ctx.lineTo(barX, b.y + b.h); });
         ctx.stroke();
 
-        // 火力表現
         const gradient = ctx.createLinearGradient(0, b.y + b.h - 50, 0, b.y + b.h);
         gradient.addColorStop(0, "rgba(255, 50, 0, 0)"); gradient.addColorStop(1, `rgba(255, 60, 10, ${0.15 + lane.fire * 0.15})`);
         ctx.fillStyle = gradient; ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
 
-        // モード別ハイライト (修正2, 4)
+        // ★修正:取れる串だけを正確にハイライト(点滅)させる
         let isValidAction = false;
+        let isFlashable = false;
+        
         if (state.buildMode) {
             isValidAction = isNodeValidForMode(lane, state.buildMode);
-            if (isValidAction) {
+            isFlashable = isValidAction;
+            
+            // 取るモード中、肉がないのに相手の串(焦げ以外)を取ろうとする場合は点滅させない
+            if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) {
+                const status = getCookLabel(lane.type, lane.cookState);
+                if (status !== "burnt" && pResources < 1) {
+                    isFlashable = false;
+                }
+            }
+
+            if (isFlashable) {
                 const alpha = 0.15 + Math.sin(now / 120) * 0.1;
                 ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                
-                // うちわモードで将来焦げる場合は赤ハイライト (修正3)
+                // うちわで焦げる場合の赤ハイライト
                 if (state.buildMode === "uchiwa") {
                     const heat = getBaseHeat(lane.type);
                     const pred = lane.cookState + heat + 1;
@@ -838,26 +843,22 @@ function drawGameScreen(ctx) {
             const isOwn = lane.owner === activePlayer;
             const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
             
-            // Perfectキラキラの表示条件 (修正1)
+            // Perfectのキラキラは、自分が取れる時だけ表示
             const showSparkle = (status === "perfect") && (isOwn || canSteal);
-            const isDull = (status === "perfect") && !isOwn && pResources === 0;
 
             const p = getVisualPalette(status.toUpperCase());
             const stickH = b.h * 0.7; 
             const baseStickTop = b.y + b.h * 0.1; 
             const stickTop = baseStickTop; 
             
-            // 焼き鳥本体
-            if (isDull) ctx.globalAlpha = 0.5; // 肉不足の相手Perfectは暗く
+            // 串の描画(薄くせず、常にハッキリ表示)
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx - 1, stickTop, 4, stickH); 
             ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx - 2, stickTop, 4, stickH);
             const meatW = b.w * 0.6; const meatH = stickH * 0.2; const meatX = laneCx - meatW / 2;
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false);
-            ctx.globalAlpha = 1.0;
 
-            // キラキラ演出
             if (showSparkle) {
                 ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
                 [{x:-25, y:15, o:0}, {x:25, y:45, o:2}, {x:-20, y:75, o:4}].forEach(sp => {
@@ -868,36 +869,61 @@ function drawGameScreen(ctx) {
                 ctx.globalAlpha = 1.0;
             }
 
-            // 肉コスト表示 (-1) (修正1, 2)
-            const isHarvestSteal = (state.buildMode === "harvest" && isValidAction && !isOwn && status !== "burnt");
-            const isNormalStealNotice = (!state.buildMode && canSteal && status === "perfect");
-            
-            if (isHarvestSteal || isNormalStealNotice) {
+            // ★修正:マイナス表示(ペナルティとコスト)のルール通りの可視化
+            let noticeIcon = null;
+            let noticeText = "";
+            let noticeColor = "";
+
+            if (state.buildMode === "harvest" && isFlashable) {
+                if (isOwn && status === "burnt") {
+                    // 自分の焦げ:ダイヤ(スコア)がマイナス
+                    noticeIcon = "diamond";
+                    noticeText = "-2";
+                    noticeColor = "#6cf";
+                } else if (!isOwn && status !== "burnt") {
+                    // 相手の普通/Perfect:肉がマイナス
+                    noticeIcon = "meat";
+                    noticeText = "-1";
+                    noticeColor = "#f33";
+                }
+                // ※相手の焦げ(burnt)の場合は何もセットしない=表示なし(コストゼロ)
+            } else if (!state.buildMode) {
+                // 通常時のヒント表示
+                if (isOwn && status === "burnt") {
+                    noticeIcon = "diamond";
+                    noticeText = "-2";
+                    noticeColor = "#6cf";
+                } else if (canSteal && status === "perfect") {
+                    noticeIcon = "meat";
+                    noticeText = "-1";
+                    noticeColor = "#f33";
+                }
+            }
+
+            // アイコンとテキストを描画
+            if (noticeIcon) {
                 const costX = laneCx + 22;
                 const costY = stickTop + 25;
-                drawDotIcon(ctx, "meat", costX, costY, "#fff", 1.5);
-                ctx.fillStyle = "#f33"; ctx.font = "bold 14px monospace"; ctx.textAlign = "left";
-                ctx.fillText("-1", costX + 8, costY + 5);
+                drawDotIcon(ctx, noticeIcon, costX, costY, "#fff", 1.5);
+                ctx.fillStyle = noticeColor; ctx.font = "bold 14px monospace"; ctx.textAlign = "left";
+                ctx.fillText(noticeText, costX + 8, costY + 5);
             }
             
             // 所有者マーカー
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
             
-            // --- ゲージ描画 ---
+            // 焼き上がり予測ゲージ
             const cv = Math.min(lane.cookState || 0, 6);
             const heat = getBaseHeat(lane.type);
             const boost = lane.uchiwaBoost || 0;
-            
             let nextCv = cv + heat + boost;
-            let previewColor = "rgba(255, 255, 255, 0.3)"; // 通常
+            let previewColor = "rgba(255, 255, 255, 0.3)";
 
-            // うちわモード中の予測強化 (修正3)
-            if (state.buildMode === "uchiwa" && isValidAction) {
+            if (state.buildMode === "uchiwa" && isFlashable) {
                 const uchiwaPred = cv + heat + 1;
                 const predStatus = getCookLabel(lane.type, uchiwaPred);
                 nextCv = Math.min(6, uchiwaPred);
-                
                 if (predStatus === "perfect") previewColor = "rgba(255, 255, 0, 0.7)"; 
                 else if (predStatus === "okay") previewColor = "rgba(255, 165, 0, 0.7)";
                 else if (predStatus === "burnt") previewColor = "rgba(255, 50, 50, 0.9)";
@@ -924,14 +950,12 @@ function drawGameScreen(ctx) {
             }
         }
         
-        // 火力アイコン
         const fireScale = 2.5; const fireSize = 8 * fireScale;
         const totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1));
         const startFireX = laneCx - totalFireW / 2 + fireSize / 2;
         for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 22, "#fa3", fireScale);
     });
 
-    // パーティクル、キャンセルボタン、UIレイヤーの描画 (既存の続き)
     renderParticlesAndOverlay(ctx, now, activePlayer);
 }
 
