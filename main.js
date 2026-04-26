@@ -739,7 +739,9 @@ function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     state.visuals.floaters = state.visuals.floaters.filter(f => now - f.startTime < 800);
-    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => now - m.startTime < 1000);
+    
+    // ★ 変更: RESULT ZONE用の寿命を1000msから1200msに変更
+    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => now - m.startTime < 1200);
 
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     const cx = LAYOUT.CANVAS_WIDTH / 2; const cy = LAYOUT.CANVAS_HEIGHT / 2;
@@ -1023,16 +1025,34 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.fillText(g.status, laneCx, stickTop - 20); 
     });
 
-    // ★ 変更: 5. 状態表示ゾーン (RESULT ZONE)
+    // ★ 変更: 5. 状態表示ゾーン (RESULT ZONE) のアニメーション修正
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime;
-        const progress = Math.min(1, elapsed / 1000);
-        ctx.globalAlpha = 1 - progress;
+        
+        let alpha = 1;
+        let yAnimOffset = 0;
+
+        if (elapsed < 120) {
+            // 1. Appear (0〜120ms): 透明度 0 -> 1、少し下(10px)から定位置へ
+            const p = elapsed / 120;
+            alpha = p;
+            yAnimOffset = 10 * (1 - p);
+        } else if (elapsed < 770) {
+            // 2. Hold (120〜770ms): 完全に表示したまま定位置で止まる
+            alpha = 1;
+            yAnimOffset = 0;
+        } else {
+            // 3. Exit (770〜1200ms): 透明度 1 -> 0、少し上(-15px)へ抜けて消える
+            const p = Math.min(1, (elapsed - 770) / 430);
+            alpha = 1 - p;
+            yAnimOffset = -15 * p;
+        }
+
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
 
         const fx = cx;
-        const yOffset = -25 * (1 - Math.pow(1 - progress, 2));
-        // ★ 修正: fyの基準値を 80 から 130 に変更して下にずらしました
-        const fy = 130 + (idx * 32) + yOffset;
+        // 定位置のY=130に、複数スタック時のオフセット(idx * 32)とアニメーションを足す
+        const fy = 130 + (idx * 32) + yAnimOffset;
 
         ctx.textAlign = "center";
         
