@@ -831,11 +831,42 @@ function drawGameScreen(ctx) {
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false);
+
+            // ★追加機能2: Perfect状態のキラキラ演出
+            if (status === "perfect") {
+                ctx.fillStyle = "rgba(255, 255, 200, 0.8)";
+                // キラキラを配置する相対位置
+                const sparkles = [
+                    { x: laneCx - 25, y: stickTop + 15, offset: 0 },
+                    { x: laneCx + 25, y: stickTop + 45, offset: 2 },
+                    { x: laneCx - 20, y: stickTop + 75, offset: 4 }
+                ];
+                sparkles.forEach(sp => {
+                    // ゆっくり明滅させる
+                    const alpha = 0.3 + 0.7 * Math.abs(Math.sin((now / 250) + sp.offset));
+                    ctx.globalAlpha = alpha;
+                    // 小さな十字を描画
+                    ctx.fillRect(sp.x - 1, sp.y - 3, 2, 6);
+                    ctx.fillRect(sp.x - 3, sp.y - 1, 6, 2);
+                });
+                ctx.globalAlpha = 1.0;
+            }
             
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
             
+            // ★追加機能1: 焼き上がり予測の計算
             const cv = Math.min(lane.cookState || 0, 6);
+            const heat = getBaseHeat(lane.type);
+            const boost = lane.uchiwaBoost || 0;
+            let nextCv = cv + heat + boost;
+
+            // うちわモード選択中で、このレーンが有効なら予測に+1を含める(既存の点滅の代替)
+            if (state.buildMode === "uchiwa" && isNodeValidForMode(lane, "uchiwa")) {
+                nextCv += 1;
+            }
+            nextCv = Math.min(6, nextCv); // 最大6ドットまで
+
             const dotSize = 8; const dotGap = 4;  
             const gridW = 3 * dotSize + 2 * dotGap; const gridH = 2 * dotSize + dotGap;
             const dotStartX = laneCx - gridW / 2; const dotStartY = baseStickTop + stickH + 12;
@@ -848,19 +879,17 @@ function drawGameScreen(ctx) {
                 const dy = dotStartY + row * (dotSize + dotGap);
 
                 if (j < cv) {
+                    // 既に焼けている分(現在値)
                     ctx.fillStyle = p.dot; ctx.fillRect(dx, dy, dotSize, dotSize);
                     ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
+                } else if (j < nextCv) {
+                    // ★次に焼ける予定の分(予測表示:薄い黄色)
+                    ctx.fillStyle = "rgba(255, 255, 200, 0.3)"; ctx.fillRect(dx, dy, dotSize, dotSize);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(dx + 1, dy + 1, dotSize - 4, dotSize - 5);
                 } else {
+                    // まだ焼けない空の分
                     ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dy, dotSize, dotSize);
                     ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; ctx.fillRect(dx, dy + dotSize - 1, dotSize, 1);
-                    
-                    if (state.buildMode === "uchiwa" && isNodeValidForMode(lane, "uchiwa") && j === cv) {
-                        const alpha = 0.2 + Math.abs(Math.sin(now / 150)) * 0.6; 
-                        ctx.globalAlpha = alpha;
-                        ctx.fillStyle = p.dot; 
-                        ctx.fillRect(dx, dy, dotSize, dotSize);
-                        ctx.globalAlpha = 1.0; 
-                    }
                 }
             }
         }
