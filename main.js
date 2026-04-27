@@ -894,7 +894,15 @@ function render(ctx) {
             const ratio = logoImage.naturalHeight / logoImage.naturalWidth;
             const logoW = logoMaxW;
             const logoH = logoW * ratio;
-            ctx.drawImage(logoImage, cx - logoW / 2, cy - 145, logoW, logoH);
+const logoOffsetY = -170; // ←ここだけいじればOK
+
+ctx.drawImage(
+    logoImage,
+    cx - logoW / 2,
+    cy + logoOffsetY,
+    logoW,
+    logoH
+);
         } else {
             ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center";
             ctx.fillText("YAKITORI WARS", cx, cy - 80);
