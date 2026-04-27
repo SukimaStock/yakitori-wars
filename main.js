@@ -569,7 +569,7 @@ function handleCanvasClick(event, canvas) {
         if (state.isBusy) return;
         const cx = LAYOUT.CANVAS_WIDTH / 2;
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
-        const buttonOffsetY = 85; // タイトル画面レイアウト調整
+        const buttonOffsetY = 85; 
 
         const btnAi = {
             x: cx - 120,
@@ -804,7 +804,6 @@ function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
     return 1.0; 
 }
 
-// インゲーム用ボタンやパネル描画
 function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     ctx.fillStyle = baseColor;
     ctx.fillRect(x, y, w, h);
@@ -817,18 +816,14 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     }
 }
 
-// タイトル画面専用の渋いボタン描画
 function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false) {
-    // ダークな炭色ベース
     ctx.fillStyle = isPressed ? "#151212" : "#201818";
     ctx.fillRect(x, y, w, h);
 
-    // アクセントカラーの枠線
     ctx.strokeStyle = accentColor;
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, w, h);
 
-    // 控えめな立体感
     if (isPressed) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; 
         ctx.fillRect(x, y, w, 4); 
@@ -842,7 +837,6 @@ function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false)
         ctx.fillRect(x + w - 3, y, 3, h); 
     }
 
-    // やや黄みのあるレトロなテキストカラー
     const offset = isPressed ? 2 : 0;
     ctx.fillStyle = "#f4e6d0";
     ctx.font = "bold 20px monospace";
@@ -888,6 +882,7 @@ function getBuildModeIcon(mode) {
     return null;
 }
 
+// 直感的なUIヒントの描画
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     if (!lane.built || !mode) return;
 
@@ -900,24 +895,23 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
 
     if (mode === "harvest") {
+        // 優先順位に沿って、最も重要な情報を1つだけ表示する
         if (status === "early") {
-            drawDotIcon(ctx, "cross", laneCx, hintY, "#ff9a9a", 2);
-            return;
-        }
-
-        const isValid = isNodeValidForMode(lane, mode) && (isOwn || pResources >= 1);
-        if (!isValid) return; 
-
-        if (isOwn) {
+            // 1. 完全不可(生焼け)
+            drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6);
+        } else if (status === "burnt") {
+            // 2. 捨てられる(焦げ)
+            drawDotIcon(ctx, "trash", laneCx, hintY, isOwn ? "#ccc" : "#bbb", 2);
+        } else if (isOwn) {
+            // 3. 自分の串の収穫(ひし形)
             if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
             else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
-            else if (status === "burnt") drawDotIcon(ctx, "trash", laneCx, hintY, "#fff", 2);
+        } else if (canSteal) {
+            // 4. 奪取可能(肉コストの提示)
+            drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2);
         } else {
-            if (canSteal && (status === "perfect" || status === "okay")) {
-                drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2); 
-            } else if (status === "burnt") {
-                drawDotIcon(ctx, "trash", laneCx, hintY, "#aaa", 2);
-            }
+            // 5. コスト不足(相手の串を奪いたいが資源がない)
+            drawDotIcon(ctx, "warning", laneCx, hintY, "#888", 2);
         }
     }
 }
@@ -961,11 +955,9 @@ function render(ctx) {
         };
 
         const aiPressed = state.visuals.titleClick === "ai";
-        // タイトル専用ボタン描画(青塗り潰し廃止)
         drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI (SURVIVAL)", "rgba(255, 150, 60, 0.45)", aiPressed);
         
         const pvpPressed = state.visuals.titleClick === "pvp";
-        // タイトル専用ボタン描画(ピンク塗り潰し廃止)
         drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", pvpPressed);
         
     } else if (state.screen === "game") {
