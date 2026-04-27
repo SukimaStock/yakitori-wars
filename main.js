@@ -54,7 +54,7 @@ function initGameState() {
         ],
         visuals: {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
-            peakFlashes: {}, // ← 追加: PERFECT到達時のフラッシュ記録用
+            peakFlashes: {}, // PERFECT到達時のフラッシュ記録用
             ghosts: [], 
             floaters: [],
             statusMessages: [], // 状態表示ゾーン用
@@ -289,9 +289,6 @@ function spawnSmokeEffect(laneIndex, amount) {
     }
 }
 
-// ---------------------------------------------------------
-// ★修正箇所: 状態変化を検知してフラッシュや煙を追加する処理
-// ---------------------------------------------------------
 function advanceAllSkewersAtRoundEnd() {
     state.lanes.forEach((n, index) => {
         if (n.built) {
@@ -308,7 +305,6 @@ function advanceAllSkewersAtRoundEnd() {
                 
                 if (n.cookState > prevCookState) {
                     let smokeAmount = n.cookState - prevCookState;
-                    
                     // 焦げた瞬間に少し煙を増やす(出来事を強調)
                     if (prevStatus !== "burnt" && newStatus === "burnt") {
                         smokeAmount += 3;
@@ -455,6 +451,37 @@ function getCookLabel(laneType, cv) {
         if (cv === 5) return "okay";
     }
     return "early";
+}
+
+// ==========================================
+// 補助関数:Perfectの対象があるか判定
+// ==========================================
+function hasPerfectHarvestTarget(playerIndex) {
+    const p = state.players[playerIndex - 1];
+    for (let n of state.lanes) {
+        if (n.built) {
+            const status = getCookLabel(n.type, n.cookState);
+            // 自分の串か、奪える資源がある場合にPerfectならtrue
+            if (status === "perfect" && (n.owner === playerIndex || p.resources >= 1)) return true;
+        }
+    }
+    return false;
+}
+
+// ==========================================
+// 補助関数:指定色を明るくする
+// ==========================================
+function brightenColor(hex, ratio) {
+    hex = hex.replace(/^#/, '');
+    if (hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+    let r = parseInt(hex.substring(0,2), 16);
+    let g = parseInt(hex.substring(2,4), 16);
+    let b = parseInt(hex.substring(4,6), 16);
+    // 白(#FFF)に向けてブレンド
+    r = Math.min(255, Math.floor(r + (255 - r) * ratio));
+    g = Math.min(255, Math.floor(g + (255 - g) * ratio));
+    b = Math.min(255, Math.floor(b + (255 - b) * ratio));
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
 function getHarvestScore(node, isSteal, status) {
@@ -901,7 +928,6 @@ function getBuildModeIcon(mode) {
     return null;
 }
 
-// 直感的なUIヒントの描画
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     if (!lane.built || !mode) return;
 
@@ -929,9 +955,6 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     }
 }
 
-// ---------------------------------------------------------
-// ★修正箇所: ピークフラッシュ用の引数 (extraAlpha, scale) を追加
-// ---------------------------------------------------------
 function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scale = 1) {
     const baseAlpha = isPreview ? 0.3 : (isHarvestMode ? 0.8 : 0.65);
     ctx.globalAlpha = Math.min(1.0, baseAlpha + extraAlpha);
@@ -946,7 +969,6 @@ function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scal
 
     const now = getTime();
     
-    // スケールを適用して、ピーク時に少しだけ星を大きくする
     const w1 = 3 * scale, h1 = 10 * scale;
     const w2 = 10 * scale, h2 = 3 * scale;
 
@@ -956,9 +978,8 @@ function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scal
         ctx.fillRect(cx + pos.dx - w2/2, y + pos.dy + animY - h2/2, w2, h2);
     });
 
-    // ピーク演出時のみ、串の裏側に柔らかい光(出来事感)を足す
     if (extraAlpha > 0) {
-        ctx.globalAlpha = extraAlpha * 0.5; // 明るすぎないよう調整
+        ctx.globalAlpha = extraAlpha * 0.5; 
         ctx.beginPath();
         const grad = ctx.createRadialGradient(cx, y + 45, 0, cx, y + 45, 45 * scale);
         grad.addColorStop(0, "rgba(255, 255, 200, 0.8)");
@@ -1062,15 +1083,34 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = gradient; ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
 
         let isFlashable = false;
+        let isPerfectTarget = false; 
+        
         if (state.buildMode) {
             isFlashable = isNodeValidForMode(lane, state.buildMode);
             if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) {
                 const status = getCookLabel(lane.type, lane.cookState);
                 if (status !== "burnt" && pResources < 1) isFlashable = false;
             }
+            
+            if (state.buildMode === "harvest" && isFlashable && lane.built) {
+                if (getCookLabel(lane.type, lane.cookState) === "perfect") isPerfectTarget = true;
+            }
+
             if (isFlashable) {
-                ctx.fillStyle = `rgba(255, 255, 255, 0.08)`; 
-                ctx.fillRect(b.x, b.y, b.w, b.h);
+                if (state.buildMode === "harvest") {
+                    const pulse = 0.5 + 0.5 * Math.sin(now / 150); 
+                    const alphaInner = 0.12 + 0.06 * pulse; 
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alphaInner})`;
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+
+                    const alphaOuter = 0.45 + 0.2 * pulse; 
+                    ctx.strokeStyle = isPerfectTarget ? `rgba(255, 230, 100, ${alphaOuter})` : `rgba(255, 255, 255, ${alphaOuter})`;
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(b.x, b.y, b.w, b.h);
+                } else {
+                    ctx.fillStyle = `rgba(255, 255, 255, 0.08)`; 
+                    ctx.fillRect(b.x, b.y, b.w, b.h);
+                }
             }
         }
 
@@ -1106,15 +1146,11 @@ function drawGameScreen(ctx) {
             ctx.lineTo(laneCx + markerSize, markerY - markerSize);
             ctx.fill();
 
-            // ---------------------------------------------------------
-            // ★修正箇所: ピークフラッシュの計算と描画の適用
-            // ---------------------------------------------------------
             const isOwn = lane.owner === activePlayer;
             const realStatus = getCookLabel(lane.type, lane.cookState); 
             const realCanSteal = !isOwn && realStatus !== "early" && realStatus !== "burnt" && pResources >= 1;
 
             if (!lane.justPlaced) {
-                // ピークフラッシュの計算(700msでスッと消える)
                 const peakTime = state.visuals.peakFlashes[lane.id];
                 let peakAlpha = 0;
                 let peakScale = 1;
@@ -1122,15 +1158,13 @@ function drawGameScreen(ctx) {
                 if (peakTime && now - peakTime < 700) {
                     const elapsed = now - peakTime;
                     const progress = elapsed / 700;
-                    peakAlpha = (1 - progress) * 0.6; // フワッと明るく
-                    peakScale = 1 + Math.sin(progress * Math.PI) * 0.3; // 少しだけ膨らむ
+                    peakAlpha = (1 - progress) * 0.6; 
+                    peakScale = 1 + Math.sin(progress * Math.PI) * 0.3; 
                 }
 
-                // 1. 今まさに「取れる」状態(通常のキラキラ + ピーク演出)
                 if (realStatus === "perfect" && (isOwn || realCanSteal)) {
                     drawSparkles(ctx, laneCx, stickTop, state.buildMode === "harvest", false, peakAlpha, peakScale);
                 } 
-                // 2. うちわプレビューで「取れるようになる」状態(未来の薄いキラキラ)
                 else if (isUchiwaPreviewActive && displayStatus === "perfect" && realStatus !== "perfect") {
                     drawSparkles(ctx, laneCx, stickTop, false, true, 0, 1);
                 }
@@ -1240,7 +1274,16 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const clickTime = state.visuals.buttonClicks[i] || 0;
             const isPressed = (now - clickTime < 150);
             const isLocked = isInputLocked() && !isPressed;
-            const baseColor = (canUse && !isLocked) ? btn.color : "#445";
+            let baseColor = (canUse && !isLocked) ? btn.color : "#445";
+            
+            // 収穫ボタンの控えめな点滅
+            if (boxId === 3 && canUse && !isLocked && state.buildMode === null) {
+                const pulse = 0.5 + 0.5 * Math.sin(now / 150); 
+                const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
+                const brightAmount = isPerfect ? 0.3 : 0.15; 
+                
+                baseColor = brightenColor(btn.color, brightAmount * pulse);
+            }
             
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             const offset = isPressed ? 3 : 0;
