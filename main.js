@@ -741,7 +741,7 @@ function playAITurn() {
 }
 
 // ==========================================
-// 7. render/render.js - 描画処理 (完全視覚化アップデート)
+// 7. render/render.js - 描画処理 (静寂UIアップデート)
 // ==========================================
 
 function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
@@ -762,7 +762,6 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     }
 }
 
-// 焦げ予告などのオーバーレイ表現を追加できるよう引数を拡張
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay = false) {
     ctx.fillStyle = baseColor;
     if (isNegi) {
@@ -775,11 +774,10 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x + 4, y + h - 8, w - 8, 8); ctx.fillRect(x + w - 6, y + 6, 4, h - 14); 
     }
     
-    // 焦げ予告: 端を黒く焦がす表現
     if (dangerOverlay) {
         ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-        ctx.fillRect(x + 4, y + h - 6, w - 8, 6); // 下部を黒く
-        ctx.fillRect(x + w - 8, y + 4, 4, h - 8); // 右部を黒く
+        ctx.fillRect(x + 4, y + h - 6, w - 8, 6); 
+        ctx.fillRect(x + w - 8, y + 4, 4, h - 8); 
     }
 }
 
@@ -795,75 +793,34 @@ function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     }
 }
 
-// アイコンとアニメーションのみに刷新されたヒント描画
+// 1 8 9 ヒントは常に出さず、対象モードで押せるものだけを静かに1つ表示
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
-    if (!lane.built) return;
+    if (!lane.built || !mode) return; // 7 何もしてない時は出さない
 
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
     const hintY = b.y - 18; 
-    const now = getTime();
-
+    
     const status = getCookLabel(lane.type, lane.cookState);
     const isOwn = lane.owner === activePlayer;
     const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
 
-    let floatOffset = Math.sin(now / 200 + laneIndex) * 2;
-
-    // Harvestモード(最優先の実装要件)
     if (mode === "harvest") {
         const isValid = isNodeValidForMode(lane, mode) && (isOwn || pResources >= 1);
-        
-        if (!isValid) {
-            ctx.globalAlpha = 0.3;
-        }
+        if (!isValid) return; // 押せないレーンは完全に無視
 
-        const y = hintY + floatOffset;
-
+        // 2 3 アイコン削減とアニメーション完全停止
         if (isOwn) {
-            // 自串の表示
-            if (status === "perfect") {
-                // Perfect: 輝くダイヤとキラキラ
-                drawDotIcon(ctx, "diamond", laneCx, y, "#ff4", 2.5);
-                ctx.globalAlpha = 0.5 + 0.5 * Math.sin(now / 100);
-                drawDotIcon(ctx, "diamond", laneCx - 15, y + 10, "#fff", 1);
-                drawDotIcon(ctx, "diamond", laneCx + 15, y - 5, "#fff", 1.5);
-            } else if (status === "okay") {
-                // Okay: 弱発光ダイヤのみ
-                drawDotIcon(ctx, "diamond", laneCx, y, "#ddd", 2);
-            } else if (status === "early") {
-                // Early: ダイヤ + 下に沈むアニメーション
-                const sinkOffset = Math.max(0, Math.sin(now / 150)) * 5;
-                drawDotIcon(ctx, "diamond", laneCx, y + sinkOffset, "#f33", 1.5);
-            } else if (status === "burnt") {
-                // Burnt: ゴミ箱 + 青ダイヤ(マイナス)
-                drawDotIcon(ctx, "trash", laneCx - 12, y, "#fff", 2);
-                drawDotIcon(ctx, "diamond", laneCx + 12, y + 5, "#6cf", 1.5);
-            }
+            if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
+            else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
+            else if (status === "burnt") drawDotIcon(ctx, "trash", laneCx, hintY, "#fff", 2);
+            // earlyは何も出さない
         } else {
-            // 他串(相手の串)の表示
-            if (status === "perfect" || status === "okay") {
-                // 肉 → ダイヤ の変換表示(矢印の代わりに並べて配置)
-                const flash = Math.sin(now / 150) > 0;
-                drawDotIcon(ctx, "meat", laneCx - 15, y, flash ? "#f33" : "#aaa", 1.5);
-                drawDotIcon(ctx, "diamond", laneCx + 15, y, status === "perfect" ? "#ff4" : "#ddd", 2);
+            if (canSteal && (status === "perfect" || status === "okay")) {
+                drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2); // 奪取コストのみ提示
             } else if (status === "burnt") {
-                // 相手Burnt: ゴミ箱のみ(肉表示なし、完全無料の視覚化)
-                drawDotIcon(ctx, "trash", laneCx, y, "#aaa", 2.5);
+                drawDotIcon(ctx, "trash", laneCx, hintY, "#aaa", 2);
             }
-        }
-        ctx.globalAlpha = 1.0;
-    } 
-    // 通常時(何もしないときの状態表示)
-    else if (!mode) {
-        const y = hintY + floatOffset;
-        if (status === "perfect" && isOwn) {
-            drawDotIcon(ctx, "diamond", laneCx, y, "#ff4", 2);
-        } else if ((status === "perfect" || status === "okay") && canSteal) {
-            drawDotIcon(ctx, "meat", laneCx - 10, y, "#f33", 1.5);
-            drawDotIcon(ctx, "serve_plate", laneCx + 12, y, "#fff", 1.5);
-        } else if (status === "burnt" && isOwn) {
-            drawDotIcon(ctx, "trash", laneCx, y, "#fff", 2);
         }
     }
 }
@@ -928,23 +885,16 @@ function drawGameScreen(ctx) {
         const b = getLaneBounds(i);
         const laneCx = b.x + b.w / 2;
         
-        // 基本レーン背景
         drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
         ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
 
-        // 焦げ予告: レーン背景の赤脈動
+        // 4 焦げ予告のトーンダウン: 赤脈動を削除、フラグのみ維持
         let isDanger = false;
         if (lane.built && !lane.justPlaced) {
             const heat = getBaseHeat(lane.type);
             const boost = lane.uchiwaBoost || 0;
             isDanger = (getCookLabel(lane.type, lane.cookState) !== "burnt" && 
                         getCookLabel(lane.type, lane.cookState + heat + boost) === "burnt");
-            
-            if (isDanger) {
-                const dangerAlpha = 0.2 + Math.abs(Math.sin(now / 150)) * 0.3;
-                ctx.fillStyle = `rgba(180, 0, 0, ${dangerAlpha})`;
-                ctx.fillRect(b.x, b.y, b.w, b.h);
-            }
         }
 
         ctx.strokeStyle = "#555"; ctx.lineWidth = 2; ctx.beginPath();
@@ -952,7 +902,6 @@ function drawGameScreen(ctx) {
         [0.2, 0.8].forEach(ratio => { const barX = b.x + b.w * ratio; ctx.moveTo(barX, b.y); ctx.lineTo(barX, b.y + b.h); });
         ctx.stroke();
 
-        // 炎の描画(火力による炎の大きさの変化)
         const fireIntensity = lane.fire * 0.15 + (Math.sin(now / (200 - lane.fire * 30)) * 0.05);
         const gradient = ctx.createLinearGradient(0, b.y + b.h - 50, 0, b.y + b.h);
         gradient.addColorStop(0, "rgba(255, 50, 0, 0)"); gradient.addColorStop(1, `rgba(255, 60, 10, ${fireIntensity})`);
@@ -965,19 +914,17 @@ function drawGameScreen(ctx) {
                 const status = getCookLabel(lane.type, lane.cookState);
                 if (status !== "burnt" && pResources < 1) isFlashable = false;
             }
+            if (isFlashable) {
+                ctx.fillStyle = `rgba(255, 255, 255, 0.08)`; // パルスなし、固定の静かなハイライト
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+            }
         }
 
         if (lane.built) {
-            const isOwn = lane.owner === activePlayer;
-            const canSteal = !isOwn && getCookLabel(lane.type, lane.cookState) !== "early" && pResources >= 1;
-            
-            // うちわモードの未来プレビュー(状態を交互点滅)
-            const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && isFlashable && Math.floor(now / 300) % 2 !== 0);
-            
+            // 5 うちわプレビューの整理: 選択中はその状態を点滅なしで表示し続けるだけ
+            const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && isFlashable);
             let displayCookState = lane.cookState;
-            if (isUchiwaPreviewActive) {
-                displayCookState += getBaseHeat(lane.type) + 1; // 未来の状態
-            }
+            if (isUchiwaPreviewActive) displayCookState += getBaseHeat(lane.type) + 1; 
             
             const displayStatus = getCookLabel(lane.type, displayCookState);
             const p = getVisualPalette(displayStatus.toUpperCase());
@@ -985,7 +932,6 @@ function drawGameScreen(ctx) {
             const stickH = b.h * 0.7; 
             const stickTop = b.y + b.h * 0.1; 
             
-            // 置いた直後: 半透明化&アニメーション停止
             if (lane.justPlaced) ctx.globalAlpha = 0.4;
             
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx - 1, stickTop, 4, stickH); 
@@ -996,47 +942,23 @@ function drawGameScreen(ctx) {
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, isDanger);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, isDanger);
 
-            ctx.globalAlpha = 1.0; // 透明度リセット
+            ctx.globalAlpha = 1.0; 
 
-            // うちわプレビュー時の後光エフェクト
-            if (isUchiwaPreviewActive) {
-                if (displayStatus === "perfect") {
-                    ctx.fillStyle = "rgba(255, 215, 0, 0.4)"; // 金色発光
-                    ctx.fillRect(meatX - 5, stickTop, meatW + 10, stickH);
-                } else if (displayStatus === "okay") {
-                    ctx.fillStyle = "rgba(255, 140, 0, 0.3)"; // オレンジ強調
-                    ctx.fillRect(meatX - 5, stickTop, meatW + 10, stickH);
-                }
-            }
-
-            // キラキラ(Perfect時)
-            if (displayStatus === "perfect" && (isOwn || canSteal) && !lane.justPlaced) {
-                ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
-                [{x:-25, y:15, o:0}, {x:25, y:45, o:2}, {x:-20, y:75, o:4}].forEach(sp => {
-                    ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin((now / 250) + sp.o));
-                    ctx.fillRect(laneCx + sp.x - 1, stickTop + sp.y - 3, 2, 6);
-                    ctx.fillRect(laneCx + sp.x - 3, stickTop + sp.y - 1, 6, 2);
-                });
-                ctx.globalAlpha = 1.0;
-            }
+            // キラキラエフェクト等は全削除。色は変わるのでそれで伝わる
 
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
 
-            // 火力差の説明廃止 → 煙の量と速度で視覚化
+            // 煙も最小限に
             if (!lane.justPlaced && displayStatus !== "burnt") {
                 const heat = getBaseHeat(lane.type);
-                // 強いほど高頻度、焦げ予告時はさらに増加
-                let smokeChance = heat === 3 ? 0.08 : (heat === 2 ? 0.04 : 0.01);
-                if (isDanger) smokeChance += 0.05; 
+                let smokeChance = heat === 3 ? 0.05 : (heat === 2 ? 0.02 : 0.01);
+                if (isDanger) smokeChance += 0.03; 
                 
-                if (Math.random() < smokeChance) {
-                    spawnSmokeEffect(i, heat * 0.5);
-                }
+                if (Math.random() < smokeChance) spawnSmokeEffect(i, heat * 0.3);
             }
         }
         
-        // ゲージの描画(簡略化)
         let cv = 0; let nextCv = 0; let dotColor = "#fff"; let previewColor = "rgba(255, 255, 255, 0.3)";
         if (lane.built) {
             cv = Math.min(lane.cookState || 0, 6);
@@ -1046,11 +968,8 @@ function drawGameScreen(ctx) {
 
             if (state.buildMode === "uchiwa" && isFlashable) {
                 const uchiwaPred = cv + heat + 1;
-                const predStatus = getCookLabel(lane.type, uchiwaPred);
                 nextCv = Math.min(6, uchiwaPred);
-                if (predStatus === "perfect") previewColor = "rgba(255, 255, 0, 0.7)"; 
-                else if (predStatus === "okay") previewColor = "rgba(255, 165, 0, 0.7)";
-                else if (predStatus === "burnt") previewColor = "rgba(255, 50, 50, 0.9)";
+                previewColor = "rgba(255, 255, 255, 0.6)"; // 色変化なし、白固定で静かに提示
             }
             dotColor = getVisualPalette(getCookLabel(lane.type, lane.cookState).toUpperCase()).dot;
         }
@@ -1078,10 +997,9 @@ function drawGameScreen(ctx) {
         const startFireX = laneCx - totalFireW / 2 + fireSize / 2;
         for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 40, "#fa3", fireScale);
 
-        // 余熱トークン (+1などの数字は廃止し、アイコンのみで表現)
+        // 余熱トークンのアニメーション削除。固定表示
         if (lane.uchiwaBoost > 0) {
-            const pulse = (Math.sin(now / 300) + 1) / 2;
-            ctx.globalAlpha = 0.5 + 0.5 * pulse; 
+            ctx.globalAlpha = 0.6; 
             drawDotIcon(ctx, "fire", b.x + b.w - 18, b.y + b.h - 18, "#f85", 2);
             ctx.globalAlpha = 1.0;
         }
@@ -1129,30 +1047,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const isLocked = isInputLocked() && !isPressed;
             const baseColor = (canUse && !isLocked) ? btn.color : "#445";
             
-            let applySubtleHighlight = false;
-            let pulse = 0;
-
-            if (canUse && !isLocked) {
-                pulse = (Math.sin(now / 300 + boxId) + 1) / 2; 
-                applySubtleHighlight = true;
-            }
-
-            if (applySubtleHighlight && !isPressed) {
-                ctx.shadowColor = `rgba(255, 255, 255, ${0.1 + 0.1 * pulse})`;
-                ctx.shadowBlur = 4 + 2 * pulse;
-                ctx.fillStyle = `rgba(255, 255, 255, ${0.05 + 0.05 * pulse})`;
-                ctx.fillRect(b.x, b.y, b.w, b.h);
-            }
-
+            // 6 ボタンの主張削減: パルス、シャドウ、枠線を全削除
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
-            
-            if (applySubtleHighlight && !isPressed) {
-                ctx.shadowBlur = 0; 
-                ctx.strokeStyle = `rgba(255, 255, 255, ${0.15 + 0.1 * pulse})`;
-                ctx.lineWidth = 1;
-                ctx.strokeRect(b.x, b.y, b.w, b.h);
-            }
-
             const offset = isPressed ? 3 : 0;
             drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
         });
@@ -1246,13 +1142,11 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     
     drawBevelRect(ctx, x, y, w, h, baseColor);
     
+    // パルスを削除し、アクティブな枠線のみ静かに表示
     if (active) {
-        const pulse = (Math.sin(getTime() / 200) + 1) / 2; 
         ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-        ctx.lineWidth = 2 + pulse * 4;       
-        ctx.globalAlpha = 0.5 + pulse * 0.5; 
+        ctx.lineWidth = 2;       
         ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
-        ctx.globalAlpha = 1.0;               
     }
     
     ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
