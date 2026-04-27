@@ -133,7 +133,7 @@ const ICON_DATA = {
     warning: [0,0,0,8,8,0,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,0,8,8,0,0,0,0,0,8,11,11,8,0,0,0,0,0,8,8,0,0,0],
     trash: [0,0,0,0,0,0,0,0,0,8,8,0,0,8,8,0,0,0,8,8,8,8,0,0,0,0,0,8,8,0,0,0,0,0,8,8,8,8,0,0,0,8,8,0,0,8,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     up_arrow: [0,0,0,1,1,0,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    cross: [ // 生焼け時のバツアイコン
+    cross: [ 
         0,0,0,0,0,0,0,0,
         0,1,0,0,0,0,1,0,
         0,0,1,0,0,1,0,0,
@@ -569,7 +569,7 @@ function handleCanvasClick(event, canvas) {
         if (state.isBusy) return;
         const cx = LAYOUT.CANVAS_WIDTH / 2;
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
-        const buttonOffsetY = 55;
+        const buttonOffsetY = 85; // タイトル画面レイアウト調整
 
         const btnAi = {
             x: cx - 120,
@@ -795,7 +795,7 @@ function playAITurn() {
 }
 
 // ==========================================
-// 7. render/render.js - 描画処理 (静寂UIアップデート)
+// 7. render/render.js - 描画処理
 // ==========================================
 
 function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
@@ -804,6 +804,7 @@ function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
     return 1.0; 
 }
 
+// インゲーム用ボタンやパネル描画
 function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     ctx.fillStyle = baseColor;
     ctx.fillRect(x, y, w, h);
@@ -814,6 +815,39 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
         ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h); 
         ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(x, y + h - 6, w, 6); ctx.fillRect(x + w - 4, y, 4, h); 
     }
+}
+
+// タイトル画面専用の渋いボタン描画
+function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false) {
+    // ダークな炭色ベース
+    ctx.fillStyle = isPressed ? "#151212" : "#201818";
+    ctx.fillRect(x, y, w, h);
+
+    // アクセントカラーの枠線
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    // 控えめな立体感
+    if (isPressed) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; 
+        ctx.fillRect(x, y, w, 4); 
+        ctx.fillRect(x, y, 4, h);
+    } else {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.05)"; 
+        ctx.fillRect(x, y, w, 3); 
+        ctx.fillRect(x, y, 3, h); 
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; 
+        ctx.fillRect(x, y + h - 4, w, 4); 
+        ctx.fillRect(x + w - 3, y, 3, h); 
+    }
+
+    // やや黄みのあるレトロなテキストカラー
+    const offset = isPressed ? 2 : 0;
+    ctx.fillStyle = "#f4e6d0";
+    ctx.font = "bold 20px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
 }
 
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay = false) {
@@ -898,8 +932,8 @@ function render(ctx) {
     const cx = LAYOUT.CANVAS_WIDTH / 2; const cy = LAYOUT.CANVAS_HEIGHT / 2;
 
     if (state.screen === "title") {
-        const logoOffsetY = -185;
-        const buttonOffsetY = 55;
+        const logoOffsetY = -205;
+        const buttonOffsetY = 85;
 
         if (logoImage.complete && logoImage.naturalWidth > 0) {
             const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82);
@@ -927,14 +961,12 @@ function render(ctx) {
         };
 
         const aiPressed = state.visuals.titleClick === "ai";
-        drawBevelRect(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "#3c96ff", aiPressed);
-        ctx.fillStyle = "#fff"; ctx.font = "20px monospace"; 
-        ctx.fillText("VS AI (SURVIVAL)", cx, btnAi.y + 36 + (aiPressed ? 3 : 0));
+        // タイトル専用ボタン描画(青塗り潰し廃止)
+        drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI (SURVIVAL)", "rgba(255, 150, 60, 0.45)", aiPressed);
         
         const pvpPressed = state.visuals.titleClick === "pvp";
-        drawBevelRect(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "#ff5078", pvpPressed);
-        ctx.fillStyle = "#fff"; 
-        ctx.fillText("VS PLAYER", cx, btnPvp.y + 36 + (pvpPressed ? 3 : 0));
+        // タイトル専用ボタン描画(ピンク塗り潰し廃止)
+        drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", pvpPressed);
         
     } else if (state.screen === "game") {
         drawGameScreen(ctx);
