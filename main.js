@@ -66,6 +66,12 @@ function initGameState() {
 initGameState();
 
 // ==========================================
+// 画像リソースの読み込み
+// ==========================================
+let logoImage = new Image();
+logoImage.src = "Logo.png";
+
+// ==========================================
 // 2. render/layout.js - 定数とレイアウト設定
 // ==========================================
 let LAYOUT = {
@@ -103,7 +109,7 @@ const ICON_DATA = {
     uchiwa: [0,8,8,8,8,8,0,6,8,8,8,8,8,8,8,0,8,8,8,8,8,8,8,6,8,8,9,9,9,8,8,0,0,8,9,7,9,8,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0],
     diamond: [0,0,0,1,6,0,0,0,0,0,1,6,6,6,0,0,0,1,6,6,6,6,6,0,1,6,6,6,6,6,6,6,0,6,6,6,6,6,6,0,0,0,6,6,6,6,0,0,0,0,0,6,6,0,0,0,0,0,0,0,0,0,0,0],
     fire: [0,0,0,4,0,0,0,0,0,0,4,5,4,0,0,0,0,4,4,5,4,4,0,0,0,4,5,5,5,4,0,0,4,5,5,5,5,5,4,0,4,4,5,5,5,4,4,0,0,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0],
-    put_skewer: [ // 生肉+串(置いた結果をイメージ)
+    put_skewer: [ 
         0,0,11,0,0,0,0,0,
         0,2,2,2,0,0,0,0,
         0,2,2,2,0,0,0,0,
@@ -126,7 +132,17 @@ const ICON_DATA = {
     clock: [0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,1,0,1,0,0,1,0,0,1,0,1,1,0,1,0,0,1,0,0,0,0,1,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     warning: [0,0,0,8,8,0,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,0,8,8,0,0,0,0,0,8,11,11,8,0,0,0,0,0,8,8,0,0,0],
     trash: [0,0,0,0,0,0,0,0,0,8,8,0,0,8,8,0,0,0,8,8,8,8,0,0,0,0,0,8,8,0,0,0,0,0,8,8,8,8,0,0,0,8,8,0,0,8,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    up_arrow: [0,0,0,1,1,0,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    up_arrow: [0,0,0,1,1,0,0,0,0,0,1,1,1,1,0,0,0,1,1,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    cross: [ // 生焼け時のバツアイコン
+        0,0,0,0,0,0,0,0,
+        0,1,0,0,0,0,1,0,
+        0,0,1,0,0,1,0,0,
+        0,0,0,1,1,0,0,0,
+        0,0,0,1,1,0,0,0,
+        0,0,1,0,0,1,0,0,
+        0,1,0,0,0,0,1,0,
+        0,0,0,0,0,0,0,0
+    ]
 };
 
 function getVisualPalette(status) { return VISUAL_STATES[status] || VISUAL_STATES.RAW; }
@@ -200,6 +216,24 @@ function startGame(mode) {
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
     state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
+    state.startRouletteBlinkActive = false;
+    state.startRouletteFinalPlayer = null;
+}
+
+function retryStage() {
+    const stg = state.currentStage;
+    const prevMode = state.gameMode;
+    initGameState();
+    state.gameMode = prevMode;
+    state.screen = "game";
+    setupAIForStage(stg);
+
+    state.startRouletteActive = true;
+    state.startRouletteInterval = 4;
+    state.startRouletteTickTimer = 4;
+    state.startRouletteCount = 0;
+    state.startRouletteIndex = 1;
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
     state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
@@ -363,8 +397,16 @@ function tryEndRound() {
                 if (state.currentStage >= 5) { state.screen = "clear"; state.winnerText = "SURVIVAL CLEAR"; }
                 else { state.screen = "stage_clear"; state.winnerText = "STAGE CLEAR"; }
             } else { state.screen = "gameover"; state.winnerText = "P1 Wins!"; }
-        } else if (p2 > p1) { state.screen = "gameover"; state.winnerText = "P2 Wins!"; } 
-        else { state.screen = "gameover"; state.winnerText = "Draw!"; }
+        } else if (p2 > p1) { 
+            state.screen = "gameover"; state.winnerText = "P2 Wins!"; 
+        } else { 
+            if (state.gameMode === "ai") {
+                retryStage();
+                return;
+            } else {
+                state.screen = "gameover"; state.winnerText = "Draw!"; 
+            }
+        }
         return;
     }
     startNewRound();
@@ -793,9 +835,16 @@ function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     }
 }
 
+function getBuildModeIcon(mode) {
+    if (mode === "sapling") return "put_skewer";
+    if (mode === "harvest") return "serve_plate";
+    if (mode === "uchiwa") return "uchiwa";
+    return null;
+}
+
 // 1 8 9 ヒントは常に出さず、対象モードで押せるものだけを静かに1つ表示
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
-    if (!lane.built || !mode) return; // 7 何もしてない時は出さない
+    if (!lane.built || !mode) return;
 
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
@@ -806,15 +855,20 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
 
     if (mode === "harvest") {
+        if (status === "early") {
+            drawDotIcon(ctx, "cross", laneCx, hintY, "#ff9a9a", 2);
+            return;
+        }
+
         const isValid = isNodeValidForMode(lane, mode) && (isOwn || pResources >= 1);
-        if (!isValid) return; // 押せないレーンは完全に無視
+        if (!isValid) return; 
 
         // 2 3 アイコン削減とアニメーション完全停止
         if (isOwn) {
             if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
             else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
             else if (status === "burnt") drawDotIcon(ctx, "trash", laneCx, hintY, "#fff", 2);
-            // earlyは何も出さない
+            // earlyは何も出さない (上でcrossを表示してreturnしている)
         } else {
             if (canSteal && (status === "perfect" || status === "okay")) {
                 drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2); // 奪取コストのみ提示
@@ -835,8 +889,16 @@ function render(ctx) {
     const cx = LAYOUT.CANVAS_WIDTH / 2; const cy = LAYOUT.CANVAS_HEIGHT / 2;
 
     if (state.screen === "title") {
-        ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center";
-        ctx.fillText("YAKITORI WARS", cx, cy - 80);
+        if (logoImage.complete && logoImage.naturalWidth > 0) {
+            const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82);
+            const ratio = logoImage.naturalHeight / logoImage.naturalWidth;
+            const logoW = logoMaxW;
+            const logoH = logoW * ratio;
+            ctx.drawImage(logoImage, cx - logoW / 2, cy - 145, logoW, logoH);
+        } else {
+            ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center";
+            ctx.fillText("YAKITORI WARS", cx, cy - 80);
+        }
         
         const aiPressed = state.visuals.titleClick === "ai";
         drawBevelRect(ctx, cx - 120, cy - 30, 240, 60, "#3c96ff", aiPressed);
@@ -944,10 +1006,28 @@ function drawGameScreen(ctx) {
 
             ctx.globalAlpha = 1.0; 
 
-            // キラキラエフェクト等は全削除。色は変わるのでそれで伝わる
-
+            // プレイヤー三角マーカーの描画
+            const markerY = b.y - 10;
+            const markerSize = 9;
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-            ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(laneCx, markerY);
+            ctx.lineTo(laneCx - markerSize, markerY - markerSize);
+            ctx.lineTo(laneCx + markerSize, markerY - markerSize);
+            ctx.fill();
+
+            // PERFECT時のキラキラを静かに復元
+            const isOwn = lane.owner === activePlayer;
+            const canSteal = !isOwn && displayStatus !== "early" && displayStatus !== "burnt" && pResources >= 1;
+            if (displayStatus === "perfect" && (isOwn || canSteal) && !lane.justPlaced) {
+                ctx.globalAlpha = 0.55;
+                ctx.fillStyle = "rgba(255, 255, 200, 0.8)";
+                ctx.fillRect(laneCx - 24, stickTop + 22, 2, 6);
+                ctx.fillRect(laneCx - 26, stickTop + 24, 6, 2);
+                ctx.fillRect(laneCx + 22, stickTop + 62, 2, 6);
+                ctx.fillRect(laneCx + 20, stickTop + 64, 6, 2);
+                ctx.globalAlpha = 1.0;
+            }
 
             // 煙も最小限に
             if (!lane.justPlaced && displayStatus !== "burnt") {
@@ -1026,6 +1106,16 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
 
     if (state.buildMode) {
         const cb = getCancelButtonBounds();
+        
+        const selectedIcon = getBuildModeIcon(state.buildMode);
+        if (selectedIcon) {
+            const iconX = cb.x + cb.w / 2;
+            const iconY = cb.y - 26;
+            ctx.globalAlpha = 0.9;
+            drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3);
+            ctx.globalAlpha = 1.0;
+        }
+
         const clickTime = state.visuals.cancelClick || 0;
         const isPressed = (now - clickTime < 150);
         drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
