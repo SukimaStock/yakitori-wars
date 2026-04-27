@@ -54,6 +54,7 @@ function initGameState() {
         ],
         visuals: {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
+            peakFlashes: {}, // ← 追加: PERFECT到達時のフラッシュ記録用
             ghosts: [], 
             floaters: [],
             statusMessages: [], // 状態表示ゾーン用
@@ -288,6 +289,9 @@ function spawnSmokeEffect(laneIndex, amount) {
     }
 }
 
+// ---------------------------------------------------------
+// ★修正箇所: 状態変化を検知してフラッシュや煙を追加する処理
+// ---------------------------------------------------------
 function advanceAllSkewersAtRoundEnd() {
     state.lanes.forEach((n, index) => {
         if (n.built) {
@@ -295,11 +299,26 @@ function advanceAllSkewersAtRoundEnd() {
             else {
                 const baseHeat = getBaseHeat(n.type);
                 const boost = n.uchiwaBoost || 0;
+                
                 const prevCookState = n.cookState; 
+                const prevStatus = getCookLabel(n.type, prevCookState);
+                
                 n.cookState = Math.min(8, n.cookState + baseHeat + boost);
+                const newStatus = getCookLabel(n.type, n.cookState);
                 
                 if (n.cookState > prevCookState) {
-                    spawnSmokeEffect(index, n.cookState - prevCookState); 
+                    let smokeAmount = n.cookState - prevCookState;
+                    
+                    // 焦げた瞬間に少し煙を増やす(出来事を強調)
+                    if (prevStatus !== "burnt" && newStatus === "burnt") {
+                        smokeAmount += 3;
+                    }
+                    spawnSmokeEffect(index, smokeAmount); 
+                }
+                
+                // PERFECTになった瞬間にピーク演出を記録
+                if (prevStatus !== "perfect" && newStatus === "perfect") {
+                    state.visuals.peakFlashes[n.id] = performance.now();
                 }
             }
         }
@@ -895,59 +914,60 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
 
     if (mode === "harvest") {
-        // 優先順位に沿って、最も重要な情報を1つだけ表示する
         if (status === "early") {
-            // 1. 完全不可(生焼け)
             drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6);
         } else if (status === "burnt") {
-            // 2. 捨てられる(焦げ)
             drawDotIcon(ctx, "trash", laneCx, hintY, isOwn ? "#ccc" : "#bbb", 2);
         } else if (isOwn) {
-            // 3. 自分の串の収穫(ひし形)
             if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
             else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
         } else if (canSteal) {
-            // 4. 奪取可能(肉コストの提示)
             drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2);
         } else {
-            // 5. コスト不足(相手の串を奪いたいが資源がない)
             drawDotIcon(ctx, "warning", laneCx, hintY, "#888", 2);
         }
     }
 }
 
-// ==========================================
-// 新規追加:キラキラエフェクト描画関数
-// ==========================================
-function drawSparkles(ctx, cx, y, isHarvestMode, isPreview) {
-    // プレビューなら薄く(0.3)、収穫モードなら少し濃く(0.8)、通常(0.65)
+// ---------------------------------------------------------
+// ★修正箇所: ピークフラッシュ用の引数 (extraAlpha, scale) を追加
+// ---------------------------------------------------------
+function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scale = 1) {
     const baseAlpha = isPreview ? 0.3 : (isHarvestMode ? 0.8 : 0.65);
-    ctx.globalAlpha = baseAlpha;
+    ctx.globalAlpha = Math.min(1.0, baseAlpha + extraAlpha);
     ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
     
-    // 1. 串の中ではなく周囲(外側)に4箇所配置
     const positions = [
-        { dx: -32, dy: 15 },  // 左上
-        { dx: 32, dy: 40 },   // 右中
-        { dx: -28, dy: 70 },  // 左下
-        { dx: 26, dy: 85 }    // 右下
+        { dx: -32, dy: 15 }, 
+        { dx: 32, dy: 40 },  
+        { dx: -28, dy: 70 }, 
+        { dx: 26, dy: 85 }   
     ];
 
     const now = getTime();
     
-    // 2. 少し大きめの十字 (+20%想定)
-    const w1 = 3, h1 = 10;
-    const w2 = 10, h2 = 3;
+    // スケールを適用して、ピーク時に少しだけ星を大きくする
+    const w1 = 3 * scale, h1 = 10 * scale;
+    const w2 = 10 * scale, h2 = 3 * scale;
 
     positions.forEach((pos, idx) => {
-        // 3. harvestモード時のみ、少しフワフワさせて「押せ」をアピール
         const animY = (isHarvestMode && !isPreview) ? Math.sin(now / 150 + idx) * 3 : 0;
-        
-        ctx.fillRect(cx + pos.dx - w1/2, y + pos.dy - h1/2 + animY, w1, h1);
-        ctx.fillRect(cx + pos.dx - w2/2, y + pos.dy - h2/2 + animY, w2, h2);
+        ctx.fillRect(cx + pos.dx - w1/2, y + pos.dy + animY - h1/2, w1, h1);
+        ctx.fillRect(cx + pos.dx - w2/2, y + pos.dy + animY - h2/2, w2, h2);
     });
 
-    ctx.globalAlpha = 1.0; // 元に戻す
+    // ピーク演出時のみ、串の裏側に柔らかい光(出来事感)を足す
+    if (extraAlpha > 0) {
+        ctx.globalAlpha = extraAlpha * 0.5; // 明るすぎないよう調整
+        ctx.beginPath();
+        const grad = ctx.createRadialGradient(cx, y + 45, 0, cx, y + 45, 45 * scale);
+        grad.addColorStop(0, "rgba(255, 255, 200, 0.8)");
+        grad.addColorStop(1, "rgba(255, 255, 200, 0)");
+        ctx.fillStyle = grad;
+        ctx.fill();
+    }
+
+    ctx.globalAlpha = 1.0; 
 }
 
 function render(ctx) {
@@ -974,19 +994,8 @@ function render(ctx) {
             ctx.fillText("YAKITORI WARS", cx, cy + logoOffsetY + 60);
         }
         
-        const btnAi = {
-            x: cx - 120,
-            y: cy - 30 + buttonOffsetY,
-            w: 240,
-            h: 60
-        };
-
-        const btnPvp = {
-            x: cx - 120,
-            y: cy + 50 + buttonOffsetY,
-            w: 240,
-            h: 60
-        };
+        const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 };
+        const btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
 
         const aiPressed = state.visuals.titleClick === "ai";
         drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI (SURVIVAL)", "rgba(255, 150, 60, 0.45)", aiPressed);
@@ -1097,21 +1106,33 @@ function drawGameScreen(ctx) {
             ctx.lineTo(laneCx + markerSize, markerY - markerSize);
             ctx.fill();
 
-            // ==========================================
-            // ココが重要:キラキラ描画ロジックの大幅刷新
-            // ==========================================
+            // ---------------------------------------------------------
+            // ★修正箇所: ピークフラッシュの計算と描画の適用
+            // ---------------------------------------------------------
             const isOwn = lane.owner === activePlayer;
-            const realStatus = getCookLabel(lane.type, lane.cookState); // 実際の状態
+            const realStatus = getCookLabel(lane.type, lane.cookState); 
             const realCanSteal = !isOwn && realStatus !== "early" && realStatus !== "burnt" && pResources >= 1;
 
             if (!lane.justPlaced) {
-                // 1. 今まさに「取れる」状態(通常のキラキラ)
+                // ピークフラッシュの計算(700msでスッと消える)
+                const peakTime = state.visuals.peakFlashes[lane.id];
+                let peakAlpha = 0;
+                let peakScale = 1;
+                
+                if (peakTime && now - peakTime < 700) {
+                    const elapsed = now - peakTime;
+                    const progress = elapsed / 700;
+                    peakAlpha = (1 - progress) * 0.6; // フワッと明るく
+                    peakScale = 1 + Math.sin(progress * Math.PI) * 0.3; // 少しだけ膨らむ
+                }
+
+                // 1. 今まさに「取れる」状態(通常のキラキラ + ピーク演出)
                 if (realStatus === "perfect" && (isOwn || realCanSteal)) {
-                    drawSparkles(ctx, laneCx, stickTop, state.buildMode === "harvest", false);
+                    drawSparkles(ctx, laneCx, stickTop, state.buildMode === "harvest", false, peakAlpha, peakScale);
                 } 
                 // 2. うちわプレビューで「取れるようになる」状態(未来の薄いキラキラ)
                 else if (isUchiwaPreviewActive && displayStatus === "perfect" && realStatus !== "perfect") {
-                    drawSparkles(ctx, laneCx, stickTop, false, true);
+                    drawSparkles(ctx, laneCx, stickTop, false, true, 0, 1);
                 }
             }
 
