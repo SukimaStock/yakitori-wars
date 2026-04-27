@@ -916,6 +916,40 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     }
 }
 
+// ==========================================
+// 新規追加:キラキラエフェクト描画関数
+// ==========================================
+function drawSparkles(ctx, cx, y, isHarvestMode, isPreview) {
+    // プレビューなら薄く(0.3)、収穫モードなら少し濃く(0.8)、通常(0.65)
+    const baseAlpha = isPreview ? 0.3 : (isHarvestMode ? 0.8 : 0.65);
+    ctx.globalAlpha = baseAlpha;
+    ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
+    
+    // 1. 串の中ではなく周囲(外側)に4箇所配置
+    const positions = [
+        { dx: -32, dy: 15 },  // 左上
+        { dx: 32, dy: 40 },   // 右中
+        { dx: -28, dy: 70 },  // 左下
+        { dx: 26, dy: 85 }    // 右下
+    ];
+
+    const now = getTime();
+    
+    // 2. 少し大きめの十字 (+20%想定)
+    const w1 = 3, h1 = 10;
+    const w2 = 10, h2 = 3;
+
+    positions.forEach((pos, idx) => {
+        // 3. harvestモード時のみ、少しフワフワさせて「押せ」をアピール
+        const animY = (isHarvestMode && !isPreview) ? Math.sin(now / 150 + idx) * 3 : 0;
+        
+        ctx.fillRect(cx + pos.dx - w1/2, y + pos.dy - h1/2 + animY, w1, h1);
+        ctx.fillRect(cx + pos.dx - w2/2, y + pos.dy - h2/2 + animY, w2, h2);
+    });
+
+    ctx.globalAlpha = 1.0; // 元に戻す
+}
+
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
@@ -1063,16 +1097,22 @@ function drawGameScreen(ctx) {
             ctx.lineTo(laneCx + markerSize, markerY - markerSize);
             ctx.fill();
 
+            // ==========================================
+            // ココが重要:キラキラ描画ロジックの大幅刷新
+            // ==========================================
             const isOwn = lane.owner === activePlayer;
-            const canSteal = !isOwn && displayStatus !== "early" && displayStatus !== "burnt" && pResources >= 1;
-            if (displayStatus === "perfect" && (isOwn || canSteal) && !lane.justPlaced) {
-                ctx.globalAlpha = 0.55;
-                ctx.fillStyle = "rgba(255, 255, 200, 0.8)";
-                ctx.fillRect(laneCx - 24, stickTop + 22, 2, 6);
-                ctx.fillRect(laneCx - 26, stickTop + 24, 6, 2);
-                ctx.fillRect(laneCx + 22, stickTop + 62, 2, 6);
-                ctx.fillRect(laneCx + 20, stickTop + 64, 6, 2);
-                ctx.globalAlpha = 1.0;
+            const realStatus = getCookLabel(lane.type, lane.cookState); // 実際の状態
+            const realCanSteal = !isOwn && realStatus !== "early" && realStatus !== "burnt" && pResources >= 1;
+
+            if (!lane.justPlaced) {
+                // 1. 今まさに「取れる」状態(通常のキラキラ)
+                if (realStatus === "perfect" && (isOwn || realCanSteal)) {
+                    drawSparkles(ctx, laneCx, stickTop, state.buildMode === "harvest", false);
+                } 
+                // 2. うちわプレビューで「取れるようになる」状態(未来の薄いキラキラ)
+                else if (isUchiwaPreviewActive && displayStatus === "perfect" && realStatus !== "perfect") {
+                    drawSparkles(ctx, laneCx, stickTop, false, true);
+                }
             }
 
             if (!lane.justPlaced && displayStatus !== "burnt") {
