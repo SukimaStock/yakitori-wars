@@ -569,9 +569,21 @@ function handleCanvasClick(event, canvas) {
         if (state.isBusy) return;
         const cx = LAYOUT.CANVAS_WIDTH / 2;
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
-        
-        const btnAi = { x: cx - 120, y: cy - 30, w: 240, h: 60 };
-        const btnPvp = { x: cx - 120, y: cy + 50, w: 240, h: 60 };
+        const buttonOffsetY = 55;
+
+        const btnAi = {
+            x: cx - 120,
+            y: cy - 30 + buttonOffsetY,
+            w: 240,
+            h: 60
+        };
+
+        const btnPvp = {
+            x: cx - 120,
+            y: cy + 50 + buttonOffsetY,
+            w: 240,
+            h: 60
+        };
 
         if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) {
             state.visuals.titleClick = "ai";
@@ -842,7 +854,6 @@ function getBuildModeIcon(mode) {
     return null;
 }
 
-// 1 8 9 ヒントは常に出さず、対象モードで押せるものだけを静かに1つ表示
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     if (!lane.built || !mode) return;
 
@@ -863,15 +874,13 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
         const isValid = isNodeValidForMode(lane, mode) && (isOwn || pResources >= 1);
         if (!isValid) return; 
 
-        // 2 3 アイコン削減とアニメーション完全停止
         if (isOwn) {
             if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
             else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
             else if (status === "burnt") drawDotIcon(ctx, "trash", laneCx, hintY, "#fff", 2);
-            // earlyは何も出さない (上でcrossを表示してreturnしている)
         } else {
             if (canSteal && (status === "perfect" || status === "okay")) {
-                drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2); // 奪取コストのみ提示
+                drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2); 
             } else if (status === "burnt") {
                 drawDotIcon(ctx, "trash", laneCx, hintY, "#aaa", 2);
             }
@@ -889,34 +898,43 @@ function render(ctx) {
     const cx = LAYOUT.CANVAS_WIDTH / 2; const cy = LAYOUT.CANVAS_HEIGHT / 2;
 
     if (state.screen === "title") {
+        const logoOffsetY = -185;
+        const buttonOffsetY = 55;
+
         if (logoImage.complete && logoImage.naturalWidth > 0) {
             const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82);
             const ratio = logoImage.naturalHeight / logoImage.naturalWidth;
             const logoW = logoMaxW;
             const logoH = logoW * ratio;
-const logoOffsetY = -170; // ←ここだけいじればOK
-
-ctx.drawImage(
-    logoImage,
-    cx - logoW / 2,
-    cy + logoOffsetY,
-    logoW,
-    logoH
-);
+            ctx.drawImage(logoImage, cx - logoW / 2, cy + logoOffsetY, logoW, logoH);
         } else {
             ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center";
-            ctx.fillText("YAKITORI WARS", cx, cy - 80);
+            ctx.fillText("YAKITORI WARS", cx, cy + logoOffsetY + 60);
         }
         
+        const btnAi = {
+            x: cx - 120,
+            y: cy - 30 + buttonOffsetY,
+            w: 240,
+            h: 60
+        };
+
+        const btnPvp = {
+            x: cx - 120,
+            y: cy + 50 + buttonOffsetY,
+            w: 240,
+            h: 60
+        };
+
         const aiPressed = state.visuals.titleClick === "ai";
-        drawBevelRect(ctx, cx - 120, cy - 30, 240, 60, "#3c96ff", aiPressed);
+        drawBevelRect(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "#3c96ff", aiPressed);
         ctx.fillStyle = "#fff"; ctx.font = "20px monospace"; 
-        ctx.fillText("VS AI (SURVIVAL)", cx, cy - 30 + 36 + (aiPressed ? 3 : 0));
+        ctx.fillText("VS AI (SURVIVAL)", cx, btnAi.y + 36 + (aiPressed ? 3 : 0));
         
         const pvpPressed = state.visuals.titleClick === "pvp";
-        drawBevelRect(ctx, cx - 120, cy + 50, 240, 60, "#ff5078", pvpPressed);
+        drawBevelRect(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "#ff5078", pvpPressed);
         ctx.fillStyle = "#fff"; 
-        ctx.fillText("VS PLAYER", cx, cy + 50 + 36 + (pvpPressed ? 3 : 0));
+        ctx.fillText("VS PLAYER", cx, btnPvp.y + 36 + (pvpPressed ? 3 : 0));
         
     } else if (state.screen === "game") {
         drawGameScreen(ctx);
@@ -958,7 +976,6 @@ function drawGameScreen(ctx) {
         drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
         ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
 
-        // 4 焦げ予告のトーンダウン: 赤脈動を削除、フラグのみ維持
         let isDanger = false;
         if (lane.built && !lane.justPlaced) {
             const heat = getBaseHeat(lane.type);
@@ -985,13 +1002,12 @@ function drawGameScreen(ctx) {
                 if (status !== "burnt" && pResources < 1) isFlashable = false;
             }
             if (isFlashable) {
-                ctx.fillStyle = `rgba(255, 255, 255, 0.08)`; // パルスなし、固定の静かなハイライト
+                ctx.fillStyle = `rgba(255, 255, 255, 0.08)`; 
                 ctx.fillRect(b.x, b.y, b.w, b.h);
             }
         }
 
         if (lane.built) {
-            // 5 うちわプレビューの整理: 選択中はその状態を点滅なしで表示し続けるだけ
             const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && isFlashable);
             let displayCookState = lane.cookState;
             if (isUchiwaPreviewActive) displayCookState += getBaseHeat(lane.type) + 1; 
@@ -1014,7 +1030,6 @@ function drawGameScreen(ctx) {
 
             ctx.globalAlpha = 1.0; 
 
-            // プレイヤー三角マーカーの描画
             const markerY = b.y - 10;
             const markerSize = 9;
             ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
@@ -1024,7 +1039,6 @@ function drawGameScreen(ctx) {
             ctx.lineTo(laneCx + markerSize, markerY - markerSize);
             ctx.fill();
 
-            // PERFECT時のキラキラを静かに復元
             const isOwn = lane.owner === activePlayer;
             const canSteal = !isOwn && displayStatus !== "early" && displayStatus !== "burnt" && pResources >= 1;
             if (displayStatus === "perfect" && (isOwn || canSteal) && !lane.justPlaced) {
@@ -1037,7 +1051,6 @@ function drawGameScreen(ctx) {
                 ctx.globalAlpha = 1.0;
             }
 
-            // 煙も最小限に
             if (!lane.justPlaced && displayStatus !== "burnt") {
                 const heat = getBaseHeat(lane.type);
                 let smokeChance = heat === 3 ? 0.05 : (heat === 2 ? 0.02 : 0.01);
@@ -1057,7 +1070,7 @@ function drawGameScreen(ctx) {
             if (state.buildMode === "uchiwa" && isFlashable) {
                 const uchiwaPred = cv + heat + 1;
                 nextCv = Math.min(6, uchiwaPred);
-                previewColor = "rgba(255, 255, 255, 0.6)"; // 色変化なし、白固定で静かに提示
+                previewColor = "rgba(255, 255, 255, 0.6)"; 
             }
             dotColor = getVisualPalette(getCookLabel(lane.type, lane.cookState).toUpperCase()).dot;
         }
@@ -1085,7 +1098,6 @@ function drawGameScreen(ctx) {
         const startFireX = laneCx - totalFireW / 2 + fireSize / 2;
         for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 40, "#fa3", fireScale);
 
-        // 余熱トークンのアニメーション削除。固定表示
         if (lane.uchiwaBoost > 0) {
             ctx.globalAlpha = 0.6; 
             drawDotIcon(ctx, "fire", b.x + b.w - 18, b.y + b.h - 18, "#f85", 2);
@@ -1145,7 +1157,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const isLocked = isInputLocked() && !isPressed;
             const baseColor = (canUse && !isLocked) ? btn.color : "#445";
             
-            // 6 ボタンの主張削減: パルス、シャドウ、枠線を全削除
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             const offset = isPressed ? 3 : 0;
             drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
@@ -1240,7 +1251,6 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     
     drawBevelRect(ctx, x, y, w, h, baseColor);
     
-    // パルスを削除し、アクティブな枠線のみ静かに表示
     if (active) {
         ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
         ctx.lineWidth = 2;       
