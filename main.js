@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + レトロフォント + 余韻演出 + 進行不能バグ調査/保護 + スムーズな結果遷移)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + UI補助テキスト統合)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -11,7 +11,7 @@ function initGameState() {
 
     state = {
         screen: "title",
-        gameMode: "pvp", // "ai" or "pvp"
+        gameMode: "pvp", 
         currentStage: 1,
         enemyName: "KENTA",
         aiLevel: 2,
@@ -239,16 +239,6 @@ function updateIntroSequence() {
 
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
-        
-        if (state.gameEndWaitTimer % 20 === 0) {
-            console.log("RESULT WAIT", {
-                timer: state.gameEndWaitTimer,
-                pause: state.resultPause,
-                pauseDone: state.resultPauseDone,
-                screen: state.screen
-            });
-        }
-
         if (state.gameEndWaitTimer === 20 && !state.resultPauseDone) {
             state.resultPause = 30; 
             state.resultPauseDone = true;
@@ -262,7 +252,6 @@ function updateGameEndWait() {
 
         if (state.gameEndWaitTimer <= 0) {
             state.resultScreenTimer = 0; 
-            
             const p1 = state.players[0].score;
             const p2 = state.players[1].score;
             if (p1 > p2) {
@@ -449,21 +438,16 @@ function advanceAllSkewersAtRoundEnd() {
 
 function updateCookPreview() {
     if (!state.cookPreviewActive) return;
-
     if (!state.cookPreviewEvents || state.cookPreviewEvents.length === 0) {
-        console.warn("cookPreviewActive but no events. Finishing round.");
         finishEndRound();
         return;
     }
-
     if (state.cookPreviewIndex >= state.cookPreviewEvents.length) {
-        console.warn("cookPreviewIndex out of range. Finishing round.");
         finishEndRound();
         return;
     }
 
     const PREVIEW_DUR = 40; 
-    
     if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === PREVIEW_DUR) {
         const event = state.cookPreviewEvents[state.cookPreviewIndex];
         if (event) {
@@ -478,7 +462,6 @@ function updateCookPreview() {
     }
 
     state.cookPreviewPhaseTimer--;
-
     if (state.cookPreviewPhaseTimer <= 0) {
         state.cookPreviewIndex++;
         if (state.cookPreviewIndex >= state.cookPreviewEvents.length) {
@@ -509,26 +492,12 @@ function finishEndRound() {
         state.gameOver = true;
         updateAllScores();
         state.gameEndWaitTimer = 60; 
-
-        console.log("FINAL ROUND END", {
-            round: state.round,
-            maxRounds: state.maxRounds,
-            p1: state.players[0].score,
-            p2: state.players[1].score,
-            servedP1: state.players[0].servedScore,
-            servedP2: state.players[1].servedScore,
-            cookPreviewActive: state.cookPreviewActive,
-            gameEndWaitTimer: state.gameEndWaitTimer
-        });
-
-        // ★追加: 終わった瞬間に「FINISH!」を出して視覚的変化を与える
         state.visuals.statusMessages.push({
             type: "result",
             text: "FINISH!",
             startTime: performance.now(),
             isPerfect: true
         });
-
         return;
     }
     startNewRound();
@@ -596,7 +565,6 @@ function updateRoulette() {
                 state.firstPlayer = state.startRouletteFinalPlayer;
                 state.currentPlayer = state.startRouletteFinalPlayer;
                 state.pendingPlayer = state.startRouletteFinalPlayer;
-                
                 state.introSequenceActive = true;
                 state.introPhase = "vs";
                 state.introVsTimer = 60; 
@@ -608,7 +576,6 @@ function updateRoulette() {
 function resolvePendingTurnFlow() {
     if (state.cookPreviewActive) return; 
     if (state.introSequenceActive) return; 
-
     if (state.pendingTurnSplash) { state.turnSplashTimer = 45; state.pendingTurnSplash = false; }
     if (state.turnSplashTimer > 0) state.turnSplashTimer--;
     else if (state.pendingPlayer !== null) {
@@ -729,12 +696,10 @@ function tryHarvestNode(node) {
             isPerfect: status === "perfect" 
         });
     }
-    
     if (status === "perfect") {
         spawnPerfectHarvestEffect(state.lanes.indexOf(node));
         state.hitStopTimer = 6; 
     }
-
     state.visuals.ghosts.push({ 
         laneIndex: state.lanes.indexOf(node), status: status.toUpperCase(), startTime: performance.now(),
         cookState: node.cookState, owner: node.owner          
@@ -744,7 +709,14 @@ function tryHarvestNode(node) {
 }
 
 function tryUchiwaNode(node) {
-    if (node.built) { node.uchiwaBoost += 1; consumeWorker(); }
+    if (node.built) { 
+        node.uchiwaBoost += 1; 
+        // ★演出強化: プレイヤー位置に "+1🔥" フィードバックを表示
+        state.visuals.statusMessages.push({ 
+            type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now() 
+        });
+        consumeWorker(); 
+    }
 }
 
 function isNodeValidForMode(node, mode) {
@@ -779,11 +751,9 @@ function handleCanvasClick(event, canvas) {
     
     if (state.screen === "title") {
         if (state.isBusy || (state.transition && state.transition.active)) return;
-        
         const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2, buttonOffsetY = 85; 
         const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 };
         const btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
-        
         if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) {
             state.visuals.titleClick = "ai";
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "ai" };
@@ -794,12 +764,8 @@ function handleCanvasClick(event, canvas) {
         return;
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
         if (state.resultScreenTimer < 70) return;
-        
-        if (state.screen === "stage_clear") {
-            nextStage();
-        } else {
-            initGameState();
-        }
+        if (state.screen === "stage_clear") nextStage();
+        else initGameState();
         return;
     }
     
@@ -908,7 +874,6 @@ function playAITurn() {
     if (state.players[state.currentPlayer - 1].workersRemaining <= 0) return;
     
     state.isAIThinking = true;
-    
     const levelConf = AI_LEVEL_CONFIG[state.aiLevel] || AI_LEVEL_CONFIG[2], profile = state.aiProfile;
     let cands = buildActionCandidates(state, state.currentPlayer).filter(a => isActionValidForAI(state, a, state.currentPlayer, profile, levelConf));
     if (cands.length === 0) cands.push({ type: "meat" });
@@ -993,20 +958,13 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
         if (status === "early") {
             drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6);
         } else if (status === "burnt") {
-            if (isOwn) {
-                drawDotIcon(ctx, "cross", laneCx, hintY, "#555", 2);
-            } else {
-                drawDotIcon(ctx, "trash", laneCx - 6, hintY, "#ccc", 2);
-                ctx.fillStyle = "#999"; ctx.font = getPixelFont(10); ctx.textAlign = "left"; ctx.fillText("0", laneCx + 8, hintY + 6);
-            }
+            if (isOwn) drawDotIcon(ctx, "cross", laneCx, hintY, "#555", 2);
+            else { drawDotIcon(ctx, "trash", laneCx - 6, hintY, "#ccc", 2); ctx.fillStyle = "#999"; ctx.font = getPixelFont(10); ctx.textAlign = "left"; ctx.fillText("0", laneCx + 8, hintY + 6); }
         } else if (isOwn) {
             if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
             else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
-        } else if (canSteal) {
-            drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2);
-        } else {
-            drawDotIcon(ctx, "warning", laneCx, hintY, "#888", 2);
-        }
+        } else if (canSteal) drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2);
+        else drawDotIcon(ctx, "warning", laneCx, hintY, "#888", 2);
     }
 }
 
@@ -1037,18 +995,15 @@ function render(ctx) {
             const ratio = logoImage.naturalHeight / logoImage.naturalWidth, logoW = logoMaxW, logoH = logoW * ratio; 
             ctx.drawImage(logoImage, cx - logoW / 2, cy + logoOffsetY, logoW, logoH); 
         }
-        
         const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 }, btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
         drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI", "rgba(255, 150, 60, 0.45)", state.visuals.titleClick === "ai");
         drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", state.visuals.titleClick === "pvp");
     
     } else if (state.screen === "game") { 
         drawGameScreen(ctx); 
-        
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
         state.resultScreenTimer++;
         const timer = state.resultScreenTimer;
-        
         ctx.fillStyle = "#fff"; ctx.font = getPixelFont(24); ctx.textAlign = "center"; 
         ctx.fillText(state.screen === "gameover" ? "GAME OVER" : "CLEAR!", cx, cy - 90);
         
@@ -1056,46 +1011,29 @@ function render(ctx) {
             const alpha = Math.min(1, (timer - 20) / 10);
             ctx.globalAlpha = alpha;
             ctx.font = getPixelFont(16); 
-            
             const isP2Win = state.winnerText.includes("P2") || (state.gameMode === "ai" && state.winnerText.includes(state.enemyName));
             ctx.fillStyle = isP2Win ? LAYOUT.COLORS.P2 : (state.winnerText.includes("P1") ? LAYOUT.COLORS.P1 : "#ffeb3b");
             if (state.winnerText.includes("Draw")) ctx.fillStyle = "#aaa";
             ctx.fillText(state.winnerText, cx, cy - 50);
-            
             ctx.globalAlpha = 1.0;
         }
         
-if (timer >= 40) {
+        if (timer >= 40) {
             const alpha = Math.min(1, (timer - 40) / 10);
             ctx.globalAlpha = alpha;
-            
             const p1Score = state.players[0].score;
             const p2Score = state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
-
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2;
-            if (p1Score > p2Score) { p2Color = "#555"; }
-            else if (p2Score > p1Score) { p1Color = "#555"; }
+            if (p1Score > p2Score) p2Color = "#555";
+            else if (p2Score > p1Score) p1Color = "#555";
             else { p1Color = "#aaa"; p2Color = "#aaa"; }
             
             ctx.font = getPixelFont(16); 
-            
-            // --- P1 スコア行 ---
-            ctx.textAlign = "left"; ctx.fillStyle = p1Color;
-            ctx.fillText("P1", cx - 110, cy + 10); // 左へ広げた
-            
-            ctx.textAlign = "right";
-            ctx.fillText(p1Score, cx + 60, cy + 10); // 右へ広げた
-            drawDotIcon(ctx, "diamond", cx + 85, cy + 2, p1Color, 2.5); // アイコンも移動
-            
-            // --- P2 (相手) スコア行 ---
-            ctx.textAlign = "left"; ctx.fillStyle = p2Color;
-            ctx.fillText(p2Name, cx - 110, cy + 50); // 左へ広げた
-            
-            ctx.textAlign = "right";
-            ctx.fillText(p2Score, cx + 60, cy + 50); // 右へ広げた
-            drawDotIcon(ctx, "diamond", cx + 85, cy + 42, p2Color, 2.5); // アイコンも移動
-            
+            ctx.textAlign = "left"; ctx.fillStyle = p1Color; ctx.fillText("P1", cx - 110, cy + 10);
+            ctx.textAlign = "right"; ctx.fillText(p1Score, cx + 60, cy + 10); drawDotIcon(ctx, "diamond", cx + 85, cy + 2, p1Color, 2.5);
+            ctx.textAlign = "left"; ctx.fillStyle = p2Color; ctx.fillText(p2Name, cx - 110, cy + 50);
+            ctx.textAlign = "right"; ctx.fillText(p2Score, cx + 60, cy + 50); drawDotIcon(ctx, "diamond", cx + 85, cy + 42, p2Color, 2.5);
             ctx.globalAlpha = 1.0;
         }
         
@@ -1103,30 +1041,21 @@ if (timer >= 40) {
             const alpha = Math.min(1, (timer - 70) / 10);
             const pulse = 0.5 + 0.5 * Math.sin(getTime() / 250); 
             ctx.globalAlpha = alpha * pulse;
-            ctx.fillStyle = "#fff"; ctx.font = getPixelFont(11); 
-            ctx.textAlign = "center"; 
+            ctx.fillStyle = "#fff"; ctx.font = getPixelFont(11); ctx.textAlign = "center"; 
             ctx.fillText("Tap to Continue", cx, cy + 110);
             ctx.globalAlpha = 1.0;
         }
     }
     
     if (state.transition && state.transition.active) {
-        let t = state.transition.timer;
-        let d = state.transition.duration;
-        let alpha = 0;
-        
-        if (t < d) alpha = t / d;         
-        else alpha = 1 - (t - d) / d;     
-        
+        let t = state.transition.timer, d = state.transition.duration;
+        let alpha = (t < d) ? (t / d) : (1 - (t - d) / d);     
         alpha = Math.max(0, Math.min(1, alpha));
-        ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`;
-        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+        ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
-
     if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
         const alpha = (state.visuals.perfectFlash.timer / 6) * 0.15;
-        ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
-        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+        ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         state.visuals.perfectFlash.timer--;
     }
 }
@@ -1144,7 +1073,6 @@ function drawGameScreen(ctx) {
 
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i), laneCx = b.x + b.w / 2;
-        
         let effectiveCookState = lane.cookState;
         let isCurrentPreviewLane = false;
         let previewEventForThisLane = null;
@@ -1174,11 +1102,8 @@ function drawGameScreen(ctx) {
             }
             if (state.buildMode === "harvest" && isFlashable && lane.built) { 
                 const status = getCookLabel(lane.type, effectiveCookState);
-                if (status === "early") {
-                    isFlashable = false;
-                } else if (status === "perfect") {
-                    isPerfectTarget = true; 
-                }
+                if (status === "early") isFlashable = false;
+                else if (status === "perfect") isPerfectTarget = true; 
             }
             if (state.buildMode === "uchiwa" && isFlashable && lane.built) {
                 uchiwaTargetState = baseEndState + 1;
@@ -1194,8 +1119,7 @@ function drawGameScreen(ctx) {
             if (currentStatus === "perfect") {
                 const pulse = 0.5 + 0.5 * Math.sin(now / 300);
                 ctx.strokeStyle = `rgba(255, 230, 120, ${0.2 + pulse * 0.2})`;
-                ctx.lineWidth = 2;
-                ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+                ctx.lineWidth = 2; ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
             }
         }
         
@@ -1220,59 +1144,28 @@ function drawGameScreen(ctx) {
 
         if (isFlashable) {
             const selectPulse = 0.5 + 0.5 * Math.sin(now / 350);
-
             if (state.buildMode === "harvest") {
                 const harvestStatus = getCookLabel(lane.type, effectiveCookState);
-                let fillAlphaBase = 0.08, fillAlphaRange = 0.10;
-                let strokeAlphaBase = 0.25, strokeAlphaRange = 0.20;
-                let rgb = "255, 255, 255";
-
-                if (isPerfectTarget) {
-                    rgb = "255, 230, 100";
-                } else if (harvestStatus === "burnt") {
-                    if (lane.owner !== activePlayer) {
-                        rgb = "180, 180, 180";
-                    } else {
-                        rgb = "100, 100, 100";
-                        fillAlphaBase = 0.04; fillAlphaRange = 0.04;
-                        strokeAlphaBase = 0.15; strokeAlphaRange = 0.10;
-                    }
+                let fillAlphaBase = 0.08, fillAlphaRange = 0.10, strokeAlphaBase = 0.25, strokeAlphaRange = 0.20, rgb = "255, 255, 255";
+                if (isPerfectTarget) rgb = "255, 230, 100";
+                else if (harvestStatus === "burnt") {
+                    if (lane.owner !== activePlayer) rgb = "180, 180, 180";
+                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; strokeAlphaBase = 0.15; strokeAlphaRange = 0.10; }
                 }
-                
-                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
-                const currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
-
-                ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`;
-                ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`; 
-                ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h); 
-
+                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange, currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
+                ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
+                ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h); 
             } else if (state.buildMode === "uchiwa") {
-                let fillAlphaBase = 0.08, fillAlphaRange = 0.10;
-                let strokeAlphaBase = 0.25, strokeAlphaRange = 0.20;
-                let rgb = "255, 255, 255";
-
-                if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") {
-                    rgb = "255, 100, 100";
-                } else if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") {
-                    rgb = "255, 230, 100";
-                }
-
-                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
-                const currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
-
-                ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`;
-                ctx.fillRect(b.x, b.y, b.w, b.h);
-                ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`;
-                ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
-                
+                let fillAlphaBase = 0.08, fillAlphaRange = 0.10, strokeAlphaBase = 0.25, strokeAlphaRange = 0.20, rgb = "255, 255, 255";
+                if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") rgb = "255, 100, 100";
+                else if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") rgb = "255, 230, 100";
+                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange, currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
+                ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`; ctx.fillRect(b.x, b.y, b.w, b.h);
+                ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
             } else {
-                const currentFillAlpha = 0.08 + selectPulse * 0.10;
-                const currentStrokeAlpha = 0.25 + selectPulse * 0.20;
-                ctx.fillStyle = `rgba(255, 255, 255, ${currentFillAlpha})`; 
-                ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.strokeStyle = `rgba(255, 255, 255, ${currentStrokeAlpha})`;
-                ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
+                const currentFillAlpha = 0.08 + selectPulse * 0.10, currentStrokeAlpha = 0.25 + selectPulse * 0.20;
+                ctx.fillStyle = `rgba(255, 255, 255, ${currentFillAlpha})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
+                ctx.strokeStyle = `rgba(255, 255, 255, ${currentStrokeAlpha})`; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
             }
         }
 
@@ -1284,7 +1177,6 @@ function drawGameScreen(ctx) {
             if (lane.justPlaced) ctx.globalAlpha = 0.4;
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx - 1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx - 2, stickTop, 4, stickH);
             const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW / 2;
-            
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, isDanger);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, isDanger);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, isDanger);
@@ -1298,40 +1190,22 @@ function drawGameScreen(ctx) {
                 const peakTime = state.visuals.peakFlashes[lane.id]; let peakAlpha = 0, peakScale = 1;
                 if (peakTime && now - peakTime < 700) { 
                     const elapsed = now - peakTime, progress = elapsed / 700; 
-                    
-                    if (elapsed < 300) {
-                        ctx.save();
-                        ctx.globalAlpha = (1 - (elapsed / 300)) * 0.2; 
-                        ctx.fillStyle = "rgba(255, 255, 200, 1.0)";
-                        ctx.fillRect(b.x, b.y, b.w, b.h);
-                        ctx.restore();
-                    }
-                    
-                    peakAlpha = (1 - progress) * 0.4; 
-                    peakScale = 1 + (1 - progress) * 0.2; 
+                    if (elapsed < 300) { ctx.save(); ctx.globalAlpha = (1 - (elapsed / 300)) * 0.2; ctx.fillStyle = "rgba(255, 255, 200, 1.0)"; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.restore(); }
+                    peakAlpha = (1 - progress) * 0.4; peakScale = 1 + (1 - progress) * 0.2; 
                 }
-                
-                if (realStatus === "perfect" && (isOwn || realCanSteal)) {
-                    drawSparkles(ctx, laneCx, stickTop, state.buildMode === "harvest", false, peakAlpha, peakScale);
-                } else if (isUchiwaPreviewActive && uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") {
-                    drawSparkles(ctx, laneCx, stickTop, false, true, 0, 0.7);
-                }
+                if (realStatus === "perfect" && (isOwn || realCanSteal)) drawSparkles(ctx, laneCx, stickTop, state.buildMode === "harvest", false, peakAlpha, peakScale);
+                else if (isUchiwaPreviewActive && uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") drawSparkles(ctx, laneCx, stickTop, false, true, 0, 0.7);
             }
         }
         
-        let cv = 0, nextCv = 0, dotColor = "#fff";
-        let uchiwaDotIndex = -1, uchiwaPreviewNextCv = 0;
-
+        let cv = 0, uchiwaDotIndex = -1, uchiwaPreviewNextCv = 0, baseEndHeatCv = Math.min(6, baseEndState);
         if (lane.built) {
             cv = Math.min(effectiveCookState || 0, 6);
-            nextCv = Math.min(6, baseEndState);
-            uchiwaPreviewNextCv = nextCv;
-            
+            uchiwaPreviewNextCv = baseEndHeatCv;
             if (state.buildMode === "uchiwa" && isFlashable) {
                 uchiwaDotIndex = Math.min(5, baseEndState); 
                 uchiwaPreviewNextCv = Math.min(6, baseEndState + 1); 
             }
-            dotColor = getVisualPalette(getCookLabel(lane.type, effectiveCookState).toUpperCase()).dot;
         }
 
         const dotSize = 8, dotGap = 2, gridW = 6 * dotSize + 5 * dotGap, dotStartX = laneCx - gridW / 2, dotStartY = b.y + b.h + 12;     
@@ -1341,55 +1215,35 @@ function drawGameScreen(ctx) {
             const dx = dotStartX + j * (dotSize + dotGap); 
             if (j < cv) {
                 if (isCurrentPreviewLane && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
-                    const eventProgress = state.cookPreviewPhaseTimer / 40; 
-                    const flashAlpha = 0.6 + 0.4 * eventProgress;
-                    ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; 
-                    ctx.fillRect(dx, dotStartY, dotSize, dotSize);
+                    const flashAlpha = 0.6 + 0.4 * (state.cookPreviewPhaseTimer / 40);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                 } else {
-                    ctx.fillStyle = dotColor; ctx.fillRect(dx, dotStartY, dotSize, dotSize); 
+                    ctx.fillStyle = getVisualPalette(getCookLabel(lane.type, effectiveCookState).toUpperCase()).dot; ctx.fillRect(dx, dotStartY, dotSize, dotSize); 
                     ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dotStartY + 1, dotSize - 4, dotSize - 5);
                 }
             } else if (j < uchiwaPreviewNextCv) {
                 if (j === uchiwaDotIndex) {
-                    let fillStyle = "rgba(255, 255, 255, 0.8)";
-                    let strokeStyle = "rgba(255, 255, 255, 1.0)";
-                    
-                    if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") {
-                        fillStyle = "rgba(255, 230, 100, 0.8)";
-                        strokeStyle = "rgba(255, 230, 100, 1.0)";
-                    } else if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") {
-                        fillStyle = "rgba(255, 100, 100, 0.8)";
-                        strokeStyle = "rgba(255, 100, 100, 1.0)";
-                    }
-
-                    ctx.fillStyle = fillStyle;
-                    ctx.fillRect(dx, dotStartY, dotSize, dotSize);
-                    ctx.strokeStyle = strokeStyle;
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(dx, dotStartY, dotSize, dotSize);
+                    let fillStyle = "rgba(255, 255, 255, 0.8)", strokeStyle = "rgba(255, 255, 255, 1.0)";
+                    if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") { fillStyle = "rgba(255, 230, 100, 0.8)"; strokeStyle = "rgba(255, 230, 100, 1.0)"; }
+                    else if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") { fillStyle = "rgba(255, 100, 100, 0.8)"; strokeStyle = "rgba(255, 100, 100, 1.0)"; }
+                    ctx.fillStyle = fillStyle; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
+                    ctx.strokeStyle = strokeStyle; ctx.lineWidth = 1; ctx.strokeRect(dx, dotStartY, dotSize, dotSize);
                 } else {
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; 
-                    ctx.fillRect(dx, dotStartY, dotSize, dotSize); 
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize); 
                 }
-            } else {
-                ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize); 
-            }
+            } else { ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize); }
         }
         
         if (isCurrentPreviewLane && previewEventForThisLane) {
-            const eventProgress = state.cookPreviewPhaseTimer / 40; 
-            const textY = b.y + b.h * 0.1 - 15;
+            const eventProgress = state.cookPreviewPhaseTimer / 40, textY = b.y + b.h * 0.1 - 15;
             ctx.textAlign = "center"; ctx.globalAlpha = 0.7 + 0.3 * eventProgress;
-            
             if (previewEventForThisLane.prevStatus !== "perfect" && previewEventForThisLane.newStatus === "perfect") { 
                 ctx.fillStyle = `rgba(255, 230, 100, ${0.25 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
                 ctx.fillStyle = "#e6d555"; ctx.font = getPixelFont(14); ctx.fillText("READY!", laneCx, textY); 
-            }
-            else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") { 
+            } else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") { 
                 ctx.fillStyle = `rgba(255, 50, 50, ${0.25 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
                 ctx.fillStyle = "#f33"; ctx.font = getPixelFont(16); ctx.fillText("BURNT!", laneCx, textY); 
-            }
-            else { ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); }
+            } else { ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); }
             ctx.globalAlpha = 1.0;
         }
 
@@ -1399,30 +1253,16 @@ function drawGameScreen(ctx) {
         drawLaneHint(ctx, lane, i, state.buildMode, activePlayer, pResources);
         
         if (state.cookPreviewActive && !isCurrentPreviewLane) {
-            ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-            ctx.fillRect(b.x - 8, b.y - 8, b.w + 16, b.h + 80);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.65)"; ctx.fillRect(b.x - 8, b.y - 8, b.w + 16, b.h + 80);
         }
     });
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
-
-    // ★修正: 完全な暗転を防ぎ、フェードインしながらRESULTを表示する意図的な演出
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 60));
-
-        // 半透明の黒(最大0.7)でゲーム画面を少し残す
-        ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.7})`;
-        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-
-        // 呼吸するような軽い点滅
+        ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.7})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         const pulse = 0.7 + 0.3 * Math.sin(now / 300);
-        ctx.globalAlpha = pulse * alpha; 
-
-        ctx.fillStyle = "#fff";
-        ctx.font = getPixelFont(16);
-        ctx.textAlign = "center";
-        ctx.fillText("RESULT...", cx, cy);
-
+        ctx.globalAlpha = pulse * alpha; ctx.fillStyle = "#fff"; ctx.font = getPixelFont(16); ctx.textAlign = "center"; ctx.fillText("RESULT...", cx, cy);
         ctx.globalAlpha = 1.0;
     }
 }
@@ -1432,24 +1272,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
         let p = state.visuals.particles[i]; p.life++; if (p.life >= p.maxLife) { state.visuals.particles.splice(i, 1); continue; }
         p.x += p.vx; p.y += p.vy; const ratio = p.life / p.maxLife; ctx.globalAlpha = 0.6 * (1 - ratio); 
-        
         if (p.isText) {
-            ctx.globalAlpha = 1 - ratio; 
-            ctx.fillStyle = p.color;
-            ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); 
-            ctx.textAlign = "center";
-            ctx.shadowColor = "#ffeb3b";
-            ctx.shadowBlur = 10 * (1 - ratio);
-            ctx.fillText(p.text, p.x, p.y);
-            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1 - ratio; ctx.fillStyle = p.color; ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); ctx.textAlign = "center";
+            ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 10 * (1 - ratio); ctx.fillText(p.text, p.x, p.y); ctx.shadowBlur = 0;
         } else if (p.isSparkle) {
-            ctx.fillStyle = p.color;
-            const size = p.size * (1 - ratio * 0.5);
-            ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
-            ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
+            ctx.fillStyle = p.color; const size = p.size * (1 - ratio * 0.5);
+            ctx.fillRect(p.x - size/2, p.y - 1, size, 2); ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else {
-            ctx.fillStyle = p.color || "#e0e0e0"; 
-            ctx.beginPath(); ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = p.color || "#e0e0e0"; ctx.beginPath(); ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
         }
     }
     ctx.globalAlpha = 1.0; 
@@ -1462,20 +1292,28 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     } else {
         LAYOUT.BUTTONS.forEach((btn, i) => {
             const b = getButtonBounds(i), boxId = i + 1; let canUse = false;
-            if (boxId === 1) canUse = canUseMeat(state.currentPlayer); if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
+            if (boxId === 1) canUse = canUseMeat(state.currentPlayer); 
+            if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); 
+            if (boxId === 3) canUse = canUseServe(state.currentPlayer); 
+            if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
             const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
             let baseColor = (canUse && !isLocked) ? btn.color : "#445";
             let btnAlpha = 0.9; 
-            
             if (boxId === 3 && canUse && !isLocked && state.buildMode === null) { 
                 const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
                 baseColor = brightenColor(btn.color, isPerfect ? 0.3 : 0.0); 
                 if (isPerfect) btnAlpha = 1.0; 
             }
-            
             ctx.globalAlpha = btnAlpha;
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             const offset = isPressed ? 3 : 0; drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
+            
+            // ★追加: ボタン下の補助テキストと押下時アニメーション
+            const subTexts = ["+1", "-1", "GET", "+1🔥"];
+            let textAlpha = isPressed ? 1.0 : 0.6;
+            let textYOffset = isPressed ? -3 : 0;
+            ctx.globalAlpha = textAlpha; ctx.fillStyle = "#fff"; ctx.font = getPixelFont(10); ctx.textAlign = "center";
+            ctx.fillText(subTexts[i], b.x + b.w/2, b.y + b.h + 18 + textYOffset);
             ctx.globalAlpha = 1.0; 
         });
     }
@@ -1485,56 +1323,22 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
         if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex; ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(36); ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15); }
     } else if (state.introSequenceActive && state.introPhase !== "pause") { 
-        ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; 
-        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-        
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-
+        ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
         if (state.introPhase === "vs") {
             const p_vs = state.introVsTimer / 60; 
-
-            ctx.fillStyle = LAYOUT.COLORS.P1;
-            ctx.font = getPixelFont(36);
-            ctx.fillText("P1", cx - 80 + (p_vs * 30), cy - 60);
-
-            ctx.fillStyle = "#fff";
-            ctx.font = getPixelFont(28); 
-            ctx.fillText("VS", cx, cy);
-
+            ctx.fillStyle = LAYOUT.COLORS.P1; ctx.font = getPixelFont(36); ctx.fillText("P1", cx - 80 + (p_vs * 30), cy - 60);
+            ctx.fillStyle = "#fff"; ctx.font = getPixelFont(28); ctx.fillText("VS", cx, cy);
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
-            ctx.fillStyle = LAYOUT.COLORS.P2;
-            ctx.font = getPixelFont(36);
-            ctx.fillText(p2Name, cx + 80 - (p_vs * 30), cy + 60);
-
-            if (state.gameMode === "ai") {
-                ctx.fillStyle = "#aaa";
-                ctx.font = getPixelFont(11);
-                ctx.fillText(`STAGE ${state.currentStage}`, cx, cy + 120);
-            }
-
+            ctx.fillStyle = LAYOUT.COLORS.P2; ctx.font = getPixelFont(36); ctx.fillText(p2Name, cx + 80 - (p_vs * 30), cy + 60);
+            if (state.gameMode === "ai") { ctx.fillStyle = "#aaa"; ctx.font = getPixelFont(11); ctx.fillText(`STAGE ${state.currentStage}`, cx, cy + 120); }
         } else if (state.introPhase === "fight") {
-            const p_fight = state.fightSplashTimer / 25; 
-            const elapsedP = 1 - p_fight;
-            const scale = 1.0 + elapsedP * 0.08; 
-            const alpha = p_fight < 0.2 ? p_fight * 5 : 1.0;
-
-            ctx.globalAlpha = alpha;
-            ctx.save();
-            ctx.translate(cx, cy);
-            ctx.scale(scale, scale);
-            
-            ctx.font = getPixelFont(32); 
-            ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; 
-            ctx.fillText("FIGHT!!", 3, 3);
-            ctx.fillStyle = "#ffeb3b"; 
-            ctx.fillText("FIGHT!!", 0, 0);
-
-            ctx.restore();
-            ctx.globalAlpha = 1.0;
+            const p_fight = state.fightSplashTimer / 25, elapsedP = 1 - p_fight, scale = 1.0 + elapsedP * 0.08, alpha = p_fight < 0.2 ? p_fight * 5 : 1.0;
+            ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale);
+            ctx.font = getPixelFont(32); ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3);
+            ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         }
         ctx.textBaseline = "alphabetic"; 
-        
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10); ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80); ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(22); ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
     }
@@ -1553,7 +1357,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
 
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime; let alpha = 1, yAnimOffset = 0;
-        
         if (msg.isPerfect) {
             if (elapsed < 150) { const p = elapsed / 150; alpha = p; yAnimOffset = 15 * (1 - p); } 
             else if (elapsed < 1100) { alpha = 1; yAnimOffset = - (elapsed - 150) * 0.015; } 
@@ -1563,32 +1366,21 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             else if (elapsed < 770) { alpha = 1; yAnimOffset = 0; } 
             else { const p = Math.min(1, (elapsed - 770) / 430); alpha = 1 - p; yAnimOffset = -15 * p; }
         }
-        
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); const fx = cx, fy = 130 + (idx * 32) + yAnimOffset; ctx.textAlign = "center";
 
-        // ★修正: type="result" (FINISH等のメッセージ) のカスタム対応
+        // ★修正: msg.type="fire" に対応
         let isResult = msg.type === "result";
-        let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : 'diamond');
+        let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : (msg.type === 'fire' ? 'fire' : 'diamond'));
         let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
-        let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.amount > 0 ? "#ff4" : "#f33"));
+        let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.type === 'fire' ? "#fa3" : (msg.amount > 0 ? "#ff4" : "#f33")));
         
         ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
-        const txtW = ctx.measureText(text).width + (icon ? 50 : 30); // アイコンがない場合は余白を調整
-        
+        const txtW = ctx.measureText(text).width + (icon ? 50 : 30);
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
-        
-        if (msg.isPerfect) {
-            ctx.shadowColor = "#ffeb3b";
-            ctx.shadowBlur = 15 * alpha;
-        }
-
+        if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
         ctx.fillStyle = color; 
-        if (icon) {
-            drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); 
-            ctx.fillText(text, fx + 15, fy);
-        } else {
-            ctx.fillText(text, fx, fy); // FINISH! などは中央に描画
-        }
+        if (icon) { drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); ctx.fillText(text, fx + 15, fy); }
+        else ctx.fillText(text, fx, fy); 
         ctx.shadowBlur = 0; 
     });
     ctx.globalAlpha = 1.0;
@@ -1620,31 +1412,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
     function loop() {
         try {
-            if (state && state.hitStopTimer > 0) {
-                state.hitStopTimer--;
-            } else {
-                updateTransition();
-                updateRoulette();
-                updateIntroSequence(); 
-                updateCookPreview(); 
-                resolvePendingTurnFlow(); 
-                updateGameEndWait(); 
-                render(ctx); 
-                playAITurn(); 
+            if (state && state.hitStopTimer > 0) { state.hitStopTimer--; }
+            else {
+                updateTransition(); updateRoulette(); updateIntroSequence(); updateCookPreview(); resolvePendingTurnFlow(); updateGameEndWait(); 
+                render(ctx); playAITurn(); 
             }
         } catch (e) {
-            console.error("GAME LOOP ERROR:", e, {
-                screen: state.screen,
-                round: state.round,
-                gameOver: state.gameOver,
-                gameEndWaitTimer: state.gameEndWaitTimer,
-                cookPreviewActive: state.cookPreviewActive,
-                cookPreviewIndex: state.cookPreviewIndex,
-                cookPreviewEventsLength: state.cookPreviewEvents ? state.cookPreviewEvents.length : null,
-                resultScreenTimer: state.resultScreenTimer,
-                currentPlayer: state.currentPlayer,
-                pendingPlayer: state.pendingPlayer
-            });
+            console.error("GAME LOOP ERROR:", e);
         }
         requestAnimationFrame(loop);
     }
