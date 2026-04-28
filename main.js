@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + フェード遷移 + VS/FIGHT演出)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -37,6 +37,9 @@ function initGameState() {
         introPhase: null, // "vs" or "fight"
         introVsTimer: 0,
         fightSplashTimer: 0,
+        
+        // --- 終了時の余韻用ステート ---
+        gameEndWaitTimer: 0, 
 
         // --- プレビュー演出用ステート ---
         cookPreviewActive: false,
@@ -206,7 +209,6 @@ function updateTransition() {
     }
 }
 
-// --- 新規: イントロ演出(VS/FIGHT)の更新 ---
 function updateIntroSequence() {
     if (!state.introSequenceActive) return;
 
@@ -214,14 +216,37 @@ function updateIntroSequence() {
         state.introVsTimer--;
         if (state.introVsTimer <= 0) {
             state.introPhase = "fight";
-            state.fightSplashTimer = 40; // 40フレーム FIGHT!! 表示
+            state.fightSplashTimer = 40; 
         }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
         if (state.fightSplashTimer <= 0) {
             state.introSequenceActive = false;
             state.introSequenceDone = true;
-            state.pendingTurnSplash = true; // 終わったら通常のターンSplashへ移行
+            state.pendingTurnSplash = true; 
+        }
+    }
+}
+
+// --- 変更: 終了時の余韻(ディレイ)の処理を追加 ---
+function updateGameEndWait() {
+    if (state.gameOver && state.gameEndWaitTimer > 0) {
+        state.gameEndWaitTimer--;
+        if (state.gameEndWaitTimer <= 0) {
+            // 余韻が終わったので結果画面へ
+            const p1 = state.players[0].score;
+            const p2 = state.players[1].score;
+            if (p1 > p2) {
+                if (state.gameMode === "ai") {
+                    if (state.currentStage >= 5) { state.screen = "clear"; state.winnerText = "SURVIVAL CLEAR"; }
+                    else { state.screen = "stage_clear"; state.winnerText = "STAGE CLEAR"; }
+                } else { state.screen = "gameover"; state.winnerText = "P1 Wins!"; }
+            } else if (p2 > p1) { 
+                state.screen = "gameover"; state.winnerText = "P2 Wins!"; 
+            } else { 
+                if (state.gameMode === "ai") { retryStage(); return; }
+                else { state.screen = "gameover"; state.winnerText = "Draw!"; }
+            }
         }
     }
 }
@@ -332,6 +357,27 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     }
 }
 
+// --- 変更: 完璧な収穫時の十字形キラキラエフェクトを追加 ---
+function spawnPerfectHarvestEffect(laneIndex) {
+    const b = getLaneBounds(laneIndex);
+    const laneCx = b.x + b.w / 2;
+    const meatY = b.y + b.h * 0.4;
+
+    for (let i = 0; i < 15; i++) {
+        state.visuals.particles.push({
+            x: laneCx + (Math.random() - 0.5) * 60, 
+            y: meatY + (Math.random() - 0.5) * 40,  
+            vx: (Math.random() - 0.5) * 3, 
+            vy: -1 - Math.random() * 4,             
+            life: 0, 
+            maxLife: 30 + Math.random() * 30, 
+            size: 4 + Math.random() * 6,
+            color: Math.random() > 0.4 ? "#ffeb3b" : "#fff",
+            isSparkle: true // 十字描画フラグ
+        });
+    }
+}
+
 function advanceAllSkewersAtRoundEnd() {
     state.cookPreviewEvents = [];
     state.lanes.forEach((n, index) => {
@@ -360,7 +406,9 @@ function advanceAllSkewersAtRoundEnd() {
 
 function updateCookPreview() {
     if (state.cookPreviewActive) {
-        if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === 60) {
+        const PREVIEW_DUR = 40; // --- 変更: ラウンド終了時のテンポをサクサクに (60 -> 40) ---
+        
+        if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === PREVIEW_DUR) {
             const event = state.cookPreviewEvents[state.cookPreviewIndex];
             if (event) {
                 let smokeAmount = event.newCookState - event.prevCookState;
@@ -380,7 +428,7 @@ function updateCookPreview() {
                 finishEndRound();
             } else {
                 state.cookPreviewPhase = "show";
-                state.cookPreviewPhaseTimer = 60; 
+                state.cookPreviewPhaseTimer = PREVIEW_DUR; 
             }
         }
     }
@@ -392,7 +440,7 @@ function tryEndRound() {
         state.cookPreviewActive = true;
         state.cookPreviewIndex = 0;
         state.cookPreviewPhase = "show";
-        state.cookPreviewPhaseTimer = 60;
+        state.cookPreviewPhaseTimer = 40; // --- 変更: テンポアップ ---
     } else {
         finishEndRound();
     }
@@ -404,19 +452,7 @@ function finishEndRound() {
     if (state.round >= state.maxRounds) {
         state.gameOver = true;
         updateAllScores();
-        const p1 = state.players[0].score;
-        const p2 = state.players[1].score;
-        if (p1 > p2) {
-            if (state.gameMode === "ai") {
-                if (state.currentStage >= 5) { state.screen = "clear"; state.winnerText = "SURVIVAL CLEAR"; }
-                else { state.screen = "stage_clear"; state.winnerText = "STAGE CLEAR"; }
-            } else { state.screen = "gameover"; state.winnerText = "P1 Wins!"; }
-        } else if (p2 > p1) { 
-            state.screen = "gameover"; state.winnerText = "P2 Wins!"; 
-        } else { 
-            if (state.gameMode === "ai") { retryStage(); return; }
-            else { state.screen = "gameover"; state.winnerText = "Draw!"; }
-        }
+        state.gameEndWaitTimer = 100; // --- 変更: 終了時に約1.6秒の余韻(ディレイ)を追加 ---
         return;
     }
     startNewRound();
@@ -485,10 +521,9 @@ function updateRoulette() {
                 state.currentPlayer = state.startRouletteFinalPlayer;
                 state.pendingPlayer = state.startRouletteFinalPlayer;
                 
-                // --- 変更: ルーレット終了直後はVS演出へ移行 ---
                 state.introSequenceActive = true;
                 state.introPhase = "vs";
-                state.introVsTimer = 75; // 75フレーム
+                state.introVsTimer = 75; 
             }
         }
     }
@@ -496,7 +531,6 @@ function updateRoulette() {
 
 function resolvePendingTurnFlow() {
     if (state.cookPreviewActive) return; 
-    // VS/FIGHT演出中はTurnSplashを進めない
     if (state.introSequenceActive) return; 
 
     if (state.pendingTurnSplash) { state.turnSplashTimer = 45; state.pendingTurnSplash = false; }
@@ -611,9 +645,20 @@ function tryHarvestNode(node) {
     }
     const scoreGained = getHarvestScore(node, isSteal, status);
     p.servedScore += scoreGained;
+    
     if (scoreGained !== 0) {
-        state.visuals.statusMessages.push({ type: 'score', amount: scoreGained, player: state.currentPlayer, startTime: performance.now() });
+        state.visuals.statusMessages.push({ 
+            type: 'score', amount: scoreGained, player: state.currentPlayer, 
+            startTime: performance.now(),
+            isPerfect: status === "perfect" // --- 変更: メッセージにPerfect情報を付与 ---
+        });
     }
+    
+    // --- 変更: 完璧な収穫時に静かなキラキラを追加 ---
+    if (status === "perfect") {
+        spawnPerfectHarvestEffect(state.lanes.indexOf(node));
+    }
+
     state.visuals.ghosts.push({ 
         laneIndex: state.lanes.indexOf(node), status: status.toUpperCase(), startTime: performance.now(),
         cookState: node.cookState, owner: node.owner          
@@ -643,7 +688,7 @@ function isNodeValidForMode(node, mode) {
 // ==========================================
 function isInputLocked() {
     if (state.startRouletteActive || state.startRouletteBlinkActive) return true;
-    if (state.introSequenceActive) return true; // --- 変更: イントロ演出中の入力ロック追加 ---
+    if (state.introSequenceActive) return true; 
     if (state.cookPreviewActive) return true;
     const cp = state.currentPlayer;
     return state.screen !== "game" || state.isBusy || state.isAIThinking ||
@@ -657,7 +702,6 @@ function handleCanvasClick(event, canvas) {
     const x = event.clientX - rect.left, y = event.clientY - rect.top;
     
     if (state.screen === "title") {
-        // トランジション中は入力を無視
         if (state.isBusy || (state.transition && state.transition.active)) return;
         
         const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2, buttonOffsetY = 85; 
@@ -777,29 +821,41 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 function playAITurn() {
     if (!isAIPlayer(state.currentPlayer)) return;
     if (state.screen !== "game" || state.isBusy || state.isAIThinking || state.gameOver) return;
-    if (state.introSequenceActive) return; // --- 変更: イントロ中のAI思考ロック ---
+    if (state.introSequenceActive) return; 
     if (state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0 || state.cookPreviewActive) return;
     if (state.startRouletteActive || state.startRouletteBlinkActive) return;
     if (state.players[state.currentPlayer - 1].workersRemaining <= 0) return;
+    
     state.isAIThinking = true;
+    
+    // アクションの決定を先に行う
+    const levelConf = AI_LEVEL_CONFIG[state.aiLevel] || AI_LEVEL_CONFIG[2], profile = state.aiProfile;
+    let cands = buildActionCandidates(state, state.currentPlayer).filter(a => isActionValidForAI(state, a, state.currentPlayer, profile, levelConf));
+    if (cands.length === 0) cands.push({ type: "meat" });
+    let scored = cands.map(a => ({ action: a, score: scoreAIAction(state, a, state.currentPlayer, profile) + (Math.random() * 2 - 1) * levelConf.scoreNoise }));
+    scored.sort((a, b) => b.score - a.score); let best = scored[0].action;
+    
+    if (scored.length > 1) {
+        if (Math.random() < levelConf.mistake) { let pool = scored.filter((s, i) => i >= 1 && i <= 2 && (scored[0].score - s.score) <= 15); if (pool.length > 0) best = pool[Math.floor(Math.random() * pool.length)].action; }
+        else if (Math.random() < levelConf.rand) { let pool = scored.slice(0, levelConf.topCandRange).filter(s => (scored[0].score - s.score) <= 12); if (pool.length > 1) best = pool[Math.floor(Math.random() * pool.length)].action; }
+        else { let second = scored[1]; if ((scored[0].score - second.score) <= levelConf.closeThresh && Math.random() < levelConf.closeRate) best = second.action; }
+    }
+
+    // --- 変更: 行動の種類によってAIの考える時間を変更する (人間らしさ) ---
+    let delay = 450;
+    if (best.type === "meat") delay = 250 + Math.random() * 100; // 肉: 早い
+    else if (best.type === "put") delay = 400 + Math.random() * 150; // 置く: 普通
+    else if (best.type === "serve") delay = 500 + Math.random() * 200; // 取る: 少し悩む
+    else if (best.type === "uchiwa") delay = 650 + Math.random() * 250; // うちわ: じっくり考える
+
     setTimeout(() => {
         try {
-            const levelConf = AI_LEVEL_CONFIG[state.aiLevel] || AI_LEVEL_CONFIG[2], profile = state.aiProfile;
-            let cands = buildActionCandidates(state, state.currentPlayer).filter(a => isActionValidForAI(state, a, state.currentPlayer, profile, levelConf));
-            if (cands.length === 0) cands.push({ type: "meat" });
-            let scored = cands.map(a => ({ action: a, score: scoreAIAction(state, a, state.currentPlayer, profile) + (Math.random() * 2 - 1) * levelConf.scoreNoise }));
-            scored.sort((a, b) => b.score - a.score); let best = scored[0].action;
-            if (scored.length > 1) {
-                if (Math.random() < levelConf.mistake) { let pool = scored.filter((s, i) => i >= 1 && i <= 2 && (scored[0].score - s.score) <= 15); if (pool.length > 0) best = pool[Math.floor(Math.random() * pool.length)].action; }
-                else if (Math.random() < levelConf.rand) { let pool = scored.slice(0, levelConf.topCandRange).filter(s => (scored[0].score - s.score) <= 12); if (pool.length > 1) best = pool[Math.floor(Math.random() * pool.length)].action; }
-                else { let second = scored[1]; if ((scored[0].score - second.score) <= levelConf.closeThresh && Math.random() < levelConf.closeRate) best = second.action; }
-            }
             if (best.type === "meat") placeWorker(1);
             else if (best.type === "put") { state.buildMode="sapling"; tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
             else if (best.type === "serve") { state.buildMode="harvest"; tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
             else if (best.type === "uchiwa") { state.buildMode="uchiwa"; tryUchiwaNode(state.lanes.find(l=>l.id===best.nodeId)); }
         } finally { state.isAIThinking = false; }
-    }, 450);
+    }, delay);
 }
 
 // ==========================================
@@ -811,13 +867,10 @@ function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
     return 1.0; 
 }
 
-// --- 変更: ボタンの押し感の強化 (isPressed 時の描画を深くする) ---
 function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     if (isPressed) { 
         ctx.fillStyle = baseColor; ctx.fillRect(x, y, w, h);
-        // 全体を少し暗くする
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y, w, h); 
-        // より深く、強いシャドウを入れる
         ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(x, y, w, 8); ctx.fillRect(x, y, 8, h); 
         ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(x, y, w, 14); ctx.fillRect(x, y, 14, h); 
     } else { 
@@ -899,7 +952,6 @@ function render(ctx) {
     
     if (state.screen === "title") {
         const logoOffsetY = -205, buttonOffsetY = 85;
-        // ロゴ画像のフォールバックテキストを削除(何もしないことでチラつきを防ぐ)
         if (logoImage.complete && logoImage.naturalWidth > 0) { 
             const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82); 
             const ratio = logoImage.naturalHeight / logoImage.naturalWidth, logoW = logoMaxW, logoH = logoW * ratio; 
@@ -917,17 +969,15 @@ function render(ctx) {
         ctx.fillStyle = "#fff"; ctx.font = "16px monospace"; ctx.fillText("Tap to Continue", cx, cy + 80);
     }
     
-    // 画面全体へのフェード描画(一番最後に描画する)
     if (state.transition && state.transition.active) {
         let t = state.transition.timer;
         let d = state.transition.duration;
         let alpha = 0;
         
-        if (t < d) alpha = t / d;         // フェードアウト
-        else alpha = 1 - (t - d) / d;     // フェードイン
+        if (t < d) alpha = t / d;         
+        else alpha = 1 - (t - d) / d;     
         
         alpha = Math.max(0, Math.min(1, alpha));
-        
         ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`;
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
@@ -1090,7 +1140,6 @@ function drawGameScreen(ctx) {
                 if (peakTime && now - peakTime < 700) { 
                     const elapsed = now - peakTime, progress = elapsed / 700; 
                     
-                    // --- 変更: ピーク演出強化 (Perfectになった瞬間の一閃) ---
                     if (elapsed < 300) {
                         ctx.save();
                         ctx.globalAlpha = (1 - (elapsed / 300)) * 0.5; 
@@ -1133,7 +1182,7 @@ function drawGameScreen(ctx) {
             const dx = dotStartX + j * (dotSize + dotGap); 
             if (j < cv) {
                 if (isCurrentPreviewLane && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
-                    const eventProgress = state.cookPreviewPhaseTimer / 60; 
+                    const eventProgress = state.cookPreviewPhaseTimer / 40; 
                     const flashAlpha = 0.6 + 0.4 * eventProgress;
                     ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; 
                     ctx.fillRect(dx, dotStartY, dotSize, dotSize);
@@ -1169,7 +1218,7 @@ function drawGameScreen(ctx) {
         }
         
         if (isCurrentPreviewLane && previewEventForThisLane) {
-            const eventProgress = state.cookPreviewPhaseTimer / 60; 
+            const eventProgress = state.cookPreviewPhaseTimer / 40; 
             const textY = b.y + b.h * 0.1 - 15;
             ctx.textAlign = "center"; ctx.globalAlpha = 0.7 + 0.3 * eventProgress;
             
@@ -1204,8 +1253,17 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
         let p = state.visuals.particles[i]; p.life++; if (p.life >= p.maxLife) { state.visuals.particles.splice(i, 1); continue; }
         p.x += p.vx; p.y += p.vy; const ratio = p.life / p.maxLife; ctx.globalAlpha = 0.6 * (1 - ratio); 
-        ctx.fillStyle = p.color || "#e0e0e0"; 
-        ctx.beginPath(); ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
+        
+        // --- 変更: 完璧時のキラキラ(十字形)の描画 ---
+        if (p.isSparkle) {
+            ctx.fillStyle = p.color;
+            const size = p.size * (1 - ratio * 0.5);
+            ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
+            ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
+        } else {
+            ctx.fillStyle = p.color || "#e0e0e0"; 
+            ctx.beginPath(); ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
+        }
     }
     ctx.globalAlpha = 1.0; 
 
@@ -1236,33 +1294,28 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
         if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex; ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 48px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15); }
     } else if (state.introSequenceActive) {
-        // --- 新規: イントロ演出(VS / FIGHT)の描画 ---
-        ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; // 背景を少し暗く
+        ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
         if (state.introPhase === "vs") {
-            const p_vs = state.introVsTimer / 75; // 1.0 -> 0.0
+            const p_vs = state.introVsTimer / 75; 
 
-            // P1
             ctx.fillStyle = LAYOUT.COLORS.P1;
             ctx.font = "bold 56px monospace";
             ctx.fillText("P1", cx - 80 + (p_vs * 30), cy - 60);
 
-            // VS
             ctx.fillStyle = "#fff";
             ctx.font = "italic bold 40px monospace";
             ctx.fillText("VS", cx, cy);
 
-            // P2 / AI
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
             ctx.fillStyle = LAYOUT.COLORS.P2;
             ctx.font = "bold 56px monospace";
             ctx.fillText(p2Name, cx + 80 - (p_vs * 30), cy + 60);
 
-            // STAGE info
             if (state.gameMode === "ai") {
                 ctx.fillStyle = "#aaa";
                 ctx.font = "16px monospace";
@@ -1270,7 +1323,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             }
 
         } else if (state.introPhase === "fight") {
-            const p_fight = state.fightSplashTimer / 40; // 1.0 -> 0.0
+            const p_fight = state.fightSplashTimer / 40; 
             const elapsedP = 1 - p_fight;
             const scale = 1.0 + elapsedP * 0.4;
             const alpha = p_fight < 0.2 ? p_fight * 5 : 1.0;
@@ -1281,15 +1334,15 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.scale(scale, scale);
             
             ctx.font = "italic bold 72px monospace";
-            ctx.fillStyle = "#400"; // 影
+            ctx.fillStyle = "#400"; 
             ctx.fillText("FIGHT!!", 4, 4);
-            ctx.fillStyle = "#fa3"; // テキスト
+            ctx.fillStyle = "#fa3"; 
             ctx.fillText("FIGHT!!", 0, 0);
 
             ctx.restore();
             ctx.globalAlpha = 1.0;
         }
-        ctx.textBaseline = "alphabetic"; // リセット
+        ctx.textBaseline = "alphabetic"; 
         
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10); ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80); ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 32px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
@@ -1313,7 +1366,15 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); const fx = cx, fy = 130 + (idx * 32) + yAnimOffset; ctx.textAlign = "center";
         let icon = msg.type === 'meat' ? 'meat' : 'diamond', text = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`, color = msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.amount > 0 ? "#ff4" : "#f33");
         const txtW = ctx.measureText(text).width + 40; ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22, txtW, 30);
+        
+        // --- 変更: 完璧なスコアの周りに静かな光彩を出す ---
+        if (msg.isPerfect) {
+            ctx.shadowColor = "#ffeb3b";
+            ctx.shadowBlur = 15 * alpha;
+        }
+
         ctx.fillStyle = color; ctx.font = "bold 24px monospace"; drawDotIcon(ctx, icon, fx - 25, fy - 8, "#fff", 2.5); ctx.fillText(text, fx + 15, fy);
+        ctx.shadowBlur = 0; // 光彩をリセット
     });
     ctx.globalAlpha = 1.0;
 }
@@ -1345,9 +1406,10 @@ window.addEventListener("DOMContentLoaded", () => {
     function loop() {
         updateTransition();
         updateRoulette();
-        updateIntroSequence(); // --- 新規: イントロ演出(VS/FIGHT)の更新 ---
+        updateIntroSequence(); 
         updateCookPreview(); 
         resolvePendingTurnFlow(); 
+        updateGameEndWait(); // --- 追加: 終了の余韻を更新 ---
         render(ctx); 
         playAITurn(); 
         requestAnimationFrame(loop);
