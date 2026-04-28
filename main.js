@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + フェード遷移)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + フェード遷移 + VS/FIGHT演出)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -30,6 +30,13 @@ function initGameState() {
         
         // --- 画面遷移用ステート ---
         transition: currentTransition,
+
+        // --- イントロ演出(VS/FIGHT)用ステート ---
+        introSequenceActive: false,
+        introSequenceDone: false,
+        introPhase: null, // "vs" or "fight"
+        introVsTimer: 0,
+        fightSplashTimer: 0,
 
         // --- プレビュー演出用ステート ---
         cookPreviewActive: false,
@@ -195,6 +202,26 @@ function updateTransition() {
         // フェードイン完了時にトランジション終了
         if (state.transition.timer >= state.transition.duration * 2) {
             state.transition.active = false;
+        }
+    }
+}
+
+// --- 新規: イントロ演出(VS/FIGHT)の更新 ---
+function updateIntroSequence() {
+    if (!state.introSequenceActive) return;
+
+    if (state.introPhase === "vs") {
+        state.introVsTimer--;
+        if (state.introVsTimer <= 0) {
+            state.introPhase = "fight";
+            state.fightSplashTimer = 40; // 40フレーム FIGHT!! 表示
+        }
+    } else if (state.introPhase === "fight") {
+        state.fightSplashTimer--;
+        if (state.fightSplashTimer <= 0) {
+            state.introSequenceActive = false;
+            state.introSequenceDone = true;
+            state.pendingTurnSplash = true; // 終わったら通常のターンSplashへ移行
         }
     }
 }
@@ -457,7 +484,11 @@ function updateRoulette() {
                 state.firstPlayer = state.startRouletteFinalPlayer;
                 state.currentPlayer = state.startRouletteFinalPlayer;
                 state.pendingPlayer = state.startRouletteFinalPlayer;
-                state.pendingTurnSplash = true;
+                
+                // --- 変更: ルーレット終了直後はVS演出へ移行 ---
+                state.introSequenceActive = true;
+                state.introPhase = "vs";
+                state.introVsTimer = 75; // 75フレーム
             }
         }
     }
@@ -465,6 +496,9 @@ function updateRoulette() {
 
 function resolvePendingTurnFlow() {
     if (state.cookPreviewActive) return; 
+    // VS/FIGHT演出中はTurnSplashを進めない
+    if (state.introSequenceActive) return; 
+
     if (state.pendingTurnSplash) { state.turnSplashTimer = 45; state.pendingTurnSplash = false; }
     if (state.turnSplashTimer > 0) state.turnSplashTimer--;
     else if (state.pendingPlayer !== null) {
@@ -609,6 +643,7 @@ function isNodeValidForMode(node, mode) {
 // ==========================================
 function isInputLocked() {
     if (state.startRouletteActive || state.startRouletteBlinkActive) return true;
+    if (state.introSequenceActive) return true; // --- 変更: イントロ演出中の入力ロック追加 ---
     if (state.cookPreviewActive) return true;
     const cp = state.currentPlayer;
     return state.screen !== "game" || state.isBusy || state.isAIThinking ||
@@ -742,6 +777,7 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
 function playAITurn() {
     if (!isAIPlayer(state.currentPlayer)) return;
     if (state.screen !== "game" || state.isBusy || state.isAIThinking || state.gameOver) return;
+    if (state.introSequenceActive) return; // --- 変更: イントロ中のAI思考ロック ---
     if (state.pendingPlayer !== null || state.turnSplashTimer > 0 || state.aiBreathTimer > 0 || state.cookPreviewActive) return;
     if (state.startRouletteActive || state.startRouletteBlinkActive) return;
     if (state.players[state.currentPlayer - 1].workersRemaining <= 0) return;
@@ -775,10 +811,20 @@ function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
     return 1.0; 
 }
 
+// --- 変更: ボタンの押し感の強化 (isPressed 時の描画を深くする) ---
 function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
-    ctx.fillStyle = baseColor; ctx.fillRect(x, y, w, h);
-    if (isPressed) { ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y, w, h); ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(x, y, w, 6); ctx.fillRect(x, y, 6, h); }
-    else { ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h); ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(x, y + h - 6, w, 6); ctx.fillRect(x + w - 4, y, 4, h); }
+    if (isPressed) { 
+        ctx.fillStyle = baseColor; ctx.fillRect(x, y, w, h);
+        // 全体を少し暗くする
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y, w, h); 
+        // より深く、強いシャドウを入れる
+        ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(x, y, w, 8); ctx.fillRect(x, y, 8, h); 
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(x, y, w, 14); ctx.fillRect(x, y, 14, h); 
+    } else { 
+        ctx.fillStyle = baseColor; ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h); 
+        ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(x, y + h - 6, w, 6); ctx.fillRect(x + w - 4, y, 4, h); 
+    }
 }
 
 function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false) {
@@ -1041,7 +1087,21 @@ function drawGameScreen(ctx) {
             const isOwn = lane.owner === activePlayer, realStatus = getCookLabel(lane.type, effectiveCookState), realCanSteal = !isOwn && realStatus !== "early" && realStatus !== "burnt" && pResources >= 1;
             if (!lane.justPlaced) {
                 const peakTime = state.visuals.peakFlashes[lane.id]; let peakAlpha = 0, peakScale = 1;
-                if (peakTime && now - peakTime < 700) { const elapsed = now - peakTime, progress = elapsed / 700; peakAlpha = (1 - progress) * 0.6; peakScale = 1 + (1 - progress) * 0.3; }
+                if (peakTime && now - peakTime < 700) { 
+                    const elapsed = now - peakTime, progress = elapsed / 700; 
+                    
+                    // --- 変更: ピーク演出強化 (Perfectになった瞬間の一閃) ---
+                    if (elapsed < 300) {
+                        ctx.save();
+                        ctx.globalAlpha = (1 - (elapsed / 300)) * 0.5; 
+                        ctx.fillStyle = "rgba(255, 255, 200, 1.0)";
+                        ctx.fillRect(b.x, b.y, b.w, b.h);
+                        ctx.restore();
+                    }
+                    
+                    peakAlpha = (1 - progress) * 0.8; 
+                    peakScale = 1 + (1 - progress) * 0.5; 
+                }
                 
                 if (realStatus === "perfect" && (isOwn || realCanSteal)) {
                     drawSparkles(ctx, laneCx, stickTop, state.buildMode === "harvest", false, peakAlpha, peakScale);
@@ -1175,6 +1235,62 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.globalAlpha = 1.0; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
         let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
         if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex; ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 48px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15); }
+    } else if (state.introSequenceActive) {
+        // --- 新規: イントロ演出(VS / FIGHT)の描画 ---
+        ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; // 背景を少し暗く
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+        
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        if (state.introPhase === "vs") {
+            const p_vs = state.introVsTimer / 75; // 1.0 -> 0.0
+
+            // P1
+            ctx.fillStyle = LAYOUT.COLORS.P1;
+            ctx.font = "bold 56px monospace";
+            ctx.fillText("P1", cx - 80 + (p_vs * 30), cy - 60);
+
+            // VS
+            ctx.fillStyle = "#fff";
+            ctx.font = "italic bold 40px monospace";
+            ctx.fillText("VS", cx, cy);
+
+            // P2 / AI
+            const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
+            ctx.fillStyle = LAYOUT.COLORS.P2;
+            ctx.font = "bold 56px monospace";
+            ctx.fillText(p2Name, cx + 80 - (p_vs * 30), cy + 60);
+
+            // STAGE info
+            if (state.gameMode === "ai") {
+                ctx.fillStyle = "#aaa";
+                ctx.font = "16px monospace";
+                ctx.fillText(`STAGE ${state.currentStage}`, cx, cy + 120);
+            }
+
+        } else if (state.introPhase === "fight") {
+            const p_fight = state.fightSplashTimer / 40; // 1.0 -> 0.0
+            const elapsedP = 1 - p_fight;
+            const scale = 1.0 + elapsedP * 0.4;
+            const alpha = p_fight < 0.2 ? p_fight * 5 : 1.0;
+
+            ctx.globalAlpha = alpha;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.scale(scale, scale);
+            
+            ctx.font = "italic bold 72px monospace";
+            ctx.fillStyle = "#400"; // 影
+            ctx.fillText("FIGHT!!", 4, 4);
+            ctx.fillStyle = "#fa3"; // テキスト
+            ctx.fillText("FIGHT!!", 0, 0);
+
+            ctx.restore();
+            ctx.globalAlpha = 1.0;
+        }
+        ctx.textBaseline = "alphabetic"; // リセット
+        
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10); ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80); ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 32px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
     }
@@ -1228,7 +1344,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
     function loop() {
         updateTransition();
-        updateRoulette(); updateCookPreview(); resolvePendingTurnFlow(); render(ctx); playAITurn(); requestAnimationFrame(loop);
+        updateRoulette();
+        updateIntroSequence(); // --- 新規: イントロ演出(VS/FIGHT)の更新 ---
+        updateCookPreview(); 
+        resolvePendingTurnFlow(); 
+        render(ctx); 
+        playAITurn(); 
+        requestAnimationFrame(loop);
     }
     loop();
 });
