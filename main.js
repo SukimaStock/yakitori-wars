@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + 余韻調整)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + 余韻調整 + テンポ改善)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -37,11 +37,11 @@ function initGameState() {
         introPhase: null, // "vs", "fight", "pause"
         introVsTimer: 0,
         fightSplashTimer: 0,
-        introPauseTimer: 0, // --- 追加: FIGHT後の余韻用 ---
+        introPauseTimer: 0, 
         
         // --- 終了時の余韻と結果画面用ステート ---
         gameEndWaitTimer: 0, 
-        resultScreenTimer: 0, // --- 追加: 結果画面の段階的表示用 ---
+        resultScreenTimer: 0, 
 
         // --- 取った瞬間のヒットストップ用 ---
         hitStopTimer: 0,
@@ -223,9 +223,8 @@ function updateIntroSequence() {
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
         if (state.fightSplashTimer <= 0) {
-            // --- 変更: FIGHT!! の後に一拍の間(呼吸)を追加 ---
             state.introPhase = "pause";
-            state.introPauseTimer = 20; // 20フレームの静寂
+            state.introPauseTimer = 20; 
         }
     } else if (state.introPhase === "pause") {
         state.introPauseTimer--;
@@ -241,7 +240,6 @@ function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         state.gameEndWaitTimer--;
         if (state.gameEndWaitTimer <= 0) {
-            // --- 変更: 結果画面への移行時に表示制御タイマーをリセット ---
             state.resultScreenTimer = 0; 
             
             const p1 = state.players[0].score;
@@ -252,7 +250,9 @@ function updateGameEndWait() {
                     else { state.screen = "stage_clear"; state.winnerText = "STAGE CLEAR"; }
                 } else { state.screen = "gameover"; state.winnerText = "P1 Wins!"; }
             } else if (p2 > p1) { 
-                state.screen = "gameover"; state.winnerText = "P2 Wins!"; 
+                // --- 変更: AIモード時は敗北画面に敵名を表示 ---
+                const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
+                state.screen = "gameover"; state.winnerText = `${winnerName} Wins!`; 
             } else { 
                 if (state.gameMode === "ai") { retryStage(); return; }
                 else { state.screen = "gameover"; state.winnerText = "Draw!"; }
@@ -278,11 +278,12 @@ function startGame(mode) {
     if (mode === "ai") setupAIForStage(1);
     
     state.startRouletteActive = true;
-    state.startRouletteInterval = 4;
-    state.startRouletteTickTimer = 4;
+    // --- 変更: ルーレットの初期インターバルと回転数を減らし、サクッと決まるように ---
+    state.startRouletteInterval = 3;
+    state.startRouletteTickTimer = 3;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
+    state.startRouletteMaxCount = 9 + Math.floor(Math.random() * 2); 
     state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
@@ -295,11 +296,12 @@ function retryStage() {
     state.screen = "game";
     setupAIForStage(stg);
     state.startRouletteActive = true;
-    state.startRouletteInterval = 4;
-    state.startRouletteTickTimer = 4;
+    // --- 変更: サクッと決まるように ---
+    state.startRouletteInterval = 3;
+    state.startRouletteTickTimer = 3;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
+    state.startRouletteMaxCount = 9 + Math.floor(Math.random() * 2);
     state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
@@ -313,11 +315,12 @@ function nextStage() {
     state.screen = "game";
     setupAIForStage(nextStg);
     state.startRouletteActive = true;
-    state.startRouletteInterval = 4;
-    state.startRouletteTickTimer = 4;
+    // --- 変更: サクッと決まるように ---
+    state.startRouletteInterval = 3;
+    state.startRouletteTickTimer = 3;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
+    state.startRouletteMaxCount = 9 + Math.floor(Math.random() * 2); 
     state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
@@ -528,7 +531,8 @@ function updateRoulette() {
             if (state.startRouletteCount >= state.startRouletteMaxCount) {
                 state.startRouletteActive = false;
                 state.startRouletteBlinkActive = true;
-                state.startRouletteBlinkTimer = 6;
+                // --- 変更: 点滅間隔を少し短く (6 -> 5) ---
+                state.startRouletteBlinkTimer = 5;
                 state.startRouletteBlinkCount = 0;
                 state.startRouletteFinalPlayer = state.startRouletteIndex;
             }
@@ -537,8 +541,9 @@ function updateRoulette() {
         state.startRouletteBlinkTimer--;
         if (state.startRouletteBlinkTimer <= 0) {
             state.startRouletteBlinkCount++;
-            state.startRouletteBlinkTimer = 6; 
-            if (state.startRouletteBlinkCount >= 7) { 
+            state.startRouletteBlinkTimer = 5; 
+            // --- 変更: 点滅回数を減らし決定を早める (7 -> 5) ---
+            if (state.startRouletteBlinkCount >= 5) { 
                 state.startRouletteBlinkActive = false;
                 state.firstPlayer = state.startRouletteFinalPlayer;
                 state.currentPlayer = state.startRouletteFinalPlayer;
@@ -740,7 +745,6 @@ function handleCanvasClick(event, canvas) {
         }
         return;
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
-        // --- 変更: 結果表示がTap to Continueになるまでスキップ不可にする ---
         if (state.resultScreenTimer < 70) return;
         
         if (state.screen === "stage_clear") {
@@ -994,28 +998,26 @@ function render(ctx) {
         drawGameScreen(ctx); 
         
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
-        // --- 変更: 結果画面に余韻を持たせ、ダイヤ数を段階的に表示する ---
         state.resultScreenTimer++;
         const timer = state.resultScreenTimer;
         
-        // 1. タイトル表示 (0フレーム目〜)
         ctx.fillStyle = "#fff"; ctx.font = "bold 36px monospace"; ctx.textAlign = "center"; 
         ctx.fillText(state.screen === "gameover" ? "GAME OVER" : "CLEAR!", cx, cy - 90);
         
-        // 2. 勝敗テキスト (20フレーム目〜)
         if (timer >= 20) {
             const alpha = Math.min(1, (timer - 20) / 10);
             ctx.globalAlpha = alpha;
             ctx.font = "24px monospace"; 
             
-            ctx.fillStyle = state.winnerText.includes("P2") ? LAYOUT.COLORS.P2 : (state.winnerText.includes("P1") ? LAYOUT.COLORS.P1 : "#ffeb3b");
+            // --- 変更: 敵の勝利時も文字色を正しく反映する ---
+            const isP2Win = state.winnerText.includes("P2") || (state.gameMode === "ai" && state.winnerText.includes(state.enemyName));
+            ctx.fillStyle = isP2Win ? LAYOUT.COLORS.P2 : (state.winnerText.includes("P1") ? LAYOUT.COLORS.P1 : "#ffeb3b");
             if (state.winnerText.includes("Draw")) ctx.fillStyle = "#aaa";
             ctx.fillText(state.winnerText, cx, cy - 50);
             
             ctx.globalAlpha = 1.0;
         }
         
-        // 3. スコア(ダイヤ)詳細表示 (40フレーム目〜)
         if (timer >= 40) {
             const alpha = Math.min(1, (timer - 40) / 10);
             ctx.globalAlpha = alpha;
@@ -1024,7 +1026,6 @@ function render(ctx) {
             const p2Score = state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
 
-            // 勝敗によって明暗を分ける(納得感の演出)
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2;
             if (p1Score > p2Score) { p2Color = "#555"; }
             else if (p2Score > p1Score) { p1Color = "#555"; }
@@ -1032,13 +1033,11 @@ function render(ctx) {
             
             ctx.font = "bold 24px monospace";
             
-            // P1 行
             ctx.textAlign = "left"; ctx.fillStyle = p1Color;
             ctx.fillText("P1", cx - 70, cy + 10);
             ctx.textAlign = "right"; ctx.fillText(p1Score, cx + 30, cy + 10);
             drawDotIcon(ctx, "diamond", cx + 50, cy + 2, p1Color, 2.5);
             
-            // P2/AI 行
             ctx.textAlign = "left"; ctx.fillStyle = p2Color;
             ctx.fillText(p2Name, cx - 70, cy + 50);
             ctx.textAlign = "right"; ctx.fillText(p2Score, cx + 30, cy + 50);
@@ -1047,7 +1046,6 @@ function render(ctx) {
             ctx.globalAlpha = 1.0;
         }
         
-        // 4. Tap to Continue (70フレーム目〜)
         if (timer >= 70) {
             const alpha = Math.min(1, (timer - 70) / 10);
             const pulse = 0.5 + 0.5 * Math.sin(getTime() / 250); 
@@ -1390,7 +1388,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.globalAlpha = 1.0; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
         let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
         if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex; ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 48px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15); }
-    } else if (state.introSequenceActive && state.introPhase !== "pause") { // --- 変更: pause時は描画しない ---
+    } else if (state.introSequenceActive && state.introPhase !== "pause") { 
         ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         
