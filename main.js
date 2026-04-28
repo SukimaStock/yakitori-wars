@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + 余韻調整 + テンポ改善)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + 余韻調整 + ルーレット長さ戻し)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -250,7 +250,6 @@ function updateGameEndWait() {
                     else { state.screen = "stage_clear"; state.winnerText = "STAGE CLEAR"; }
                 } else { state.screen = "gameover"; state.winnerText = "P1 Wins!"; }
             } else if (p2 > p1) { 
-                // --- 変更: AIモード時は敗北画面に敵名を表示 ---
                 const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
                 state.screen = "gameover"; state.winnerText = `${winnerName} Wins!`; 
             } else { 
@@ -278,12 +277,11 @@ function startGame(mode) {
     if (mode === "ai") setupAIForStage(1);
     
     state.startRouletteActive = true;
-    // --- 変更: ルーレットの初期インターバルと回転数を減らし、サクッと決まるように ---
-    state.startRouletteInterval = 3;
-    state.startRouletteTickTimer = 3;
+    state.startRouletteInterval = 4;
+    state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 9 + Math.floor(Math.random() * 2); 
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
     state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
@@ -296,12 +294,11 @@ function retryStage() {
     state.screen = "game";
     setupAIForStage(stg);
     state.startRouletteActive = true;
-    // --- 変更: サクッと決まるように ---
-    state.startRouletteInterval = 3;
-    state.startRouletteTickTimer = 3;
+    state.startRouletteInterval = 4;
+    state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 9 + Math.floor(Math.random() * 2);
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
     state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
@@ -315,12 +312,11 @@ function nextStage() {
     state.screen = "game";
     setupAIForStage(nextStg);
     state.startRouletteActive = true;
-    // --- 変更: サクッと決まるように ---
-    state.startRouletteInterval = 3;
-    state.startRouletteTickTimer = 3;
+    state.startRouletteInterval = 4;
+    state.startRouletteTickTimer = 4;
     state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 9 + Math.floor(Math.random() * 2); 
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
     state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
@@ -531,8 +527,7 @@ function updateRoulette() {
             if (state.startRouletteCount >= state.startRouletteMaxCount) {
                 state.startRouletteActive = false;
                 state.startRouletteBlinkActive = true;
-                // --- 変更: 点滅間隔を少し短く (6 -> 5) ---
-                state.startRouletteBlinkTimer = 5;
+                state.startRouletteBlinkTimer = 6;
                 state.startRouletteBlinkCount = 0;
                 state.startRouletteFinalPlayer = state.startRouletteIndex;
             }
@@ -541,9 +536,8 @@ function updateRoulette() {
         state.startRouletteBlinkTimer--;
         if (state.startRouletteBlinkTimer <= 0) {
             state.startRouletteBlinkCount++;
-            state.startRouletteBlinkTimer = 5; 
-            // --- 変更: 点滅回数を減らし決定を早める (7 -> 5) ---
-            if (state.startRouletteBlinkCount >= 5) { 
+            state.startRouletteBlinkTimer = 6; 
+            if (state.startRouletteBlinkCount >= 7) { 
                 state.startRouletteBlinkActive = false;
                 state.firstPlayer = state.startRouletteFinalPlayer;
                 state.currentPlayer = state.startRouletteFinalPlayer;
@@ -1009,7 +1003,6 @@ function render(ctx) {
             ctx.globalAlpha = alpha;
             ctx.font = "24px monospace"; 
             
-            // --- 変更: 敵の勝利時も文字色を正しく反映する ---
             const isP2Win = state.winnerText.includes("P2") || (state.gameMode === "ai" && state.winnerText.includes(state.enemyName));
             ctx.fillStyle = isP2Win ? LAYOUT.COLORS.P2 : (state.winnerText.includes("P1") ? LAYOUT.COLORS.P1 : "#ffeb3b");
             if (state.winnerText.includes("Draw")) ctx.fillStyle = "#aaa";
