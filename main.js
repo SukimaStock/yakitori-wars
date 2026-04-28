@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + レトロフォント + 余韻演出)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + レトロフォント全適用 + 余韻演出)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -39,7 +39,7 @@ function initGameState() {
         gameEndWaitTimer: 0, 
         resultScreenTimer: 0, 
         resultPause: 0, 
-        resultPauseDone: false, // ★追加: resultPauseが無限ループしないためのフラグ
+        resultPauseDone: false, 
 
         hitStopTimer: 0,
 
@@ -99,7 +99,7 @@ initGameState();
 let logoImage = new Image();
 logoImage.src = "Logo.png";
 
-// ★追加: ピクセルフォント取得ヘルパー
+// ピクセルフォント取得ヘルパー
 function getPixelFont(size) {
     return `${size}px 'Press Start 2P', monospace`;
 }
@@ -241,15 +241,13 @@ function updateIntroSequence() {
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         
-        // ★修正: 結果前の意図的な「...」の間(フリーズさせずタイマーだけ止める)
         if (state.gameEndWaitTimer === 20 && !state.resultPauseDone) {
-            state.resultPause = 30; // 0.5秒ほどのポーズ(少し長めにして「...」をしっかり見せる)
+            state.resultPause = 30; 
             state.resultPauseDone = true;
         }
 
         if (state.resultPause > 0) {
             state.resultPause--;
-            // ここでは gameEndWaitTimer は減らさない(描画ループは回り続ける)
         } else {
             state.gameEndWaitTimer--;
         }
@@ -926,7 +924,6 @@ function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false)
     ctx.strokeStyle = accentColor; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
     if (isPressed) { ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h); }
     else { ctx.fillStyle = "rgba(255, 255, 255, 0.05)"; ctx.fillRect(x, y, w, 3); ctx.fillRect(x, y, 3, h); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y + h - 4, w, 4); ctx.fillRect(x + w - 3, y, 3, h); }
-    // ★修正: ピクセルフォント
     const offset = isPressed ? 2 : 0; ctx.fillStyle = "#f4e6d0"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
 }
 
@@ -960,7 +957,7 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
                 drawDotIcon(ctx, "cross", laneCx, hintY, "#555", 2);
             } else {
                 drawDotIcon(ctx, "trash", laneCx - 6, hintY, "#ccc", 2);
-                ctx.fillStyle = "#999"; ctx.font = "bold 14px monospace"; ctx.textAlign = "left"; ctx.fillText("0", laneCx + 8, hintY + 6);
+                ctx.fillStyle = "#999"; ctx.font = getPixelFont(10); ctx.textAlign = "left"; ctx.fillText("0", laneCx + 8, hintY + 6);
             }
         } else if (isOwn) {
             if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
@@ -1012,14 +1009,13 @@ function render(ctx) {
         state.resultScreenTimer++;
         const timer = state.resultScreenTimer;
         
-        // ★修正: ピクセルフォント
         ctx.fillStyle = "#fff"; ctx.font = getPixelFont(24); ctx.textAlign = "center"; 
         ctx.fillText(state.screen === "gameover" ? "GAME OVER" : "CLEAR!", cx, cy - 90);
         
         if (timer >= 20) {
             const alpha = Math.min(1, (timer - 20) / 10);
             ctx.globalAlpha = alpha;
-            ctx.font = getPixelFont(16); // ★修正: ピクセルフォント
+            ctx.font = getPixelFont(16); 
             
             const isP2Win = state.winnerText.includes("P2") || (state.gameMode === "ai" && state.winnerText.includes(state.enemyName));
             ctx.fillStyle = isP2Win ? LAYOUT.COLORS.P2 : (state.winnerText.includes("P1") ? LAYOUT.COLORS.P1 : "#ffeb3b");
@@ -1042,7 +1038,7 @@ function render(ctx) {
             else if (p2Score > p1Score) { p1Color = "#555"; }
             else { p1Color = "#aaa"; p2Color = "#aaa"; }
             
-            ctx.font = getPixelFont(16); // ★修正: ピクセルフォント
+            ctx.font = getPixelFont(16); 
             
             ctx.textAlign = "left"; ctx.fillStyle = p1Color;
             ctx.fillText("P1", cx - 70, cy + 10);
@@ -1061,7 +1057,7 @@ function render(ctx) {
             const alpha = Math.min(1, (timer - 70) / 10);
             const pulse = 0.5 + 0.5 * Math.sin(getTime() / 250); 
             ctx.globalAlpha = alpha * pulse;
-            ctx.fillStyle = "#fff"; ctx.font = getPixelFont(11); // ★修正: ピクセルフォント
+            ctx.fillStyle = "#fff"; ctx.font = getPixelFont(11); 
             ctx.textAlign = "center"; 
             ctx.fillText("Tap to Continue", cx, cy + 110);
             ctx.globalAlpha = 1.0;
@@ -1097,8 +1093,8 @@ function drawGameScreen(ctx) {
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
     
-    // ★修正: ピクセルフォント
-    ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(`ROUND ${state.round} / ${state.maxRounds}`, cx, safeTop + 25);
+    // スラッシュ前後のスペースを削除
+    ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(`ROUND ${state.round}/${state.maxRounds}`, cx, safeTop + 25);
     if (state.gameMode === "ai") { ctx.font = getPixelFont(10); ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45); }
 
     state.lanes.forEach((lane, i) => {
@@ -1342,11 +1338,11 @@ function drawGameScreen(ctx) {
             
             if (previewEventForThisLane.prevStatus !== "perfect" && previewEventForThisLane.newStatus === "perfect") { 
                 ctx.fillStyle = `rgba(255, 230, 100, ${0.25 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.fillStyle = "#e6d555"; ctx.font = "bold 20px monospace"; ctx.fillText("READY!", laneCx, textY); 
+                ctx.fillStyle = "#e6d555"; ctx.font = getPixelFont(14); ctx.fillText("READY!", laneCx, textY); 
             }
             else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") { 
                 ctx.fillStyle = `rgba(255, 50, 50, ${0.25 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.fillStyle = "#f33"; ctx.font = "bold 22px monospace"; ctx.fillText("BURNT!", laneCx, textY); 
+                ctx.fillStyle = "#f33"; ctx.font = getPixelFont(16); ctx.fillText("BURNT!", laneCx, textY); 
             }
             else { ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); }
             ctx.globalAlpha = 1.0;
@@ -1365,7 +1361,6 @@ function drawGameScreen(ctx) {
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
 
-    // ★追加: 意図的な余韻を演出する「...」の点滅
     if (state.resultPause > 0) {
         const alpha = 0.4 + 0.4 * Math.sin(now / 200);
         ctx.globalAlpha = alpha;
@@ -1386,7 +1381,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (p.isText) {
             ctx.globalAlpha = 1 - ratio; 
             ctx.fillStyle = p.color;
-            ctx.font = `bold ${p.size}px monospace`; // ★ここは可読性のためそのまま
+            ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); 
             ctx.textAlign = "center";
             ctx.shadowColor = "#ffeb3b";
             ctx.shadowBlur = 10 * (1 - ratio);
@@ -1408,7 +1403,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
         if (selectedIcon) { const iconX = cb.x + cb.w / 2, iconY = cb.y - 26; ctx.globalAlpha = 0.9; drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3); ctx.globalAlpha = 1.0; }
         const isPressed = (now - (state.visuals.cancelClick || 0) < 150); drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
-        const offset = isPressed ? 3 : 0; ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign="center"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
+        const offset = isPressed ? 3 : 0; ctx.fillStyle = "#fff"; ctx.font = getPixelFont(12); ctx.textAlign="center"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
     } else {
         LAYOUT.BUTTONS.forEach((btn, i) => {
             const b = getButtonBounds(i), boxId = i + 1; let canUse = false;
@@ -1433,7 +1428,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
         ctx.globalAlpha = 1.0; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
         let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
-        // ★修正: ピクセルフォント (P1/P2)
         if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex; ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(36); ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15); }
     } else if (state.introSequenceActive && state.introPhase !== "pause") { 
         ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; 
@@ -1445,13 +1439,12 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (state.introPhase === "vs") {
             const p_vs = state.introVsTimer / 60; 
 
-            // ★修正: ピクセルフォント
             ctx.fillStyle = LAYOUT.COLORS.P1;
             ctx.font = getPixelFont(36);
             ctx.fillText("P1", cx - 80 + (p_vs * 30), cy - 60);
 
             ctx.fillStyle = "#fff";
-            ctx.font = getPixelFont(28); // italic外してピクセルフォントに統一
+            ctx.font = getPixelFont(28); 
             ctx.fillText("VS", cx, cy);
 
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
@@ -1476,7 +1469,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.translate(cx, cy);
             ctx.scale(scale, scale);
             
-            // ★修正: ピクセルフォント
             ctx.font = getPixelFont(32); 
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; 
             ctx.fillText("FIGHT!!", 3, 3);
@@ -1489,7 +1481,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.textBaseline = "alphabetic"; 
         
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
-        // ★修正: ピクセルフォント
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10); ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80); ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(22); ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
     }
     ctx.globalAlpha = 1.0;
@@ -1521,7 +1512,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); const fx = cx, fy = 130 + (idx * 32) + yAnimOffset; ctx.textAlign = "center";
         let icon = msg.type === 'meat' ? 'meat' : 'diamond', text = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`, color = msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.amount > 0 ? "#ff4" : "#f33");
         
-        ctx.font = `bold ${msg.isPerfect ? 28 : 24}px monospace`; // 可読性のためそのまま
+        ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
         const txtW = ctx.measureText(text).width + 50; 
         
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
@@ -1543,8 +1534,8 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx, baseColor = active ? (idx === 1 ? "#2a4a6a" : "#6a2a3a") : LAYOUT.COLORS.PANEL_BG;
     drawBevelRect(ctx, x, y, w, h, baseColor);
     if (active) { ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y - 2, w + 4, h + 4); }
-    ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 18px monospace"; ctx.textAlign = "left"; ctx.fillText(`P${idx}`, x + 10, y + 25);
-    drawDotIcon(ctx, "diamond", x + 20, y + 45, "#6cf", 2); ctx.fillStyle = "#fff"; ctx.font = "bold 16px monospace"; ctx.textAlign = "right"; ctx.fillText(`${player.score}`, x + w - 10, y + 50);
+    ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(12); ctx.textAlign = "left"; ctx.fillText(`P${idx}`, x + 10, y + 25);
+    drawDotIcon(ctx, "diamond", x + 20, y + 45, "#6cf", 2); ctx.fillStyle = "#fff"; ctx.font = getPixelFont(10); ctx.textAlign = "right"; ctx.fillText(`${player.score}`, x + w - 10, y + 50);
     drawDotIcon(ctx, "meat", x + 20, y + 65, "#f77", 2); ctx.fillStyle = "#fff"; ctx.fillText(`${player.resources || 0}`, x + w - 10, y + 70);
 }
 
