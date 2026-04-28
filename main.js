@@ -877,7 +877,12 @@ function drawGameScreen(ctx) {
                 if (getCookLabel(lane.type, effectiveCookState) !== "burnt" && pResources < 1) isFlashable = false; 
             }
             if (state.buildMode === "harvest" && isFlashable && lane.built) { 
-                if (getCookLabel(lane.type, effectiveCookState) === "perfect") isPerfectTarget = true; 
+                const status = getCookLabel(lane.type, effectiveCookState);
+                if (status === "early") {
+                    isFlashable = false; // 取れない・ペナルティのみのearlyは点滅させない
+                } else if (status === "perfect") {
+                    isPerfectTarget = true; 
+                }
             }
             if (state.buildMode === "uchiwa" && isFlashable && lane.built) {
                 uchiwaTargetState = baseEndState + 1;
@@ -908,29 +913,62 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = gradient; ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
 
         if (isFlashable) {
+            // パルス値の計算 (0.0 ~ 1.0) でゆっくりとした呼吸のような明滅を作る
+            const selectPulse = 0.5 + 0.5 * Math.sin(now / 350);
+
             if (state.buildMode === "harvest") {
-                ctx.fillStyle = `rgba(255, 255, 255, 0.18)`; ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.strokeStyle = isPerfectTarget ? `rgba(255, 230, 100, 0.65)` : `rgba(255, 255, 255, 0.65)`; 
-                ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h); 
-            } else if (state.buildMode === "uchiwa") {
-                if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") {
-                    ctx.fillStyle = `rgba(30, 0, 0, 0.5)`;
-                    ctx.fillRect(b.x, b.y, b.w, b.h);
-                    ctx.strokeStyle = `rgba(255, 100, 100, 0.4)`;
-                    ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
-                } else if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") {
-                    ctx.fillStyle = `rgba(255, 230, 100, 0.12)`;
-                    ctx.fillRect(b.x, b.y, b.w, b.h);
-                    ctx.strokeStyle = `rgba(255, 230, 100, 0.5)`;
-                    ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
-                } else {
-                    ctx.fillStyle = `rgba(255, 255, 255, 0.08)`;
-                    ctx.fillRect(b.x, b.y, b.w, b.h);
-                    ctx.strokeStyle = `rgba(255, 255, 255, 0.2)`;
-                    ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
+                const harvestStatus = getCookLabel(lane.type, effectiveCookState);
+                let fillAlphaBase = 0.08, fillAlphaRange = 0.10;
+                let strokeAlphaBase = 0.25, strokeAlphaRange = 0.20;
+                let rgb = "255, 255, 255"; // デフォルトの白系
+
+                if (isPerfectTarget) {
+                    rgb = "255, 230, 100"; // 完璧なターゲット: 黄色
+                } else if (harvestStatus === "burnt") {
+                    if (lane.owner !== activePlayer) {
+                        rgb = "180, 180, 180"; // 相手の焦げ: グレー系
+                    } else {
+                        rgb = "100, 100, 100"; // 自分の焦げ: 暗め
+                        fillAlphaBase = 0.04; fillAlphaRange = 0.04;
+                        strokeAlphaBase = 0.15; strokeAlphaRange = 0.10;
+                    }
                 }
+                
+                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
+                const currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
+
+                ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`;
+                ctx.fillRect(b.x, b.y, b.w, b.h); 
+                ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`; 
+                ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h); 
+
+            } else if (state.buildMode === "uchiwa") {
+                let fillAlphaBase = 0.08, fillAlphaRange = 0.10;
+                let strokeAlphaBase = 0.25, strokeAlphaRange = 0.20;
+                let rgb = "255, 255, 255"; // デフォルトの白系
+
+                if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") {
+                    rgb = "255, 100, 100"; // 焦がしてしまう: 赤寄り
+                } else if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") {
+                    rgb = "255, 230, 100"; // 完璧にできる: 黄色寄り
+                }
+
+                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
+                const currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
+
+                ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`;
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+                ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`;
+                ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
+                
             } else {
-                ctx.fillStyle = `rgba(255, 255, 255, 0.08)`; ctx.fillRect(b.x, b.y, b.w, b.h); 
+                // 肉を置くときなど通常の選択
+                const currentFillAlpha = 0.08 + selectPulse * 0.10;
+                const currentStrokeAlpha = 0.25 + selectPulse * 0.20;
+                ctx.fillStyle = `rgba(255, 255, 255, ${currentFillAlpha})`; 
+                ctx.fillRect(b.x, b.y, b.w, b.h); 
+                ctx.strokeStyle = `rgba(255, 255, 255, ${currentStrokeAlpha})`;
+                ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
             }
         }
 
