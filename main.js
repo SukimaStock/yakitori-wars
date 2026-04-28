@@ -1,11 +1,10 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + 余韻調整 + ルーレット長さ戻し)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + レトロフォント + 余韻演出)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
 let state = {};
 
 function initGameState() {
-    // 遷移中にstartGameが呼ばれてもフェード状態を維持するための退避
     const currentTransition = (state && state.transition && state.transition.active) 
         ? state.transition 
         : { active: false, type: null, timer: 0, duration: 20, targetMode: null };
@@ -28,26 +27,22 @@ function initGameState() {
         isBusy: false,
         isAIThinking: false,
         
-        // --- 画面遷移用ステート ---
         transition: currentTransition,
 
-        // --- イントロ演出(VS/FIGHT/PAUSE)用ステート ---
         introSequenceActive: false,
         introSequenceDone: false,
-        introPhase: null, // "vs", "fight", "pause"
+        introPhase: null, 
         introVsTimer: 0,
         fightSplashTimer: 0,
         introPauseTimer: 0, 
         
-        // --- 終了時の余韻と結果画面用ステート ---
         gameEndWaitTimer: 0, 
         resultScreenTimer: 0, 
-        resultPause: 0, // ★追加: 勝敗決定後の「間」用タイマー
+        resultPause: 0, 
+        resultPauseDone: false, // ★追加: resultPauseが無限ループしないためのフラグ
 
-        // --- 取った瞬間のヒットストップ用 ---
         hitStopTimer: 0,
 
-        // --- プレビュー演出用ステート ---
         cookPreviewActive: false,
         cookPreviewEvents: [],
         cookPreviewIndex: 0,
@@ -92,17 +87,22 @@ function initGameState() {
             particles: [], 
             cancelClick: 0, 
             titleClick: null,
-            perfectFlash: { timer: 0 } // ★追加: PERFECT到達瞬間の画面フラッシュ用
+            perfectFlash: { timer: 0 } 
         }
     };
 }
 initGameState();
 
 // ==========================================
-// 画像リソースの読み込み
+// 画像リソースの読み込み・ヘルパー
 // ==========================================
 let logoImage = new Image();
 logoImage.src = "Logo.png";
+
+// ★追加: ピクセルフォント取得ヘルパー
+function getPixelFont(size) {
+    return `${size}px 'Press Start 2P', monospace`;
+}
 
 // ==========================================
 // 2. render/layout.js - 定数とレイアウト設定
@@ -240,16 +240,20 @@ function updateIntroSequence() {
 
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
-        // ★追加: 勝敗表示前の「間」の処理
-        if (state.resultPause > 0) {
-            state.resultPause--;
-            return; // ポーズ中はタイマーを減らさない
-        }
-        if (state.gameEndWaitTimer === 20) {
-            state.resultPause = 18; // 約0.3秒間待機する
+        
+        // ★修正: 結果前の意図的な「...」の間(フリーズさせずタイマーだけ止める)
+        if (state.gameEndWaitTimer === 20 && !state.resultPauseDone) {
+            state.resultPause = 30; // 0.5秒ほどのポーズ(少し長めにして「...」をしっかり見せる)
+            state.resultPauseDone = true;
         }
 
-        state.gameEndWaitTimer--;
+        if (state.resultPause > 0) {
+            state.resultPause--;
+            // ここでは gameEndWaitTimer は減らさない(描画ループは回り続ける)
+        } else {
+            state.gameEndWaitTimer--;
+        }
+
         if (state.gameEndWaitTimer <= 0) {
             state.resultScreenTimer = 0; 
             
@@ -449,7 +453,6 @@ function updateCookPreview() {
                 
                 if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
                     state.visuals.peakFlashes[state.lanes[event.laneIndex].id] = performance.now();
-                    // ★追加: PERFECT到達瞬間の画面フラッシュをセット
                     state.visuals.perfectFlash = { timer: 6 }; 
                 }
             }
@@ -535,7 +538,6 @@ function updateRoulette() {
         if (state.startRouletteTickTimer <= 0) {
             state.startRouletteIndex = 3 - state.startRouletteIndex;
             state.startRouletteCount++;
-            // ★変更: ルーレットの倍率を1.15から1.12にして余韻を調整
             state.startRouletteInterval *= 1.12; 
             state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
             if (state.startRouletteCount >= state.startRouletteMaxCount) {
@@ -924,7 +926,8 @@ function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false)
     ctx.strokeStyle = accentColor; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
     if (isPressed) { ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h); }
     else { ctx.fillStyle = "rgba(255, 255, 255, 0.05)"; ctx.fillRect(x, y, w, 3); ctx.fillRect(x, y, 3, h); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y + h - 4, w, 4); ctx.fillRect(x + w - 3, y, 3, h); }
-    const offset = isPressed ? 2 : 0; ctx.fillStyle = "#f4e6d0"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
+    // ★修正: ピクセルフォント
+    const offset = isPressed ? 2 : 0; ctx.fillStyle = "#f4e6d0"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
 }
 
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay = false) {
@@ -999,7 +1002,7 @@ function render(ctx) {
         }
         
         const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 }, btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
-        drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI (SURVIVAL)", "rgba(255, 150, 60, 0.45)", state.visuals.titleClick === "ai");
+        drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI", "rgba(255, 150, 60, 0.45)", state.visuals.titleClick === "ai");
         drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", state.visuals.titleClick === "pvp");
     
     } else if (state.screen === "game") { 
@@ -1009,13 +1012,14 @@ function render(ctx) {
         state.resultScreenTimer++;
         const timer = state.resultScreenTimer;
         
-        ctx.fillStyle = "#fff"; ctx.font = "bold 36px monospace"; ctx.textAlign = "center"; 
+        // ★修正: ピクセルフォント
+        ctx.fillStyle = "#fff"; ctx.font = getPixelFont(24); ctx.textAlign = "center"; 
         ctx.fillText(state.screen === "gameover" ? "GAME OVER" : "CLEAR!", cx, cy - 90);
         
         if (timer >= 20) {
             const alpha = Math.min(1, (timer - 20) / 10);
             ctx.globalAlpha = alpha;
-            ctx.font = "24px monospace"; 
+            ctx.font = getPixelFont(16); // ★修正: ピクセルフォント
             
             const isP2Win = state.winnerText.includes("P2") || (state.gameMode === "ai" && state.winnerText.includes(state.enemyName));
             ctx.fillStyle = isP2Win ? LAYOUT.COLORS.P2 : (state.winnerText.includes("P1") ? LAYOUT.COLORS.P1 : "#ffeb3b");
@@ -1038,7 +1042,7 @@ function render(ctx) {
             else if (p2Score > p1Score) { p1Color = "#555"; }
             else { p1Color = "#aaa"; p2Color = "#aaa"; }
             
-            ctx.font = "bold 24px monospace";
+            ctx.font = getPixelFont(16); // ★修正: ピクセルフォント
             
             ctx.textAlign = "left"; ctx.fillStyle = p1Color;
             ctx.fillText("P1", cx - 70, cy + 10);
@@ -1057,7 +1061,8 @@ function render(ctx) {
             const alpha = Math.min(1, (timer - 70) / 10);
             const pulse = 0.5 + 0.5 * Math.sin(getTime() / 250); 
             ctx.globalAlpha = alpha * pulse;
-            ctx.fillStyle = "#fff"; ctx.font = "16px monospace"; ctx.textAlign = "center"; 
+            ctx.fillStyle = "#fff"; ctx.font = getPixelFont(11); // ★修正: ピクセルフォント
+            ctx.textAlign = "center"; 
             ctx.fillText("Tap to Continue", cx, cy + 110);
             ctx.globalAlpha = 1.0;
         }
@@ -1076,7 +1081,6 @@ function render(ctx) {
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 
-    // ★追加: PERFECTフラッシュの描画(画面の一番上に重なるように最後で描画します)
     if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
         const alpha = (state.visuals.perfectFlash.timer / 6) * 0.15;
         ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
@@ -1092,8 +1096,10 @@ function drawGameScreen(ctx) {
     
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
-    ctx.fillStyle = "#fff"; ctx.font = "bold 20px monospace"; ctx.textAlign = "center"; ctx.fillText(`ROUND ${state.round} / ${state.maxRounds}`, cx, safeTop + 25);
-    if (state.gameMode === "ai") { ctx.font = "14px monospace"; ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45); }
+    
+    // ★修正: ピクセルフォント
+    ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(`ROUND ${state.round} / ${state.maxRounds}`, cx, safeTop + 25);
+    if (state.gameMode === "ai") { ctx.font = getPixelFont(10); ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45); }
 
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i), laneCx = b.x + b.w / 2;
@@ -1142,7 +1148,6 @@ function drawGameScreen(ctx) {
         drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
         ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
 
-        // ★追加: 「取れる瞬間」の静かなサイン
         if (lane.built) {
             const currentStatus = getCookLabel(lane.type, effectiveCookState);
             if (currentStatus === "perfect") {
@@ -1359,6 +1364,17 @@ function drawGameScreen(ctx) {
     });
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
+
+    // ★追加: 意図的な余韻を演出する「...」の点滅
+    if (state.resultPause > 0) {
+        const alpha = 0.4 + 0.4 * Math.sin(now / 200);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = "#fff";
+        ctx.font = getPixelFont(22);
+        ctx.textAlign = "center";
+        ctx.fillText("...", cx, cy);
+        ctx.globalAlpha = 1.0;
+    }
 }
 
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
@@ -1370,7 +1386,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (p.isText) {
             ctx.globalAlpha = 1 - ratio; 
             ctx.fillStyle = p.color;
-            ctx.font = `bold ${p.size}px monospace`;
+            ctx.font = `bold ${p.size}px monospace`; // ★ここは可読性のためそのまま
             ctx.textAlign = "center";
             ctx.shadowColor = "#ffeb3b";
             ctx.shadowBlur = 10 * (1 - ratio);
@@ -1399,25 +1415,26 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer); if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
             const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
             let baseColor = (canUse && !isLocked) ? btn.color : "#445";
-            let btnAlpha = 0.9; // ★追加: ボタンの基本透明度
+            let btnAlpha = 0.9; 
             
             if (boxId === 3 && canUse && !isLocked && state.buildMode === null) { 
                 const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
                 baseColor = brightenColor(btn.color, isPerfect ? 0.3 : 0.0); 
-                if (isPerfect) btnAlpha = 1.0; // ★追加: 「取る」かつ「PERFECT」がある時だけくっきりさせる
+                if (isPerfect) btnAlpha = 1.0; 
             }
             
-            ctx.globalAlpha = btnAlpha; // 追加
+            ctx.globalAlpha = btnAlpha;
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             const offset = isPressed ? 3 : 0; drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
-            ctx.globalAlpha = 1.0; // リセット
+            ctx.globalAlpha = 1.0; 
         });
     }
 
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
         ctx.globalAlpha = 1.0; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
         let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
-        if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex; ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 48px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15); }
+        // ★修正: ピクセルフォント (P1/P2)
+        if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex; ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(36); ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15); }
     } else if (state.introSequenceActive && state.introPhase !== "pause") { 
         ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -1428,22 +1445,23 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (state.introPhase === "vs") {
             const p_vs = state.introVsTimer / 60; 
 
+            // ★修正: ピクセルフォント
             ctx.fillStyle = LAYOUT.COLORS.P1;
-            ctx.font = "bold 56px monospace";
+            ctx.font = getPixelFont(36);
             ctx.fillText("P1", cx - 80 + (p_vs * 30), cy - 60);
 
             ctx.fillStyle = "#fff";
-            ctx.font = "italic bold 40px monospace";
+            ctx.font = getPixelFont(28); // italic外してピクセルフォントに統一
             ctx.fillText("VS", cx, cy);
 
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
             ctx.fillStyle = LAYOUT.COLORS.P2;
-            ctx.font = "bold 56px monospace";
+            ctx.font = getPixelFont(36);
             ctx.fillText(p2Name, cx + 80 - (p_vs * 30), cy + 60);
 
             if (state.gameMode === "ai") {
                 ctx.fillStyle = "#aaa";
-                ctx.font = "16px monospace";
+                ctx.font = getPixelFont(11);
                 ctx.fillText(`STAGE ${state.currentStage}`, cx, cy + 120);
             }
 
@@ -1458,7 +1476,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.translate(cx, cy);
             ctx.scale(scale, scale);
             
-            ctx.font = "italic bold 52px monospace";
+            // ★修正: ピクセルフォント
+            ctx.font = getPixelFont(32); 
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; 
             ctx.fillText("FIGHT!!", 3, 3);
             ctx.fillStyle = "#ffeb3b"; 
@@ -1470,7 +1489,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.textBaseline = "alphabetic"; 
         
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
-        const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10); ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80); ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 32px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
+        // ★修正: ピクセルフォント
+        const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10); ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80); ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(22); ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
     }
     ctx.globalAlpha = 1.0;
 
@@ -1500,9 +1520,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); const fx = cx, fy = 130 + (idx * 32) + yAnimOffset; ctx.textAlign = "center";
         let icon = msg.type === 'meat' ? 'meat' : 'diamond', text = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`, color = msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.amount > 0 ? "#ff4" : "#f33");
-        const txtW = ctx.measureText(text).width + 50; 
         
-        const fontSize = msg.isPerfect ? 28 : 24;
+        ctx.font = `bold ${msg.isPerfect ? 28 : 24}px monospace`; // 可読性のためそのまま
+        const txtW = ctx.measureText(text).width + 50; 
         
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
         
@@ -1511,7 +1531,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.shadowBlur = 15 * alpha;
         }
 
-        ctx.fillStyle = color; ctx.font = `bold ${fontSize}px monospace`; 
+        ctx.fillStyle = color; 
         drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); 
         ctx.fillText(text, fx + 15, fy);
         ctx.shadowBlur = 0; 
