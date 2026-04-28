@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + レトロフォント + 余韻演出 + 進行不能バグ調査/保護)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + レトロフォント + 余韻演出 + 進行不能バグ調査/保護 + スムーズな結果遷移)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -240,7 +240,6 @@ function updateIntroSequence() {
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         
-        // ★追加: 待機タイマー監視用ログ
         if (state.gameEndWaitTimer % 20 === 0) {
             console.log("RESULT WAIT", {
                 timer: state.gameEndWaitTimer,
@@ -451,7 +450,6 @@ function advanceAllSkewersAtRoundEnd() {
 function updateCookPreview() {
     if (!state.cookPreviewActive) return;
 
-    // ★追加: プレビューイベント配列異常時のフェイルセーフ
     if (!state.cookPreviewEvents || state.cookPreviewEvents.length === 0) {
         console.warn("cookPreviewActive but no events. Finishing round.");
         finishEndRound();
@@ -510,9 +508,8 @@ function finishEndRound() {
     if (state.round >= state.maxRounds) {
         state.gameOver = true;
         updateAllScores();
-        state.gameEndWaitTimer = 60; // ★変更: 待機時間を100から60に短縮
+        state.gameEndWaitTimer = 60; 
 
-        // ★追加: 最終ラウンド終了時の状態ログ
         console.log("FINAL ROUND END", {
             round: state.round,
             maxRounds: state.maxRounds,
@@ -522,6 +519,14 @@ function finishEndRound() {
             servedP2: state.players[1].servedScore,
             cookPreviewActive: state.cookPreviewActive,
             gameEndWaitTimer: state.gameEndWaitTimer
+        });
+
+        // ★追加: 終わった瞬間に「FINISH!」を出して視覚的変化を与える
+        state.visuals.statusMessages.push({
+            type: "result",
+            text: "FINISH!",
+            startTime: performance.now(),
+            isPerfect: true
         });
 
         return;
@@ -1395,15 +1400,24 @@ function drawGameScreen(ctx) {
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
 
-    // ★追加: 待機中の「RESULT...」オーバーレイ表示
+    // ★修正: 完全な暗転を防ぎ、フェードインしながらRESULTを表示する意図的な演出
     if (state.gameOver && state.gameEndWaitTimer > 0) {
-        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 60));
+
+        // 半透明の黒(最大0.7)でゲーム画面を少し残す
+        ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.7})`;
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+
+        // 呼吸するような軽い点滅
+        const pulse = 0.7 + 0.3 * Math.sin(now / 300);
+        ctx.globalAlpha = pulse * alpha; 
 
         ctx.fillStyle = "#fff";
         ctx.font = getPixelFont(16);
         ctx.textAlign = "center";
         ctx.fillText("RESULT...", cx, cy);
+
+        ctx.globalAlpha = 1.0;
     }
 }
 
@@ -1545,10 +1559,15 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
         
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); const fx = cx, fy = 130 + (idx * 32) + yAnimOffset; ctx.textAlign = "center";
-        let icon = msg.type === 'meat' ? 'meat' : 'diamond', text = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`, color = msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.amount > 0 ? "#ff4" : "#f33");
+
+        // ★修正: type="result" (FINISH等のメッセージ) のカスタム対応
+        let isResult = msg.type === "result";
+        let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : 'diamond');
+        let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
+        let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.amount > 0 ? "#ff4" : "#f33"));
         
         ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
-        const txtW = ctx.measureText(text).width + 50; 
+        const txtW = ctx.measureText(text).width + (icon ? 50 : 30); // アイコンがない場合は余白を調整
         
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
         
@@ -1558,8 +1577,12 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
 
         ctx.fillStyle = color; 
-        drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); 
-        ctx.fillText(text, fx + 15, fy);
+        if (icon) {
+            drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); 
+            ctx.fillText(text, fx + 15, fy);
+        } else {
+            ctx.fillText(text, fx, fy); // FINISH! などは中央に描画
+        }
         ctx.shadowBlur = 0; 
     });
     ctx.globalAlpha = 1.0;
@@ -1590,7 +1613,6 @@ window.addEventListener("DOMContentLoaded", () => {
     canvas.addEventListener("click", (e) => { if (Date.now() - lastTouchTime < 500) return; handleCanvasClick(e, canvas); });
 
     function loop() {
-        // ★追加: ループ全体を保護し、例外で画面が完全停止するのを防ぐ
         try {
             if (state && state.hitStopTimer > 0) {
                 state.hitStopTimer--;
@@ -1618,7 +1640,6 @@ window.addEventListener("DOMContentLoaded", () => {
                 pendingPlayer: state.pendingPlayer
             });
         }
-        // ★例外が起きても必ず次フレームを予約する
         requestAnimationFrame(loop);
     }
     loop();
