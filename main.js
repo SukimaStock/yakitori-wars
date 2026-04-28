@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 予測表示 + ワンショットヒント)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 予測表示改行対応)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -67,7 +67,7 @@ function initGameState() {
         pendingPlayer: null,
         aiBreathTimer: 0,
         buildMode: null,
-        buildModeStartTime: 0, // ★追加: プレビューのフェードイン用
+        buildModeStartTime: 0, 
         pendingBox: null,
         uiHint: "tap",
         players: [
@@ -655,7 +655,6 @@ function placeWorker(boxId) {
     } else {
         state.isBusy = true;
         setTimeout(() => {
-            // ★変更: buildModeの開始時間を記録(プレビューフェードイン用)
             if (boxId === 2 && p.resources >= 1) { state.buildMode = "sapling"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
             else if (boxId === 3) { state.buildMode = "harvest"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
             else if (boxId === 4) { state.buildMode = "uchiwa"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
@@ -804,8 +803,7 @@ function handleCanvasClick(event, canvas) {
             if (canUse) { 
                 state.visuals.buttonClicks[i] = performance.now(); 
                 placeWorker(boxId); 
-            } else if (!isLocked()) {
-                // ★追加: 押せない理由のワンショットヒント
+            } else if (!isInputLocked()) {
                 let reason = "";
                 if (boxId === 2) reason = state.players[state.currentPlayer - 1].resources < 1 ? "NO MEAT" : "FULL";
                 if (boxId === 3) reason = "NO TARGET";
@@ -1269,7 +1267,6 @@ function drawGameScreen(ctx) {
         for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 40, "#fa3", fireScale);
         if (lane.uchiwaBoost > 0) { ctx.globalAlpha = 0.6; drawDotIcon(ctx, "fire", b.x + b.w - 18, b.y + b.h - 18, "#f85", 2); ctx.globalAlpha = 1.0; }
         
-        // ★追加: アクション結果のプレビュー表示
         if (state.buildMode && isFlashable) {
             const elapsedMode = now - (state.buildModeStartTime || now);
             const modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
@@ -1291,9 +1288,10 @@ function drawGameScreen(ctx) {
                 ctx.fillStyle = color; ctx.fillText(scoreText, laneCx, floatY);
                 
             } else if (state.buildMode === "uchiwa") {
-                let nextText = "NEXT: " + uchiwaTargetStatus.toUpperCase();
-                if (uchiwaTargetStatus === "burnt") nextText = "NEXT: BURN";
-                if (uchiwaTargetStatus === "okay") nextText = "NEXT: OK";
+                // ★修正: NEXTと結果を改行して表示
+                let statusText = uchiwaTargetStatus.toUpperCase();
+                if (uchiwaTargetStatus === "burnt") statusText = "BURN";
+                if (uchiwaTargetStatus === "okay") statusText = "OK";
                 
                 let color = "#fff", textAlpha = modeAlpha;
                 if (uchiwaTargetStatus === "perfect") { color = "#ffeb3b"; } 
@@ -1303,8 +1301,13 @@ function drawGameScreen(ctx) {
                 
                 ctx.globalAlpha = textAlpha;
                 ctx.font = getPixelFont(10);
-                ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText(nextText, laneCx + 1, floatY + 1);
-                ctx.fillStyle = color; ctx.fillText(nextText, laneCx, floatY);
+                
+                ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText("NEXT", laneCx + 1, floatY - 14 + 1);
+                ctx.fillStyle = "#aaaaaa"; ctx.fillText("NEXT", laneCx, floatY - 14); 
+                
+                ctx.font = getPixelFont(10); 
+                ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText(statusText, laneCx + 1, floatY + 1);
+                ctx.fillStyle = color; ctx.fillText(statusText, laneCx, floatY);
             }
             ctx.globalAlpha = 1.0;
         }
@@ -1359,7 +1362,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             let baseColor = (canUse && !isLocked) ? btn.color : "#445";
             let btnAlpha = 0.9; 
             
-            // ★追加: 無効ボタンを押したときのエラー色フラッシュ
             const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150);
             if (isError) baseColor = "#6a3a3a"; 
             
