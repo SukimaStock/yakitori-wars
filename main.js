@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + レトロフォント全適用 + 余韻演出)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + レトロフォント + 余韻演出 + 進行不能バグ調査/保護)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -99,7 +99,6 @@ initGameState();
 let logoImage = new Image();
 logoImage.src = "Logo.png";
 
-// ピクセルフォント取得ヘルパー
 function getPixelFont(size) {
     return `${size}px 'Press Start 2P', monospace`;
 }
@@ -241,6 +240,16 @@ function updateIntroSequence() {
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         
+        // ★追加: 待機タイマー監視用ログ
+        if (state.gameEndWaitTimer % 20 === 0) {
+            console.log("RESULT WAIT", {
+                timer: state.gameEndWaitTimer,
+                pause: state.resultPause,
+                pauseDone: state.resultPauseDone,
+                screen: state.screen
+            });
+        }
+
         if (state.gameEndWaitTimer === 20 && !state.resultPauseDone) {
             state.resultPause = 30; 
             state.resultPauseDone = true;
@@ -440,32 +449,45 @@ function advanceAllSkewersAtRoundEnd() {
 }
 
 function updateCookPreview() {
-    if (state.cookPreviewActive) {
-        const PREVIEW_DUR = 40; 
-        
-        if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === PREVIEW_DUR) {
-            const event = state.cookPreviewEvents[state.cookPreviewIndex];
-            if (event) {
-                let smokeAmount = event.newCookState - event.prevCookState;
-                spawnSmokeEffect(event.laneIndex, smokeAmount, event.newStatus); 
-                
-                if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
-                    state.visuals.peakFlashes[state.lanes[event.laneIndex].id] = performance.now();
-                    state.visuals.perfectFlash = { timer: 6 }; 
-                }
+    if (!state.cookPreviewActive) return;
+
+    // ★追加: プレビューイベント配列異常時のフェイルセーフ
+    if (!state.cookPreviewEvents || state.cookPreviewEvents.length === 0) {
+        console.warn("cookPreviewActive but no events. Finishing round.");
+        finishEndRound();
+        return;
+    }
+
+    if (state.cookPreviewIndex >= state.cookPreviewEvents.length) {
+        console.warn("cookPreviewIndex out of range. Finishing round.");
+        finishEndRound();
+        return;
+    }
+
+    const PREVIEW_DUR = 40; 
+    
+    if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === PREVIEW_DUR) {
+        const event = state.cookPreviewEvents[state.cookPreviewIndex];
+        if (event) {
+            let smokeAmount = event.newCookState - event.prevCookState;
+            spawnSmokeEffect(event.laneIndex, smokeAmount, event.newStatus); 
+            
+            if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
+                state.visuals.peakFlashes[state.lanes[event.laneIndex].id] = performance.now();
+                state.visuals.perfectFlash = { timer: 6 }; 
             }
         }
+    }
 
-        state.cookPreviewPhaseTimer--;
+    state.cookPreviewPhaseTimer--;
 
-        if (state.cookPreviewPhaseTimer <= 0) {
-            state.cookPreviewIndex++;
-            if (state.cookPreviewIndex >= state.cookPreviewEvents.length) {
-                finishEndRound();
-            } else {
-                state.cookPreviewPhase = "show";
-                state.cookPreviewPhaseTimer = PREVIEW_DUR; 
-            }
+    if (state.cookPreviewPhaseTimer <= 0) {
+        state.cookPreviewIndex++;
+        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) {
+            finishEndRound();
+        } else {
+            state.cookPreviewPhase = "show";
+            state.cookPreviewPhaseTimer = PREVIEW_DUR; 
         }
     }
 }
@@ -488,7 +510,20 @@ function finishEndRound() {
     if (state.round >= state.maxRounds) {
         state.gameOver = true;
         updateAllScores();
-        state.gameEndWaitTimer = 100; 
+        state.gameEndWaitTimer = 60; // ★変更: 待機時間を100から60に短縮
+
+        // ★追加: 最終ラウンド終了時の状態ログ
+        console.log("FINAL ROUND END", {
+            round: state.round,
+            maxRounds: state.maxRounds,
+            p1: state.players[0].score,
+            p2: state.players[1].score,
+            servedP1: state.players[0].servedScore,
+            servedP2: state.players[1].servedScore,
+            cookPreviewActive: state.cookPreviewActive,
+            gameEndWaitTimer: state.gameEndWaitTimer
+        });
+
         return;
     }
     startNewRound();
@@ -1093,7 +1128,6 @@ function drawGameScreen(ctx) {
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
     
-    // スラッシュ前後のスペースを削除
     ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(`ROUND ${state.round}/${state.maxRounds}`, cx, safeTop + 25);
     if (state.gameMode === "ai") { ctx.font = getPixelFont(10); ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45); }
 
@@ -1361,14 +1395,15 @@ function drawGameScreen(ctx) {
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
 
-    if (state.resultPause > 0) {
-        const alpha = 0.4 + 0.4 * Math.sin(now / 200);
-        ctx.globalAlpha = alpha;
+    // ★追加: 待機中の「RESULT...」オーバーレイ表示
+    if (state.gameOver && state.gameEndWaitTimer > 0) {
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+
         ctx.fillStyle = "#fff";
-        ctx.font = getPixelFont(22);
+        ctx.font = getPixelFont(16);
         ctx.textAlign = "center";
-        ctx.fillText("...", cx, cy);
-        ctx.globalAlpha = 1.0;
+        ctx.fillText("RESULT...", cx, cy);
     }
 }
 
@@ -1555,20 +1590,35 @@ window.addEventListener("DOMContentLoaded", () => {
     canvas.addEventListener("click", (e) => { if (Date.now() - lastTouchTime < 500) return; handleCanvasClick(e, canvas); });
 
     function loop() {
-        if (state && state.hitStopTimer > 0) {
-            state.hitStopTimer--;
-            requestAnimationFrame(loop);
-            return;
+        // ★追加: ループ全体を保護し、例外で画面が完全停止するのを防ぐ
+        try {
+            if (state && state.hitStopTimer > 0) {
+                state.hitStopTimer--;
+            } else {
+                updateTransition();
+                updateRoulette();
+                updateIntroSequence(); 
+                updateCookPreview(); 
+                resolvePendingTurnFlow(); 
+                updateGameEndWait(); 
+                render(ctx); 
+                playAITurn(); 
+            }
+        } catch (e) {
+            console.error("GAME LOOP ERROR:", e, {
+                screen: state.screen,
+                round: state.round,
+                gameOver: state.gameOver,
+                gameEndWaitTimer: state.gameEndWaitTimer,
+                cookPreviewActive: state.cookPreviewActive,
+                cookPreviewIndex: state.cookPreviewIndex,
+                cookPreviewEventsLength: state.cookPreviewEvents ? state.cookPreviewEvents.length : null,
+                resultScreenTimer: state.resultScreenTimer,
+                currentPlayer: state.currentPlayer,
+                pendingPlayer: state.pendingPlayer
+            });
         }
-
-        updateTransition();
-        updateRoulette();
-        updateIntroSequence(); 
-        updateCookPreview(); 
-        resolvePendingTurnFlow(); 
-        updateGameEndWait(); 
-        render(ctx); 
-        playAITurn(); 
+        // ★例外が起きても必ず次フレームを予約する
         requestAnimationFrame(loop);
     }
     loop();
