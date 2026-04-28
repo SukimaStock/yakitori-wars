@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + UI補助テキスト統合)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + 補助アイコン洗練)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -711,7 +711,6 @@ function tryHarvestNode(node) {
 function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1; 
-        // ★演出強化: プレイヤー位置に "+1🔥" フィードバックを表示
         state.visuals.statusMessages.push({ 
             type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now() 
         });
@@ -1284,7 +1283,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     }
     ctx.globalAlpha = 1.0; 
 
-if (state.buildMode) {
+    if (state.buildMode) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
         if (selectedIcon) { const iconX = cb.x + cb.w / 2, iconY = cb.y - 26; ctx.globalAlpha = 0.9; drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3); ctx.globalAlpha = 1.0; }
         const isPressed = (now - (state.visuals.cancelClick || 0) < 150); drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
@@ -1308,10 +1307,11 @@ if (state.buildMode) {
             ctx.globalAlpha = btnAlpha;
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             const offset = isPressed ? 3 : 0; 
-            // アイコンの位置を少し上に調整して、下のテキストスペースを確保
+            
+            // メインアイコンを少し上に配置
             drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 5 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
             
-            // ★変更: 「対象+変化」のアイコン・テキスト表現に統一
+            // ★変更: 「対象+変化」のアイコン・テキスト表現
             let textAlpha = isPressed ? 1.0 : 0.7;
             let textYOffset = isPressed ? -2 : 0;
             ctx.globalAlpha = textAlpha;
@@ -1319,23 +1319,19 @@ if (state.buildMode) {
             ctx.font = getPixelFont(9); 
             ctx.textAlign = "center";
             
-            const textY = b.y + b.h - 8 + textYOffset; // ボタンの下部ギリギリに配置
+            const textY = b.y + b.h - 8 + textYOffset; 
             const textX = b.x + b.w/2 + offset;
 
-            // ボタンの種類に応じた描画
             if (boxId === 1) { // meat
-                // 「肉アイコン +1」を描画
-                drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
-                ctx.fillText("+1", textX + 10, textY);
+                ctx.fillText("+1", textX, textY);
             } else if (boxId === 2) { // put
-                // 「肉アイコン -1」を描画
                 drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
                 ctx.fillText("-1", textX + 10, textY);
             } else if (boxId === 3) { // serve
-                // 「串↑」の表現
-                ctx.fillText("串↑", textX, textY);
+                // 「串アイコン ↑」に変更
+                drawDotIcon(ctx, "put_skewer", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                ctx.fillText("↑", textX + 10, textY);
             } else if (boxId === 4) { // uchiwa
-                // 「🔥 +1」の表現 (絵文字を使用せずにドットアイコンを活用)
                 drawDotIcon(ctx, "fire", textX - 10, textY - 4, (canUse && !isLocked) ? "#fa3" : "#aaa", 1.5);
                 ctx.fillText("+1", textX + 10, textY);
             }
@@ -1394,7 +1390,6 @@ if (state.buildMode) {
         }
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); const fx = cx, fy = 130 + (idx * 32) + yAnimOffset; ctx.textAlign = "center";
 
-        // ★修正: msg.type="fire" に対応
         let isResult = msg.type === "result";
         let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : (msg.type === 'fire' ? 'fire' : 'diamond'));
         let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
