@@ -1,10 +1,15 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + フェード遷移)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
 let state = {};
 
 function initGameState() {
+    // 遷移中にstartGameが呼ばれてもフェード状態を維持するための退避
+    const currentTransition = (state && state.transition && state.transition.active) 
+        ? state.transition 
+        : { active: false, type: null, timer: 0, duration: 20, targetMode: null };
+
     state = {
         screen: "title",
         gameMode: "pvp", // "ai" or "pvp"
@@ -23,6 +28,9 @@ function initGameState() {
         isBusy: false,
         isAIThinking: false,
         
+        // --- 画面遷移用ステート ---
+        transition: currentTransition,
+
         // --- プレビュー演出用ステート ---
         cookPreviewActive: false,
         cookPreviewEvents: [],
@@ -172,6 +180,24 @@ const STAGE_CONFIG = {
     4: { profile: "master",  level: 4, enemyName: "MAKOTO" },
     5: { profile: "master",  level: 5, enemyName: "BOSS" }
 };
+
+function updateTransition() {
+    if (state.transition && state.transition.active) {
+        state.transition.timer++;
+        
+        // フェードアウト完了時に画面切り替え
+        if (state.transition.timer === state.transition.duration) {
+            if (state.transition.type === "titleToGame") {
+                startGame(state.transition.targetMode);
+            }
+        }
+        
+        // フェードイン完了時にトランジション終了
+        if (state.transition.timer >= state.transition.duration * 2) {
+            state.transition.active = false;
+        }
+    }
+}
 
 function setupAIForStage(stageNumber) {
     const conf = STAGE_CONFIG[stageNumber];
@@ -594,17 +620,21 @@ function isInputLocked() {
 function handleCanvasClick(event, canvas) {
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left, y = event.clientY - rect.top;
+    
     if (state.screen === "title") {
-        if (state.isBusy) return;
+        // トランジション中は入力を無視
+        if (state.isBusy || (state.transition && state.transition.active)) return;
+        
         const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2, buttonOffsetY = 85; 
         const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 };
         const btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
+        
         if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) {
-            state.visuals.titleClick = "ai"; state.isBusy = true;
-            setTimeout(() => { startGame("ai"); }, 150);
+            state.visuals.titleClick = "ai";
+            state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "ai" };
         } else if (x >= btnPvp.x && x <= btnPvp.x + btnPvp.w && y >= btnPvp.y && y <= btnPvp.y + btnPvp.h) {
-            state.visuals.titleClick = "pvp"; state.isBusy = true;
-            setTimeout(() => { startGame("pvp"); }, 150);
+            state.visuals.titleClick = "pvp";
+            state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "pvp" };
         }
         return;
     } else if (state.screen === "gameover" || state.screen === "clear") {
@@ -612,6 +642,7 @@ function handleCanvasClick(event, canvas) {
     } else if (state.screen === "stage_clear") {
         nextStage(); return;
     }
+    
     if (isInputLocked()) return;
     if (state.buildMode) {
         const cb = getCancelButtonBounds();
@@ -822,8 +853,13 @@ function render(ctx) {
     
     if (state.screen === "title") {
         const logoOffsetY = -205, buttonOffsetY = 85;
-        if (logoImage.complete && logoImage.naturalWidth > 0) { const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82); const ratio = logoImage.naturalHeight / logoImage.naturalWidth, logoW = logoMaxW, logoH = logoW * ratio; ctx.drawImage(logoImage, cx - logoW / 2, cy + logoOffsetY, logoW, logoH); }
-        else { ctx.fillStyle = LAYOUT.COLORS.TEXT_MAIN; ctx.font = "bold 32px monospace"; ctx.textAlign = "center"; ctx.fillText("YAKITORI WARS", cx, cy + logoOffsetY + 60); }
+        // ロゴ画像のフォールバックテキストを削除(何もしないことでチラつきを防ぐ)
+        if (logoImage.complete && logoImage.naturalWidth > 0) { 
+            const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82); 
+            const ratio = logoImage.naturalHeight / logoImage.naturalWidth, logoW = logoMaxW, logoH = logoW * ratio; 
+            ctx.drawImage(logoImage, cx - logoW / 2, cy + logoOffsetY, logoW, logoH); 
+        }
+        
         const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 }, btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
         drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI (SURVIVAL)", "rgba(255, 150, 60, 0.45)", state.visuals.titleClick === "ai");
         drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", state.visuals.titleClick === "pvp");
@@ -833,6 +869,21 @@ function render(ctx) {
         ctx.fillStyle = "#fff"; ctx.font = "bold 36px monospace"; ctx.textAlign = "center"; ctx.fillText(state.screen === "gameover" ? "GAME OVER" : "CLEAR!", cx, cy - 50);
         ctx.font = "24px monospace"; ctx.fillStyle = state.winnerText.includes("P2") ? LAYOUT.COLORS.P2 : LAYOUT.COLORS.P1; ctx.fillText(state.winnerText, cx, cy);
         ctx.fillStyle = "#fff"; ctx.font = "16px monospace"; ctx.fillText("Tap to Continue", cx, cy + 80);
+    }
+    
+    // 画面全体へのフェード描画(一番最後に描画する)
+    if (state.transition && state.transition.active) {
+        let t = state.transition.timer;
+        let d = state.transition.duration;
+        let alpha = 0;
+        
+        if (t < d) alpha = t / d;         // フェードアウト
+        else alpha = 1 - (t - d) / d;     // フェードイン
+        
+        alpha = Math.max(0, Math.min(1, alpha));
+        
+        ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`;
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
 
@@ -879,7 +930,7 @@ function drawGameScreen(ctx) {
             if (state.buildMode === "harvest" && isFlashable && lane.built) { 
                 const status = getCookLabel(lane.type, effectiveCookState);
                 if (status === "early") {
-                    isFlashable = false; // 取れない・ペナルティのみのearlyは点滅させない
+                    isFlashable = false;
                 } else if (status === "perfect") {
                     isPerfectTarget = true; 
                 }
@@ -913,22 +964,21 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = gradient; ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
 
         if (isFlashable) {
-            // パルス値の計算 (0.0 ~ 1.0) でゆっくりとした呼吸のような明滅を作る
             const selectPulse = 0.5 + 0.5 * Math.sin(now / 350);
 
             if (state.buildMode === "harvest") {
                 const harvestStatus = getCookLabel(lane.type, effectiveCookState);
                 let fillAlphaBase = 0.08, fillAlphaRange = 0.10;
                 let strokeAlphaBase = 0.25, strokeAlphaRange = 0.20;
-                let rgb = "255, 255, 255"; // デフォルトの白系
+                let rgb = "255, 255, 255";
 
                 if (isPerfectTarget) {
-                    rgb = "255, 230, 100"; // 完璧なターゲット: 黄色
+                    rgb = "255, 230, 100";
                 } else if (harvestStatus === "burnt") {
                     if (lane.owner !== activePlayer) {
-                        rgb = "180, 180, 180"; // 相手の焦げ: グレー系
+                        rgb = "180, 180, 180";
                     } else {
-                        rgb = "100, 100, 100"; // 自分の焦げ: 暗め
+                        rgb = "100, 100, 100";
                         fillAlphaBase = 0.04; fillAlphaRange = 0.04;
                         strokeAlphaBase = 0.15; strokeAlphaRange = 0.10;
                     }
@@ -945,12 +995,12 @@ function drawGameScreen(ctx) {
             } else if (state.buildMode === "uchiwa") {
                 let fillAlphaBase = 0.08, fillAlphaRange = 0.10;
                 let strokeAlphaBase = 0.25, strokeAlphaRange = 0.20;
-                let rgb = "255, 255, 255"; // デフォルトの白系
+                let rgb = "255, 255, 255";
 
                 if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") {
-                    rgb = "255, 100, 100"; // 焦がしてしまう: 赤寄り
+                    rgb = "255, 100, 100";
                 } else if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") {
-                    rgb = "255, 230, 100"; // 完璧にできる: 黄色寄り
+                    rgb = "255, 230, 100";
                 }
 
                 const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
@@ -962,7 +1012,6 @@ function drawGameScreen(ctx) {
                 ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
                 
             } else {
-                // 肉を置くときなど通常の選択
                 const currentFillAlpha = 0.08 + selectPulse * 0.10;
                 const currentStrokeAlpha = 0.25 + selectPulse * 0.20;
                 ctx.fillStyle = `rgba(255, 255, 255, ${currentFillAlpha})`; 
@@ -1178,6 +1227,7 @@ window.addEventListener("DOMContentLoaded", () => {
     canvas.addEventListener("click", (e) => { if (Date.now() - lastTouchTime < 500) return; handleCanvasClick(e, canvas); });
 
     function loop() {
+        updateTransition();
         updateRoulette(); updateCookPreview(); resolvePendingTurnFlow(); render(ctx); playAITurn(); requestAnimationFrame(loop);
     }
     loop();
