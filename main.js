@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 予測表示改行対応)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 予測表示改行対応 + ペナルティ明示)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -781,7 +781,8 @@ function handleCanvasClick(event, canvas) {
             const l = getLaneBounds(i), padding = 15;
             if (x >= l.x - padding && x <= l.x + l.w + padding && y >= l.y - padding && y <= l.y + l.h + padding) {
                 const node = state.lanes[i];
-                if (isNodeValidForMode(node, state.buildMode)) {
+                // ★修正: プレビューと同様、ここでも生焼けのクリックを許可する(ゲームシステム自体は許可しているため)
+                if (isNodeValidForMode(node, state.buildMode) || (state.buildMode === "harvest" && node.built && node.owner === state.currentPlayer && getCookLabel(node.type, node.cookState) === "early")) {
                     if (state.buildMode === "sapling") tryBuildNode(node);
                     else if (state.buildMode === "harvest") tryHarvestNode(node);
                     else if (state.buildMode === "uchiwa") tryUchiwaNode(node);
@@ -1112,14 +1113,20 @@ function drawGameScreen(ctx) {
         let uchiwaTargetStatus = baseEndStatus;
 
         if (state.buildMode) {
+            // ★修正: isNodeValidForMode自体で「生焼けのスティール不可」は防いでいるので、自分の生焼けはここで弾かれない
             isFlashable = isNodeValidForMode(lane, state.buildMode);
+            // 自分の生焼けも表示の対象に含めるため、強制的にFlash対象にする処理を追加
+            if (state.buildMode === "harvest" && lane.built && lane.owner === activePlayer && getCookLabel(lane.type, effectiveCookState) === "early") {
+                isFlashable = true;
+            }
+
             if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) { 
                 if (getCookLabel(lane.type, effectiveCookState) !== "burnt" && pResources < 1) isFlashable = false; 
             }
             if (state.buildMode === "harvest" && isFlashable && lane.built) { 
                 const status = getCookLabel(lane.type, effectiveCookState);
-                if (status === "early") isFlashable = false;
-                else if (status === "perfect") isPerfectTarget = true; 
+                if (status === "perfect") isPerfectTarget = true; 
+                // 生焼け(early)でも isFlashable = false にはせず、プレビューを見せる
             }
             if (state.buildMode === "uchiwa" && isFlashable && lane.built) {
                 uchiwaTargetState = baseEndState + 1;
@@ -1167,6 +1174,9 @@ function drawGameScreen(ctx) {
                 else if (harvestStatus === "burnt") {
                     if (lane.owner !== activePlayer) rgb = "180, 180, 180";
                     else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; strokeAlphaBase = 0.15; strokeAlphaRange = 0.10; }
+                } else if (harvestStatus === "early") {
+                    // ★追加: 生焼けを取ろうとした時の警告色
+                    rgb = "255, 80, 80";
                 }
                 const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange, currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
                 ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
@@ -1288,7 +1298,6 @@ function drawGameScreen(ctx) {
                 ctx.fillStyle = color; ctx.fillText(scoreText, laneCx, floatY);
                 
             } else if (state.buildMode === "uchiwa") {
-                // ★修正: NEXTと結果を改行して表示
                 let statusText = uchiwaTargetStatus.toUpperCase();
                 if (uchiwaTargetStatus === "burnt") statusText = "BURN";
                 if (uchiwaTargetStatus === "okay") statusText = "OK";
