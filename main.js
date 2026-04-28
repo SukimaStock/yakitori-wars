@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 演出強化 + 余韻調整)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -31,15 +31,17 @@ function initGameState() {
         // --- 画面遷移用ステート ---
         transition: currentTransition,
 
-        // --- イントロ演出(VS/FIGHT)用ステート ---
+        // --- イントロ演出(VS/FIGHT/PAUSE)用ステート ---
         introSequenceActive: false,
         introSequenceDone: false,
-        introPhase: null, // "vs" or "fight"
+        introPhase: null, // "vs", "fight", "pause"
         introVsTimer: 0,
         fightSplashTimer: 0,
+        introPauseTimer: 0, // --- 追加: FIGHT後の余韻用 ---
         
-        // --- 終了時の余韻用ステート ---
+        // --- 終了時の余韻と結果画面用ステート ---
         gameEndWaitTimer: 0, 
+        resultScreenTimer: 0, // --- 追加: 結果画面の段階的表示用 ---
 
         // --- 取った瞬間のヒットストップ用 ---
         hitStopTimer: 0,
@@ -198,14 +200,11 @@ function updateTransition() {
     if (state.transition && state.transition.active) {
         state.transition.timer++;
         
-        // フェードアウト完了時に画面切り替え
         if (state.transition.timer === state.transition.duration) {
             if (state.transition.type === "titleToGame") {
                 startGame(state.transition.targetMode);
             }
         }
-        
-        // フェードイン完了時にトランジション終了
         if (state.transition.timer >= state.transition.duration * 2) {
             state.transition.active = false;
         }
@@ -219,12 +218,18 @@ function updateIntroSequence() {
         state.introVsTimer--;
         if (state.introVsTimer <= 0) {
             state.introPhase = "fight";
-            // --- 変更: FIGHT表示時間を少し短く (40 -> 25) ---
             state.fightSplashTimer = 25; 
         }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
         if (state.fightSplashTimer <= 0) {
+            // --- 変更: FIGHT!! の後に一拍の間(呼吸)を追加 ---
+            state.introPhase = "pause";
+            state.introPauseTimer = 20; // 20フレームの静寂
+        }
+    } else if (state.introPhase === "pause") {
+        state.introPauseTimer--;
+        if (state.introPauseTimer <= 0) {
             state.introSequenceActive = false;
             state.introSequenceDone = true;
             state.pendingTurnSplash = true; 
@@ -236,7 +241,9 @@ function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         state.gameEndWaitTimer--;
         if (state.gameEndWaitTimer <= 0) {
-            // 余韻が終わったので結果画面へ
+            // --- 変更: 結果画面への移行時に表示制御タイマーをリセット ---
+            state.resultScreenTimer = 0; 
+            
             const p1 = state.players[0].score;
             const p2 = state.players[1].score;
             if (p1 > p2) {
@@ -360,16 +367,12 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     }
 }
 
-// --- 変更: 完璧な収穫時の専用エフェクト(快感・報酬用) ---
 function spawnPerfectHarvestEffect(laneIndex) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
     const meatY = b.y + b.h * 0.4;
-
-    // 少し温かい色を中心に
     const colors = ["#fff7b0", "#ffdf6b", "#ffffff"]; 
 
-    // パーティクル数を増やし、少し上に舞うように
     for (let i = 0; i < 24; i++) {
         state.visuals.particles.push({
             x: laneCx + (Math.random() - 0.5) * 50, 
@@ -380,11 +383,10 @@ function spawnPerfectHarvestEffect(laneIndex) {
             maxLife: 30 + Math.random() * 30, 
             size: 4 + Math.random() * 6,
             color: colors[Math.floor(Math.random() * colors.length)],
-            isSparkle: true // 十字描画フラグ
+            isSparkle: true 
         });
     }
 
-    // レーンの付近に PERFECT! の文字を浮かせる専用パーティクル
     state.visuals.particles.push({
         x: laneCx,
         y: b.y - 15,
@@ -544,7 +546,6 @@ function updateRoulette() {
                 
                 state.introSequenceActive = true;
                 state.introPhase = "vs";
-                // --- 変更: VS演出の長さを少し短縮 (75 -> 60) ---
                 state.introVsTimer = 60; 
             }
         }
@@ -676,10 +677,9 @@ function tryHarvestNode(node) {
         });
     }
     
-    // --- 変更: 完璧な収穫時にキラキラとヒットストップを追加 ---
     if (status === "perfect") {
         spawnPerfectHarvestEffect(state.lanes.indexOf(node));
-        state.hitStopTimer = 6; // 6フレーム(約100ms)のごく短いヒットストップ
+        state.hitStopTimer = 6; 
     }
 
     state.visuals.ghosts.push({ 
@@ -739,10 +739,16 @@ function handleCanvasClick(event, canvas) {
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "pvp" };
         }
         return;
-    } else if (state.screen === "gameover" || state.screen === "clear") {
-        initGameState(); return;
-    } else if (state.screen === "stage_clear") {
-        nextStage(); return;
+    } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
+        // --- 変更: 結果表示がTap to Continueになるまでスキップ不可にする ---
+        if (state.resultScreenTimer < 70) return;
+        
+        if (state.screen === "stage_clear") {
+            nextStage();
+        } else {
+            initGameState();
+        }
+        return;
     }
     
     if (isInputLocked()) return;
@@ -967,7 +973,6 @@ function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scal
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
-    // --- 変更: ステータスメッセージの生存期間を少し延長 ---
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => now - m.startTime < 1600);
     
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -984,12 +989,73 @@ function render(ctx) {
         const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 }, btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
         drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI (SURVIVAL)", "rgba(255, 150, 60, 0.45)", state.visuals.titleClick === "ai");
         drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", state.visuals.titleClick === "pvp");
+    
     } else if (state.screen === "game") { 
         drawGameScreen(ctx); 
+        
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
-        ctx.fillStyle = "#fff"; ctx.font = "bold 36px monospace"; ctx.textAlign = "center"; ctx.fillText(state.screen === "gameover" ? "GAME OVER" : "CLEAR!", cx, cy - 50);
-        ctx.font = "24px monospace"; ctx.fillStyle = state.winnerText.includes("P2") ? LAYOUT.COLORS.P2 : LAYOUT.COLORS.P1; ctx.fillText(state.winnerText, cx, cy);
-        ctx.fillStyle = "#fff"; ctx.font = "16px monospace"; ctx.fillText("Tap to Continue", cx, cy + 80);
+        // --- 変更: 結果画面に余韻を持たせ、ダイヤ数を段階的に表示する ---
+        state.resultScreenTimer++;
+        const timer = state.resultScreenTimer;
+        
+        // 1. タイトル表示 (0フレーム目〜)
+        ctx.fillStyle = "#fff"; ctx.font = "bold 36px monospace"; ctx.textAlign = "center"; 
+        ctx.fillText(state.screen === "gameover" ? "GAME OVER" : "CLEAR!", cx, cy - 90);
+        
+        // 2. 勝敗テキスト (20フレーム目〜)
+        if (timer >= 20) {
+            const alpha = Math.min(1, (timer - 20) / 10);
+            ctx.globalAlpha = alpha;
+            ctx.font = "24px monospace"; 
+            
+            ctx.fillStyle = state.winnerText.includes("P2") ? LAYOUT.COLORS.P2 : (state.winnerText.includes("P1") ? LAYOUT.COLORS.P1 : "#ffeb3b");
+            if (state.winnerText.includes("Draw")) ctx.fillStyle = "#aaa";
+            ctx.fillText(state.winnerText, cx, cy - 50);
+            
+            ctx.globalAlpha = 1.0;
+        }
+        
+        // 3. スコア(ダイヤ)詳細表示 (40フレーム目〜)
+        if (timer >= 40) {
+            const alpha = Math.min(1, (timer - 40) / 10);
+            ctx.globalAlpha = alpha;
+            
+            const p1Score = state.players[0].score;
+            const p2Score = state.players[1].score;
+            const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
+
+            // 勝敗によって明暗を分ける(納得感の演出)
+            let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2;
+            if (p1Score > p2Score) { p2Color = "#555"; }
+            else if (p2Score > p1Score) { p1Color = "#555"; }
+            else { p1Color = "#aaa"; p2Color = "#aaa"; }
+            
+            ctx.font = "bold 24px monospace";
+            
+            // P1 行
+            ctx.textAlign = "left"; ctx.fillStyle = p1Color;
+            ctx.fillText("P1", cx - 70, cy + 10);
+            ctx.textAlign = "right"; ctx.fillText(p1Score, cx + 30, cy + 10);
+            drawDotIcon(ctx, "diamond", cx + 50, cy + 2, p1Color, 2.5);
+            
+            // P2/AI 行
+            ctx.textAlign = "left"; ctx.fillStyle = p2Color;
+            ctx.fillText(p2Name, cx - 70, cy + 50);
+            ctx.textAlign = "right"; ctx.fillText(p2Score, cx + 30, cy + 50);
+            drawDotIcon(ctx, "diamond", cx + 50, cy + 42, p2Color, 2.5);
+            
+            ctx.globalAlpha = 1.0;
+        }
+        
+        // 4. Tap to Continue (70フレーム目〜)
+        if (timer >= 70) {
+            const alpha = Math.min(1, (timer - 70) / 10);
+            const pulse = 0.5 + 0.5 * Math.sin(getTime() / 250); 
+            ctx.globalAlpha = alpha * pulse;
+            ctx.fillStyle = "#fff"; ctx.font = "16px monospace"; ctx.textAlign = "center"; 
+            ctx.fillText("Tap to Continue", cx, cy + 110);
+            ctx.globalAlpha = 1.0;
+        }
     }
     
     if (state.transition && state.transition.active) {
@@ -1165,14 +1231,12 @@ function drawGameScreen(ctx) {
                     
                     if (elapsed < 300) {
                         ctx.save();
-                        // --- 変更: 焼き上がり時のフラッシュを控えめに (0.5 -> 0.2) ---
                         ctx.globalAlpha = (1 - (elapsed / 300)) * 0.2; 
                         ctx.fillStyle = "rgba(255, 255, 200, 1.0)";
                         ctx.fillRect(b.x, b.y, b.w, b.h);
                         ctx.restore();
                     }
                     
-                    // --- 変更: 焼き上がり時のスケールとアルファを抑える ---
                     peakAlpha = (1 - progress) * 0.4; 
                     peakScale = 1 + (1 - progress) * 0.2; 
                 }
@@ -1249,7 +1313,6 @@ function drawGameScreen(ctx) {
             
             if (previewEventForThisLane.prevStatus !== "perfect" && previewEventForThisLane.newStatus === "perfect") { 
                 ctx.fillStyle = `rgba(255, 230, 100, ${0.25 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
-                // --- 変更: テキストサイズを少し小さくし、派手さを抑える ---
                 ctx.fillStyle = "#e6d555"; ctx.font = "bold 20px monospace"; ctx.fillText("READY!", laneCx, textY); 
             }
             else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") { 
@@ -1280,9 +1343,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         let p = state.visuals.particles[i]; p.life++; if (p.life >= p.maxLife) { state.visuals.particles.splice(i, 1); continue; }
         p.x += p.vx; p.y += p.vy; const ratio = p.life / p.maxLife; ctx.globalAlpha = 0.6 * (1 - ratio); 
         
-        // --- 変更: 完璧時の文字とキラキラ(十字形)の描画 ---
         if (p.isText) {
-            ctx.globalAlpha = 1 - ratio; // 文字は少し長めに残す
+            ctx.globalAlpha = 1 - ratio; 
             ctx.fillStyle = p.color;
             ctx.font = `bold ${p.size}px monospace`;
             ctx.textAlign = "center";
@@ -1328,7 +1390,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.globalAlpha = 1.0; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
         let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
         if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex; ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = "bold 48px monospace"; ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15); }
-    } else if (state.introSequenceActive) {
+    } else if (state.introSequenceActive && state.introPhase !== "pause") { // --- 変更: pause時は描画しない ---
         ctx.fillStyle = "rgba(22, 22, 32, 0.85)"; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         
@@ -1336,7 +1398,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.textBaseline = "middle";
 
         if (state.introPhase === "vs") {
-            // --- 変更: 60フレーム基準の進行割合に ---
             const p_vs = state.introVsTimer / 60; 
 
             ctx.fillStyle = LAYOUT.COLORS.P1;
@@ -1359,10 +1420,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             }
 
         } else if (state.introPhase === "fight") {
-            // --- 変更: FIGHT!!演出を大人しく・控えめに ---
             const p_fight = state.fightSplashTimer / 25; 
             const elapsedP = 1 - p_fight;
-            const scale = 1.0 + elapsedP * 0.08; // スケールを抑える
+            const scale = 1.0 + elapsedP * 0.08; 
             const alpha = p_fight < 0.2 ? p_fight * 5 : 1.0;
 
             ctx.globalAlpha = alpha;
@@ -1371,9 +1431,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.scale(scale, scale);
             
             ctx.font = "italic bold 52px monospace";
-            ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; // 控えめな赤い影
+            ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; 
             ctx.fillText("FIGHT!!", 3, 3);
-            ctx.fillStyle = "#ffeb3b"; // 白〜薄い黄色
+            ctx.fillStyle = "#ffeb3b"; 
             ctx.fillText("FIGHT!!", 0, 0);
 
             ctx.restore();
@@ -1400,7 +1460,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime; let alpha = 1, yAnimOffset = 0;
         
-        // --- 変更: 完璧なスコア表示はゆっくり浮かせる ---
         if (msg.isPerfect) {
             if (elapsed < 150) { const p = elapsed / 150; alpha = p; yAnimOffset = 15 * (1 - p); } 
             else if (elapsed < 1100) { alpha = 1; yAnimOffset = - (elapsed - 150) * 0.015; } 
@@ -1415,7 +1474,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         let icon = msg.type === 'meat' ? 'meat' : 'diamond', text = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`, color = msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.amount > 0 ? "#ff4" : "#f33");
         const txtW = ctx.measureText(text).width + 50; 
         
-        // --- 変更: isPerfectならフォントサイズを少し大きく ---
         const fontSize = msg.isPerfect ? 28 : 24;
         
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
@@ -1458,7 +1516,6 @@ window.addEventListener("DOMContentLoaded", () => {
     canvas.addEventListener("click", (e) => { if (Date.now() - lastTouchTime < 500) return; handleCanvasClick(e, canvas); });
 
     function loop() {
-        // --- 変更: ヒットストップ時はロジックと描画の更新を完全に止める ---
         if (state && state.hitStopTimer > 0) {
             state.hitStopTimer--;
             requestAnimationFrame(loop);
