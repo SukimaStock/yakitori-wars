@@ -1065,7 +1065,7 @@ function render(ctx) {
             ctx.globalAlpha = 1.0;
         }
         
-        if (timer >= 40) {
+if (timer >= 40) {
             const alpha = Math.min(1, (timer - 40) / 10);
             ctx.globalAlpha = alpha;
             
@@ -1080,15 +1080,21 @@ function render(ctx) {
             
             ctx.font = getPixelFont(16); 
             
+            // --- P1 スコア行 ---
             ctx.textAlign = "left"; ctx.fillStyle = p1Color;
-            ctx.fillText("P1", cx - 70, cy + 10);
-            ctx.textAlign = "right"; ctx.fillText(p1Score, cx + 30, cy + 10);
-            drawDotIcon(ctx, "diamond", cx + 50, cy + 2, p1Color, 2.5);
+            ctx.fillText("P1", cx - 110, cy + 10); // 左へ広げた
             
+            ctx.textAlign = "right";
+            ctx.fillText(p1Score, cx + 60, cy + 10); // 右へ広げた
+            drawDotIcon(ctx, "diamond", cx + 85, cy + 2, p1Color, 2.5); // アイコンも移動
+            
+            // --- P2 (相手) スコア行 ---
             ctx.textAlign = "left"; ctx.fillStyle = p2Color;
-            ctx.fillText(p2Name, cx - 70, cy + 50);
-            ctx.textAlign = "right"; ctx.fillText(p2Score, cx + 30, cy + 50);
-            drawDotIcon(ctx, "diamond", cx + 50, cy + 42, p2Color, 2.5);
+            ctx.fillText(p2Name, cx - 110, cy + 50); // 左へ広げた
+            
+            ctx.textAlign = "right";
+            ctx.fillText(p2Score, cx + 60, cy + 50); // 右へ広げた
+            drawDotIcon(ctx, "diamond", cx + 85, cy + 42, p2Color, 2.5); // アイコンも移動
             
             ctx.globalAlpha = 1.0;
         }
