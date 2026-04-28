@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + UI微調整対応)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + UI・プレビュータイミング微調整)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -449,7 +449,7 @@ function updateCookPreview() {
     }
 
     const PREVIEW_DUR = 40; 
-    const CHANGE_TIME = 24; // 状態が変化するタイミング (進行度0.4)
+    const CHANGE_TIME = 26; // 進行度0.35のタイミング (40 * 0.65 = 26) に同期
     if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === CHANGE_TIME) {
         const event = state.cookPreviewEvents[state.cookPreviewIndex];
         if (event) {
@@ -1107,12 +1107,9 @@ function drawGameScreen(ctx) {
             if (activeEvent && activeEvent.laneIndex === i) {
                 isCurrentPreviewLane = true;
                 previewProg = 1.0 - (state.cookPreviewPhaseTimer / 40);
-                if (previewProg < 0.15) {
+                if (previewProg < 0.35) {
                     displayCookState = activeEvent.prevCookState;
                     gaugeCookState = activeEvent.prevCookState;
-                } else if (previewProg < 0.4) {
-                    displayCookState = activeEvent.prevCookState;
-                    gaugeCookState = activeEvent.newCookState;
                 } else {
                     displayCookState = activeEvent.newCookState;
                     gaugeCookState = activeEvent.newCookState;
@@ -1265,7 +1262,7 @@ function drawGameScreen(ctx) {
         for (let j = 0; j < 6; j++) {
             const dx = dotStartX + j * (dotSize + dotGap); 
             if (j < cv) {
-                if (isCurrentPreviewLane && previewProg < 0.4 && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
+                if (isCurrentPreviewLane && previewProg < 0.35 && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
                     const flashAlpha = 0.5 + 0.5 * Math.sin(getTime() / 50);
                     ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                 } else {
@@ -1285,8 +1282,8 @@ function drawGameScreen(ctx) {
             } else { ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize); }
         }
         
-        if (isCurrentPreviewLane && previewEventForThisLane && previewProg >= 0.5) {
-            const textProgress = Math.min(1, (previewProg - 0.5) / 0.5); 
+        if (isCurrentPreviewLane && previewEventForThisLane && previewProg >= 0.35) {
+            const textProgress = Math.min(1, (previewProg - 0.35) / 0.65); 
             const textY = b.y + b.h * 0.1 - 15;
             ctx.textAlign = "center"; 
             
