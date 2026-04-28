@@ -1284,7 +1284,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     }
     ctx.globalAlpha = 1.0; 
 
-    if (state.buildMode) {
+if (state.buildMode) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
         if (selectedIcon) { const iconX = cb.x + cb.w / 2, iconY = cb.y - 26; ctx.globalAlpha = 0.9; drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3); ctx.globalAlpha = 1.0; }
         const isPressed = (now - (state.visuals.cancelClick || 0) < 150); drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
@@ -1304,16 +1304,42 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 baseColor = brightenColor(btn.color, isPerfect ? 0.3 : 0.0); 
                 if (isPerfect) btnAlpha = 1.0; 
             }
+            
             ctx.globalAlpha = btnAlpha;
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
-            const offset = isPressed ? 3 : 0; drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
+            const offset = isPressed ? 3 : 0; 
+            // アイコンの位置を少し上に調整して、下のテキストスペースを確保
+            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 5 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
             
-            // ★追加: ボタン下の補助テキストと押下時アニメーション
-            const subTexts = ["+1", "-1", "GET", "+1🔥"];
-            let textAlpha = isPressed ? 1.0 : 0.6;
-            let textYOffset = isPressed ? -3 : 0;
-            ctx.globalAlpha = textAlpha; ctx.fillStyle = "#fff"; ctx.font = getPixelFont(10); ctx.textAlign = "center";
-            ctx.fillText(subTexts[i], b.x + b.w/2, b.y + b.h + 18 + textYOffset);
+            // ★変更: 「対象+変化」のアイコン・テキスト表現に統一
+            let textAlpha = isPressed ? 1.0 : 0.7;
+            let textYOffset = isPressed ? -2 : 0;
+            ctx.globalAlpha = textAlpha;
+            ctx.fillStyle = (canUse && !isLocked) ? "#fff" : "#aaa"; 
+            ctx.font = getPixelFont(9); 
+            ctx.textAlign = "center";
+            
+            const textY = b.y + b.h - 8 + textYOffset; // ボタンの下部ギリギリに配置
+            const textX = b.x + b.w/2 + offset;
+
+            // ボタンの種類に応じた描画
+            if (boxId === 1) { // meat
+                // 「肉アイコン +1」を描画
+                drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                ctx.fillText("+1", textX + 10, textY);
+            } else if (boxId === 2) { // put
+                // 「肉アイコン -1」を描画
+                drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                ctx.fillText("-1", textX + 10, textY);
+            } else if (boxId === 3) { // serve
+                // 「串↑」の表現
+                ctx.fillText("串↑", textX, textY);
+            } else if (boxId === 4) { // uchiwa
+                // 「🔥 +1」の表現 (絵文字を使用せずにドットアイコンを活用)
+                drawDotIcon(ctx, "fire", textX - 10, textY - 4, (canUse && !isLocked) ? "#fa3" : "#aaa", 1.5);
+                ctx.fillText("+1", textX + 10, textY);
+            }
+
             ctx.globalAlpha = 1.0; 
         });
     }
