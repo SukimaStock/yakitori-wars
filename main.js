@@ -42,6 +42,7 @@ function initGameState() {
         // --- 終了時の余韻と結果画面用ステート ---
         gameEndWaitTimer: 0, 
         resultScreenTimer: 0, 
+        resultPause: 0, // ★追加: 勝敗決定後の「間」用タイマー
 
         // --- 取った瞬間のヒットストップ用 ---
         hitStopTimer: 0,
@@ -90,7 +91,8 @@ function initGameState() {
             statusMessages: [], 
             particles: [], 
             cancelClick: 0, 
-            titleClick: null
+            titleClick: null,
+            perfectFlash: { timer: 0 } // ★追加: PERFECT到達瞬間の画面フラッシュ用
         }
     };
 }
@@ -238,6 +240,15 @@ function updateIntroSequence() {
 
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
+        // ★追加: 勝敗表示前の「間」の処理
+        if (state.resultPause > 0) {
+            state.resultPause--;
+            return; // ポーズ中はタイマーを減らさない
+        }
+        if (state.gameEndWaitTimer === 20) {
+            state.resultPause = 18; // 約0.3秒間待機する
+        }
+
         state.gameEndWaitTimer--;
         if (state.gameEndWaitTimer <= 0) {
             state.resultScreenTimer = 0; 
@@ -438,6 +449,8 @@ function updateCookPreview() {
                 
                 if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
                     state.visuals.peakFlashes[state.lanes[event.laneIndex].id] = performance.now();
+                    // ★追加: PERFECT到達瞬間の画面フラッシュをセット
+                    state.visuals.perfectFlash = { timer: 6 }; 
                 }
             }
         }
@@ -522,7 +535,8 @@ function updateRoulette() {
         if (state.startRouletteTickTimer <= 0) {
             state.startRouletteIndex = 3 - state.startRouletteIndex;
             state.startRouletteCount++;
-            state.startRouletteInterval *= 1.15; 
+            // ★変更: ルーレットの倍率を1.15から1.12にして余韻を調整
+            state.startRouletteInterval *= 1.12; 
             state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
             if (state.startRouletteCount >= state.startRouletteMaxCount) {
                 state.startRouletteActive = false;
@@ -1061,6 +1075,14 @@ function render(ctx) {
         ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`;
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
+
+    // ★追加: PERFECTフラッシュの描画(画面の一番上に重なるように最後で描画します)
+    if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
+        const alpha = (state.visuals.perfectFlash.timer / 6) * 0.15;
+        ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+        state.visuals.perfectFlash.timer--;
+    }
 }
 
 function drawGameScreen(ctx) {
@@ -1119,6 +1141,17 @@ function drawGameScreen(ctx) {
 
         drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
         ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
+
+        // ★追加: 「取れる瞬間」の静かなサイン
+        if (lane.built) {
+            const currentStatus = getCookLabel(lane.type, effectiveCookState);
+            if (currentStatus === "perfect") {
+                const pulse = 0.5 + 0.5 * Math.sin(now / 300);
+                ctx.strokeStyle = `rgba(255, 230, 120, ${0.2 + pulse * 0.2})`;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+            }
+        }
         
         let isDanger = false;
         if (lane.built && !lane.justPlaced) {
@@ -1366,14 +1399,18 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer); if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
             const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
             let baseColor = (canUse && !isLocked) ? btn.color : "#445";
+            let btnAlpha = 0.9; // ★追加: ボタンの基本透明度
             
             if (boxId === 3 && canUse && !isLocked && state.buildMode === null) { 
                 const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
                 baseColor = brightenColor(btn.color, isPerfect ? 0.3 : 0.0); 
+                if (isPerfect) btnAlpha = 1.0; // ★追加: 「取る」かつ「PERFECT」がある時だけくっきりさせる
             }
             
+            ctx.globalAlpha = btnAlpha; // 追加
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             const offset = isPressed ? 3 : 0; drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
+            ctx.globalAlpha = 1.0; // リセット
         });
     }
 
