@@ -781,18 +781,39 @@ function getBuildModeIcon(mode) { if (mode === "sapling") return "put_skewer"; i
 
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     if (!lane.built || !mode) return;
-    const b = getLaneBounds(laneIndex); const laneCx = b.x + b.w / 2, hintY = b.y - 18; 
-    const status = getCookLabel(lane.type, lane.cookState), isOwn = lane.owner === activePlayer;
+    const b = getLaneBounds(laneIndex); 
+    const laneCx = b.x + b.w / 2;
+    const hintY = b.y - 18; 
+    
+    const status = getCookLabel(lane.type, lane.cookState);
+    const isOwn = lane.owner === activePlayer;
     const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
+
     if (mode === "harvest") {
-        if (status === "early") drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6);
-        else if (status === "burnt") drawDotIcon(ctx, "trash", laneCx, hintY, isOwn ? "#ccc" : "#bbb", 2);
-        else if (isOwn) { if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2); else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2); }
-        else if (canSteal) drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2);
-        else drawDotIcon(ctx, "warning", laneCx, hintY, "#888", 2);
+        if (status === "early") {
+            drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6);
+        } else if (status === "burnt") {
+            if (isOwn) {
+                // 自分の焦げ:暗いバツ(ネガティブ・処理ペナルティ)
+                drawDotIcon(ctx, "cross", laneCx, hintY, "#555", 2);
+            } else {
+                // 相手の焦げ:ゴミ箱+「0」(コスト不要の処理対象)
+                drawDotIcon(ctx, "trash", laneCx - 6, hintY, "#ccc", 2);
+                ctx.fillStyle = "#999"; 
+                ctx.font = "bold 14px monospace";
+                ctx.textAlign = "left";
+                ctx.fillText("0", laneCx + 8, hintY + 6);
+            }
+        } else if (isOwn) {
+            if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
+            else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
+        } else if (canSteal) {
+            drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2);
+        } else {
+            drawDotIcon(ctx, "warning", laneCx, hintY, "#888", 2);
+        }
     }
 }
-
 // 揺らめきを完全に排除した静的な輝き
 function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scale = 1) {
     const baseAlpha = isPreview ? 0.3 : (isHarvestMode ? 0.8 : 0.65);
