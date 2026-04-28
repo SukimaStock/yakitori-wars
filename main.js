@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + UI・プレビュータイミング微調整)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 最終演出・UI調整)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -190,6 +190,8 @@ const getTime = () => performance.now();
 // ==========================================
 // 3. game/flow.js - ゲーム進行とスコア
 // ==========================================
+const COOK_PREVIEW_DUR = 55;
+
 const STAGE_CONFIG = {
     1: { profile: "gambler", level: 1, enemyName: "KENTA" },
     2: { profile: "thief",   level: 2, enemyName: "HIDEKI" },
@@ -448,8 +450,7 @@ function updateCookPreview() {
         return;
     }
 
-    const PREVIEW_DUR = 40; 
-    const CHANGE_TIME = 26; // 進行度0.35のタイミング (40 * 0.65 = 26) に同期
+    const CHANGE_TIME = 36; // 進行度0.35のタイミングに同期 (55 * 0.65 = 35.75)
     if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === CHANGE_TIME) {
         const event = state.cookPreviewEvents[state.cookPreviewIndex];
         if (event) {
@@ -458,7 +459,7 @@ function updateCookPreview() {
             
             if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
                 state.visuals.peakFlashes[state.lanes[event.laneIndex].id] = performance.now();
-                state.visuals.perfectFlash = { timer: 6 }; 
+                state.visuals.perfectFlash = { timer: 15 }; // 演出時間を延長
             }
         }
     }
@@ -470,7 +471,7 @@ function updateCookPreview() {
             finishEndRound();
         } else {
             state.cookPreviewPhase = "show";
-            state.cookPreviewPhaseTimer = PREVIEW_DUR; 
+            state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; 
         }
     }
 }
@@ -481,7 +482,7 @@ function tryEndRound() {
         state.cookPreviewActive = true;
         state.cookPreviewIndex = 0;
         state.cookPreviewPhase = "show";
-        state.cookPreviewPhaseTimer = 40; 
+        state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; 
     } else {
         finishEndRound();
     }
@@ -1074,7 +1075,7 @@ function render(ctx) {
         ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
     if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
-        const alpha = (state.visuals.perfectFlash.timer / 6) * 0.15;
+        const alpha = (state.visuals.perfectFlash.timer / 15) * 0.15; // フラッシュ時間を延長
         ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         state.visuals.perfectFlash.timer--;
     }
@@ -1106,7 +1107,7 @@ function drawGameScreen(ctx) {
             const activeEvent = state.cookPreviewEvents[state.cookPreviewIndex];
             if (activeEvent && activeEvent.laneIndex === i) {
                 isCurrentPreviewLane = true;
-                previewProg = 1.0 - (state.cookPreviewPhaseTimer / 40);
+                previewProg = 1.0 - (state.cookPreviewPhaseTimer / COOK_PREVIEW_DUR);
                 if (previewProg < 0.35) {
                     displayCookState = activeEvent.prevCookState;
                     gaugeCookState = activeEvent.prevCookState;
@@ -1221,9 +1222,24 @@ function drawGameScreen(ctx) {
             const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && isFlashable);
             const targetCookState = isUchiwaPreviewActive ? uchiwaTargetState : displayCookState;
             const displayStatus = getCookLabel(lane.type, targetCookState), p = getVisualPalette(displayStatus.toUpperCase());
-            const stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1; 
-            if (lane.justPlaced) ctx.globalAlpha = 0.4;
-            ctx.fillStyle = "#111"; ctx.fillRect(laneCx - 1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx - 2, stickTop, 4, stickH);
+            
+            let targetAlpha = lane.justPlaced ? 0.6 : 1.0;
+            let fallYOffset = 0;
+            let currentAlpha = targetAlpha;
+
+            const pTime = state.visuals.placedAt[lane.id];
+            if (pTime && now - pTime < 220) {
+                const t = (now - pTime) / 220;
+                const easeOut = 1 - Math.pow(1 - t, 3);
+                fallYOffset = -18 * (1 - easeOut);
+                currentAlpha = 0.1 + (targetAlpha - 0.1) * easeOut;
+            }
+
+            const stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + fallYOffset; 
+            
+            ctx.globalAlpha = currentAlpha;
+            ctx.fillStyle = "#111"; ctx.fillRect(laneCx - 1, stickTop, 4, stickH); 
+            ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx - 2, stickTop, 4, stickH);
             const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW / 2;
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, isDanger);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, isDanger);
@@ -1531,9 +1547,12 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     if (active) { ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y - 2, w + 4, h + 4); }
     ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(12); ctx.textAlign = "left"; ctx.fillText(`P${idx}`, x + 10, y + 25);
     
-    if (idx === 2 && state.gameMode === "ai") {
-        ctx.fillStyle = "#ccc"; ctx.font = getPixelFont(10);
-        ctx.fillText(state.enemyName, x + 10, y + 42);
+    ctx.fillStyle = "#ccc"; ctx.font = getPixelFont(10);
+    if (idx === 1) {
+        ctx.fillText("YOU", x + 10, y + 42);
+    } else if (idx === 2) {
+        const p2Text = state.gameMode === "ai" ? state.enemyName : "PLAYER";
+        ctx.fillText(p2Text, x + 10, y + 42);
     }
     
     const offsetY = 20; 
