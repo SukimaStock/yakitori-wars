@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 予測表示改行対応 + ペナルティ明示)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + UI微調整対応)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -449,7 +449,8 @@ function updateCookPreview() {
     }
 
     const PREVIEW_DUR = 40; 
-    if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === PREVIEW_DUR) {
+    const CHANGE_TIME = 24; // 状態が変化するタイミング (進行度0.4)
+    if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === CHANGE_TIME) {
         const event = state.cookPreviewEvents[state.cookPreviewIndex];
         if (event) {
             let smokeAmount = event.newCookState - event.prevCookState;
@@ -781,7 +782,6 @@ function handleCanvasClick(event, canvas) {
             const l = getLaneBounds(i), padding = 15;
             if (x >= l.x - padding && x <= l.x + l.w + padding && y >= l.y - padding && y <= l.y + l.h + padding) {
                 const node = state.lanes[i];
-                // ★修正: プレビューと同様、ここでも生焼けのクリックを許可する(ゲームシステム自体は許可しているため)
                 if (isNodeValidForMode(node, state.buildMode) || (state.buildMode === "harvest" && node.built && node.owner === state.currentPlayer && getCookLabel(node.type, node.cookState) === "early")) {
                     if (state.buildMode === "sapling") tryBuildNode(node);
                     else if (state.buildMode === "harvest") tryHarvestNode(node);
@@ -959,8 +959,11 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
 function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     const data = ICON_DATA[iconId]; if (!data) return;
     const isDisabled = (color === "#888"); 
+    let offsetX = 0;
+    if (iconId === "put_skewer" || iconId === "serve_plate") offsetX = 3;
+
     for (let i = 0; i < 64; i++) {
-        const val = data[i]; if (val !== 0) { ctx.fillStyle = isDisabled ? "#888" : (ICON_PALETTE[val] || color); ctx.fillRect(cx - (4 * scale) + (i % 8) * scale, cy - (4 * scale) + Math.floor(i / 8) * scale, scale, scale); }
+        const val = data[i]; if (val !== 0) { ctx.fillStyle = isDisabled ? "#888" : (ICON_PALETTE[val] || color); ctx.fillRect(cx + offsetX - (4 * scale) + (i % 8) * scale, cy - (4 * scale) + Math.floor(i / 8) * scale, scale, scale); }
     }
 }
 
@@ -976,7 +979,7 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
             drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6);
         } else if (status === "burnt") {
             if (isOwn) drawDotIcon(ctx, "cross", laneCx, hintY, "#555", 2);
-            else { drawDotIcon(ctx, "trash", laneCx - 6, hintY, "#ccc", 2); ctx.fillStyle = "#999"; ctx.font = getPixelFont(10); ctx.textAlign = "left"; ctx.fillText("0", laneCx + 8, hintY + 6); }
+            else drawDotIcon(ctx, "trash", laneCx, hintY, "#ccc", 2);
         } else if (isOwn) {
             if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
             else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
@@ -1082,25 +1085,51 @@ function drawGameScreen(ctx) {
     const activePlayer = (state.startRouletteActive || state.startRouletteBlinkActive) ? (state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex) : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
     const pResources = state.players[activePlayer - 1].resources;
     
-    drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, 75, 1, activePlayer);
-    drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, 75, 2, activePlayer);
+    const panelH = 95;
+    drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, panelH, 1, activePlayer);
+    drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, panelH, 2, activePlayer);
     
     ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(`ROUND ${state.round}/${state.maxRounds}`, cx, safeTop + 25);
-    if (state.gameMode === "ai") { ctx.font = getPixelFont(10); ctx.fillText(`STAGE ${state.currentStage} ${state.enemyName}`, cx, safeTop + 45); }
+    if (state.gameMode === "ai") { ctx.font = getPixelFont(10); ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); }
 
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i), laneCx = b.x + b.w / 2;
         let effectiveCookState = lane.cookState;
+        let displayCookState = lane.cookState; 
+        let gaugeCookState = lane.cookState;   
         let isCurrentPreviewLane = false;
         let previewEventForThisLane = null;
+        let previewProg = 0; 
 
         if (state.cookPreviewActive) {
             previewEventForThisLane = state.cookPreviewEvents.find(e => e.laneIndex === i);
             const activeEvent = state.cookPreviewEvents[state.cookPreviewIndex];
-            if (activeEvent && activeEvent.laneIndex === i) isCurrentPreviewLane = true;
+            if (activeEvent && activeEvent.laneIndex === i) {
+                isCurrentPreviewLane = true;
+                previewProg = 1.0 - (state.cookPreviewPhaseTimer / 40);
+                if (previewProg < 0.15) {
+                    displayCookState = activeEvent.prevCookState;
+                    gaugeCookState = activeEvent.prevCookState;
+                } else if (previewProg < 0.4) {
+                    displayCookState = activeEvent.prevCookState;
+                    gaugeCookState = activeEvent.newCookState;
+                } else {
+                    displayCookState = activeEvent.newCookState;
+                    gaugeCookState = activeEvent.newCookState;
+                }
+                effectiveCookState = displayCookState; 
+            }
             else if (previewEventForThisLane) {
                 const eventIndex = state.cookPreviewEvents.indexOf(previewEventForThisLane);
-                if (eventIndex > state.cookPreviewIndex) effectiveCookState = previewEventForThisLane.prevCookState;
+                if (eventIndex > state.cookPreviewIndex) {
+                    effectiveCookState = previewEventForThisLane.prevCookState;
+                    displayCookState = previewEventForThisLane.prevCookState;
+                    gaugeCookState = previewEventForThisLane.prevCookState;
+                } else {
+                    effectiveCookState = previewEventForThisLane.newCookState;
+                    displayCookState = previewEventForThisLane.newCookState;
+                    gaugeCookState = previewEventForThisLane.newCookState;
+                }
             }
         }
 
@@ -1113,9 +1142,7 @@ function drawGameScreen(ctx) {
         let uchiwaTargetStatus = baseEndStatus;
 
         if (state.buildMode) {
-            // ★修正: isNodeValidForMode自体で「生焼けのスティール不可」は防いでいるので、自分の生焼けはここで弾かれない
             isFlashable = isNodeValidForMode(lane, state.buildMode);
-            // 自分の生焼けも表示の対象に含めるため、強制的にFlash対象にする処理を追加
             if (state.buildMode === "harvest" && lane.built && lane.owner === activePlayer && getCookLabel(lane.type, effectiveCookState) === "early") {
                 isFlashable = true;
             }
@@ -1126,7 +1153,6 @@ function drawGameScreen(ctx) {
             if (state.buildMode === "harvest" && isFlashable && lane.built) { 
                 const status = getCookLabel(lane.type, effectiveCookState);
                 if (status === "perfect") isPerfectTarget = true; 
-                // 生焼け(early)でも isFlashable = false にはせず、プレビューを見せる
             }
             if (state.buildMode === "uchiwa" && isFlashable && lane.built) {
                 uchiwaTargetState = baseEndState + 1;
@@ -1175,7 +1201,6 @@ function drawGameScreen(ctx) {
                     if (lane.owner !== activePlayer) rgb = "180, 180, 180";
                     else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; strokeAlphaBase = 0.15; strokeAlphaRange = 0.10; }
                 } else if (harvestStatus === "early") {
-                    // ★追加: 生焼けを取ろうとした時の警告色
                     rgb = "255, 80, 80";
                 }
                 const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange, currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
@@ -1197,8 +1222,8 @@ function drawGameScreen(ctx) {
 
         if (lane.built) {
             const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && isFlashable);
-            const displayCookState = isUchiwaPreviewActive ? uchiwaTargetState : effectiveCookState;
-            const displayStatus = getCookLabel(lane.type, displayCookState), p = getVisualPalette(displayStatus.toUpperCase());
+            const targetCookState = isUchiwaPreviewActive ? uchiwaTargetState : displayCookState;
+            const displayStatus = getCookLabel(lane.type, targetCookState), p = getVisualPalette(displayStatus.toUpperCase());
             const stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1; 
             if (lane.justPlaced) ctx.globalAlpha = 0.4;
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx - 1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx - 2, stickTop, 4, stickH);
@@ -1226,7 +1251,7 @@ function drawGameScreen(ctx) {
         
         let cv = 0, uchiwaDotIndex = -1, uchiwaPreviewNextCv = 0, baseEndHeatCv = Math.min(6, baseEndState);
         if (lane.built) {
-            cv = Math.min(effectiveCookState || 0, 6);
+            cv = Math.min(gaugeCookState || 0, 6);
             uchiwaPreviewNextCv = baseEndHeatCv;
             if (state.buildMode === "uchiwa" && isFlashable) {
                 uchiwaDotIndex = Math.min(5, baseEndState); 
@@ -1240,11 +1265,11 @@ function drawGameScreen(ctx) {
         for (let j = 0; j < 6; j++) {
             const dx = dotStartX + j * (dotSize + dotGap); 
             if (j < cv) {
-                if (isCurrentPreviewLane && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
-                    const flashAlpha = 0.6 + 0.4 * (state.cookPreviewPhaseTimer / 40);
+                if (isCurrentPreviewLane && previewProg < 0.4 && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
+                    const flashAlpha = 0.5 + 0.5 * Math.sin(getTime() / 50);
                     ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                 } else {
-                    ctx.fillStyle = getVisualPalette(getCookLabel(lane.type, effectiveCookState).toUpperCase()).dot; ctx.fillRect(dx, dotStartY, dotSize, dotSize); 
+                    ctx.fillStyle = getVisualPalette(getCookLabel(lane.type, displayCookState).toUpperCase()).dot; ctx.fillRect(dx, dotStartY, dotSize, dotSize); 
                     ctx.fillStyle = "rgba(255, 255, 255, 0.6)"; ctx.fillRect(dx + 1, dotStartY + 1, dotSize - 4, dotSize - 5);
                 }
             } else if (j < uchiwaPreviewNextCv) {
@@ -1260,16 +1285,21 @@ function drawGameScreen(ctx) {
             } else { ctx.fillStyle = "rgba(10, 10, 15, 0.9)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize); }
         }
         
-        if (isCurrentPreviewLane && previewEventForThisLane) {
-            const eventProgress = state.cookPreviewPhaseTimer / 40, textY = b.y + b.h * 0.1 - 15;
-            ctx.textAlign = "center"; ctx.globalAlpha = 0.7 + 0.3 * eventProgress;
+        if (isCurrentPreviewLane && previewEventForThisLane && previewProg >= 0.5) {
+            const textProgress = Math.min(1, (previewProg - 0.5) / 0.5); 
+            const textY = b.y + b.h * 0.1 - 15;
+            ctx.textAlign = "center"; 
+            
+            ctx.globalAlpha = textProgress;
             if (previewEventForThisLane.prevStatus !== "perfect" && previewEventForThisLane.newStatus === "perfect") { 
-                ctx.fillStyle = `rgba(255, 230, 100, ${0.25 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
+                ctx.fillStyle = `rgba(255, 230, 100, ${0.25 * textProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
                 ctx.fillStyle = "#e6d555"; ctx.font = getPixelFont(14); ctx.fillText("READY!", laneCx, textY); 
             } else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") { 
-                ctx.fillStyle = `rgba(255, 50, 50, ${0.25 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
+                ctx.fillStyle = `rgba(255, 50, 50, ${0.25 * textProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
                 ctx.fillStyle = "#f33"; ctx.font = getPixelFont(16); ctx.fillText("BURNT!", laneCx, textY); 
-            } else { ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * eventProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); }
+            } else { 
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * textProgress})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
+            }
             ctx.globalAlpha = 1.0;
         }
 
@@ -1503,8 +1533,15 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     drawBevelRect(ctx, x, y, w, h, baseColor);
     if (active) { ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.lineWidth = 2; ctx.strokeRect(x - 2, y - 2, w + 4, h + 4); }
     ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(12); ctx.textAlign = "left"; ctx.fillText(`P${idx}`, x + 10, y + 25);
-    drawDotIcon(ctx, "diamond", x + 20, y + 45, "#6cf", 2); ctx.fillStyle = "#fff"; ctx.font = getPixelFont(10); ctx.textAlign = "right"; ctx.fillText(`${player.score}`, x + w - 10, y + 50);
-    drawDotIcon(ctx, "meat", x + 20, y + 65, "#f77", 2); ctx.fillStyle = "#fff"; ctx.fillText(`${player.resources || 0}`, x + w - 10, y + 70);
+    
+    if (idx === 2 && state.gameMode === "ai") {
+        ctx.fillStyle = "#ccc"; ctx.font = getPixelFont(10);
+        ctx.fillText(state.enemyName, x + 10, y + 42);
+    }
+    
+    const offsetY = 20; 
+    drawDotIcon(ctx, "diamond", x + 20, y + 45 + offsetY, "#6cf", 2); ctx.fillStyle = "#fff"; ctx.font = getPixelFont(10); ctx.textAlign = "right"; ctx.fillText(`${player.score}`, x + w - 10, y + 50 + offsetY);
+    drawDotIcon(ctx, "meat", x + 20, y + 65 + offsetY, "#f77", 2); ctx.fillStyle = "#fff"; ctx.fillText(`${player.resources || 0}`, x + w - 10, y + 70 + offsetY);
 }
 
 // ==========================================
