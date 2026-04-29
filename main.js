@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 最終演出・UI調整)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + リザルト・統計情報実装)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -71,8 +71,8 @@ function initGameState() {
         pendingBox: null,
         uiHint: "tap",
         players: [
-            { id: 1, score: 0, servedScore: 0, resources: 0, workersRemaining: 1 },
-            { id: 2, score: 0, servedScore: 0, resources: 0, workersRemaining: 1 }
+            { id: 1, score: 0, servedScore: 0, resources: 0, workersRemaining: 1, stats: { perfect: 0, burnt: 0, steal: 0 } },
+            { id: 2, score: 0, servedScore: 0, resources: 0, workersRemaining: 1, stats: { perfect: 0, burnt: 0, steal: 0 } }
         ],
         lanes: [
             { id: "s1", fire: 1, type: "weak", owner: null, cookState: 0, uchiwaBoost: 0, justPlaced: false, built: false },
@@ -88,7 +88,8 @@ function initGameState() {
             particles: [], 
             cancelClick: 0, 
             titleClick: null,
-            perfectFlash: { timer: 0 } 
+            perfectFlash: { timer: 0 },
+            resultComment: null
         }
     };
 }
@@ -261,13 +262,13 @@ function updateGameEndWait() {
                 if (state.gameMode === "ai") {
                     if (state.currentStage >= 5) { state.screen = "clear"; state.winnerText = "SURVIVAL CLEAR"; }
                     else { state.screen = "stage_clear"; state.winnerText = "STAGE CLEAR"; }
-                } else { state.screen = "gameover"; state.winnerText = "P1 Wins!"; }
+                } else { state.screen = "gameover"; state.winnerText = "P1 WIN"; }
             } else if (p2 > p1) { 
                 const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
-                state.screen = "gameover"; state.winnerText = `${winnerName} Wins!`; 
+                state.screen = "gameover"; state.winnerText = `${winnerName} WIN`; 
             } else { 
                 if (state.gameMode === "ai") { retryStage(); return; }
-                else { state.screen = "gameover"; state.winnerText = "Draw!"; }
+                else { state.screen = "gameover"; state.winnerText = "DRAW"; }
             }
         }
     }
@@ -432,6 +433,10 @@ function advanceAllSkewersAtRoundEnd() {
                         laneIndex: index, prevCookState: prevCookState,
                         newCookState: n.cookState, prevStatus: prevStatus, newStatus: newStatus
                     });
+                    
+                    if (newStatus === "burnt" && prevStatus !== "burnt" && n.owner) {
+                        state.players[n.owner - 1].stats.burnt++;
+                    }
                 }
             }
         }
@@ -495,12 +500,6 @@ function finishEndRound() {
         state.gameOver = true;
         updateAllScores();
         state.gameEndWaitTimer = 60; 
-        state.visuals.statusMessages.push({
-            type: "result",
-            text: "FINISH!",
-            startTime: performance.now(),
-            isPerfect: true
-        });
         return;
     }
     startNewRound();
@@ -692,6 +691,10 @@ function tryHarvestNode(node) {
     const scoreGained = getHarvestScore(node, isSteal, status);
     p.servedScore += scoreGained;
     
+    if (status === "perfect") p.stats.perfect++;
+    if (status === "burnt") p.stats.burnt++;
+    if (isSteal && scoreGained > 0) p.stats.steal++;
+    
     if (scoreGained !== 0) {
         state.visuals.statusMessages.push({ 
             type: 'score', amount: scoreGained, player: state.currentPlayer, 
@@ -766,8 +769,19 @@ function handleCanvasClick(event, canvas) {
         return;
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
         if (state.resultScreenTimer < 70) return;
-        if (state.screen === "stage_clear") nextStage();
-        else initGameState();
+        
+        const cy = LAYOUT.CANVAS_HEIGHT / 2;
+        if (state.screen === "stage_clear") {
+            const retryY = cy + 215;
+            if (y >= retryY - 15 && y <= retryY + 15) {
+                retryStage();
+            } else {
+                nextStage();
+            }
+        } else {
+            if (state.gameMode === "ai") retryStage();
+            else startGame("pvp");
+        }
         return;
     }
     
@@ -1025,17 +1039,26 @@ function render(ctx) {
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
         state.resultScreenTimer++;
         const timer = state.resultScreenTimer;
-        ctx.fillStyle = "#fff"; ctx.font = getPixelFont(24); ctx.textAlign = "center"; 
-        ctx.fillText(state.screen === "gameover" ? "GAME OVER" : "CLEAR!", cx, cy - 90);
         
-        if (timer >= 20) {
-            const alpha = Math.min(1, (timer - 20) / 10);
+        if (timer >= 15) {
+            const alpha = Math.min(1, (timer - 15) / 10);
             ctx.globalAlpha = alpha;
-            ctx.font = getPixelFont(16); 
-            const isP2Win = state.winnerText.includes("P2") || (state.gameMode === "ai" && state.winnerText.includes(state.enemyName));
-            ctx.fillStyle = isP2Win ? LAYOUT.COLORS.P2 : (state.winnerText.includes("P1") ? LAYOUT.COLORS.P1 : "#ffeb3b");
-            if (state.winnerText.includes("Draw")) ctx.fillStyle = "#aaa";
-            ctx.fillText(state.winnerText, cx, cy - 50);
+            ctx.font = getPixelFont(24);
+            ctx.textAlign = "center";
+            
+            let titleText = state.winnerText;
+            let titleColor = "#fff";
+            
+            if (state.screen === "gameover") {
+                if (titleText.includes("P1")) titleColor = LAYOUT.COLORS.P1;
+                else if (titleText.includes("DRAW")) titleColor = "#888";
+                else titleColor = LAYOUT.COLORS.P2;
+            } else {
+                titleColor = "#ffeb3b";
+            }
+            
+            ctx.fillStyle = titleColor;
+            ctx.fillText(titleText, cx, cy - 100);
             ctx.globalAlpha = 1.0;
         }
         
@@ -1045,25 +1068,85 @@ function render(ctx) {
             const p1Score = state.players[0].score;
             const p2Score = state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
+            
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2;
             if (p1Score > p2Score) p2Color = "#555";
             else if (p2Score > p1Score) p1Color = "#555";
             else { p1Color = "#aaa"; p2Color = "#aaa"; }
             
             ctx.font = getPixelFont(16); 
-            ctx.textAlign = "left"; ctx.fillStyle = p1Color; ctx.fillText("P1", cx - 110, cy + 10);
-            ctx.textAlign = "right"; ctx.fillText(p1Score, cx + 60, cy + 10); drawDotIcon(ctx, "diamond", cx + 85, cy + 2, p1Color, 2.5);
-            ctx.textAlign = "left"; ctx.fillStyle = p2Color; ctx.fillText(p2Name, cx - 110, cy + 50);
-            ctx.textAlign = "right"; ctx.fillText(p2Score, cx + 60, cy + 50); drawDotIcon(ctx, "diamond", cx + 85, cy + 42, p2Color, 2.5);
+            ctx.textAlign = "left"; ctx.fillStyle = p1Color; ctx.fillText("P1", cx - 110, cy - 40);
+            ctx.textAlign = "right"; ctx.fillText(p1Score, cx + 60, cy - 40); drawDotIcon(ctx, "diamond", cx + 85, cy - 48, p1Color, 2.5);
+            ctx.textAlign = "left"; ctx.fillStyle = p2Color; ctx.fillText(p2Name, cx - 110, cy - 10);
+            ctx.textAlign = "right"; ctx.fillText(p2Score, cx + 60, cy - 10); drawDotIcon(ctx, "diamond", cx + 85, cy - 18, p2Color, 2.5);
             ctx.globalAlpha = 1.0;
         }
         
         if (timer >= 70) {
             const alpha = Math.min(1, (timer - 70) / 10);
-            const pulse = 0.5 + 0.5 * Math.sin(getTime() / 250); 
-            ctx.globalAlpha = alpha * pulse;
-            ctx.fillStyle = "#fff"; ctx.font = getPixelFont(11); ctx.textAlign = "center"; 
-            ctx.fillText("Tap to Continue", cx, cy + 110);
+            ctx.globalAlpha = alpha;
+            
+            // 統計情報
+            ctx.font = getPixelFont(10);
+            const statsLabels = ["PERFECT", "BURNT", "STEAL"];
+            
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#888";
+            statsLabels.forEach((label, i) => { ctx.fillText(label, cx, cy + 40 + i * 20); });
+            
+            statsLabels.forEach((_, i) => {
+                const statKey = statsLabels[i].toLowerCase();
+                ctx.fillStyle = LAYOUT.COLORS.P1;
+                ctx.textAlign = "right";
+                ctx.fillText(state.players[0].stats[statKey], cx - 60, cy + 40 + i * 20);
+                
+                ctx.fillStyle = LAYOUT.COLORS.P2;
+                ctx.textAlign = "left";
+                ctx.fillText(state.players[1].stats[statKey], cx + 60, cy + 40 + i * 20);
+            });
+            
+            // 一言コメントの選定
+            if (!state.visuals.resultComment) {
+                const p1 = state.players[0], p2 = state.players[1];
+                const diff = Math.abs(p1.score - p2.score);
+                let comment = "Good game.";
+                
+                if (state.screen === "gameover" && !state.winnerText.includes("DRAW") && diff <= 2) comment = "So close.";
+                else if (p1.stats.perfect >= 3 || p2.stats.perfect >= 3) comment = "Nice timing.";
+                else if (p1.stats.burnt >= 3 || p2.stats.burnt >= 3) comment = "Too late.";
+                else if (p1.stats.steal >= 2 || p2.stats.steal >= 2) comment = "Nice steal.";
+                
+                state.visuals.resultComment = comment;
+            }
+            
+            ctx.fillStyle = "#666";
+            ctx.textAlign = "center";
+            ctx.fillText(state.visuals.resultComment, cx, cy + 115);
+            
+            // 操作ボタンと点滅
+            const pulse = 0.6 + 0.4 * Math.sin(getTime() / 200); 
+            
+            if (state.screen === "stage_clear") {
+                const nextEnemy = STAGE_CONFIG[state.currentStage + 1].enemyName;
+                ctx.fillStyle = "#aaa";
+                ctx.font = getPixelFont(10);
+                ctx.fillText(`NEXT: ${nextEnemy}`, cx, cy + 145);
+                
+                ctx.globalAlpha = alpha * pulse;
+                ctx.fillStyle = "#fff";
+                ctx.font = getPixelFont(14);
+                ctx.fillText("▶ NEXT STAGE", cx, cy + 180);
+                
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = "#777";
+                ctx.font = getPixelFont(12);
+                ctx.fillText("▶ RETRY", cx, cy + 215);
+            } else {
+                ctx.globalAlpha = alpha * pulse;
+                ctx.fillStyle = "#fff";
+                ctx.font = getPixelFont(14);
+                ctx.fillText("▶ REMATCH", cx, cy + 180);
+            }
             ctx.globalAlpha = 1.0;
         }
     }
@@ -1372,12 +1455,12 @@ function drawGameScreen(ctx) {
     });
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
+    
+    // 背景暗転のみ(ゲーム中の暗転待機)
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 60));
-        ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.7})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-        const pulse = 0.7 + 0.3 * Math.sin(now / 300);
-        ctx.globalAlpha = pulse * alpha; ctx.fillStyle = "#fff"; ctx.font = getPixelFont(16); ctx.textAlign = "center"; ctx.fillText("RESULT...", cx, cy);
-        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`; 
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
 
@@ -1549,7 +1632,7 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     
     ctx.fillStyle = "#ccc"; ctx.font = getPixelFont(10);
     if (idx === 1) {
-        ctx.fillText("YOU", x + 10, y + 42);
+        ctx.fillText("PLAYER", x + 10, y + 42);
     } else if (idx === 2) {
         const p2Text = state.gameMode === "ai" ? state.enemyName : "PLAYER";
         ctx.fillText(p2Text, x + 10, y + 42);
