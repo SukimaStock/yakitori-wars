@@ -37,6 +37,9 @@ function initGameState() {
         introPauseTimer: 0, 
         
         gameEndWaitTimer: 0, 
+        endSplashTimer: 0,
+        endSplashText: "",
+        endSplashColor: "#fff",
         resultScreenTimer: 0, 
         resultPause: 0, 
         resultPauseDone: false, 
@@ -243,6 +246,10 @@ function updateIntroSequence() {
 
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
+        if (state.endSplashTimer > 0) {
+            state.endSplashTimer--;
+        }
+        
         state.gameEndWaitTimer--;
 
         if (state.gameEndWaitTimer <= 0) {
@@ -490,7 +497,34 @@ function finishEndRound() {
     if (state.round >= state.maxRounds) {
         state.gameOver = true;
         updateAllScores();
-        state.gameEndWaitTimer = 40; 
+        
+        const p1 = state.players[0].score;
+        const p2 = state.players[1].score;
+        
+        if (p1 > p2) {
+            if (state.gameMode === "ai") {
+                if (state.currentStage >= 5) {
+                    state.endSplashText = "SURVIVAL CLEAR";
+                    state.endSplashColor = "#ffeb3b";
+                } else {
+                    state.endSplashText = "STAGE CLEAR";
+                    state.endSplashColor = "#ffeb3b";
+                }
+            } else {
+                state.endSplashText = "P1 WIN";
+                state.endSplashColor = LAYOUT.COLORS.P1;
+            }
+        } else if (p2 > p1) {
+            const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
+            state.endSplashText = `${winnerName} WIN`;
+            state.endSplashColor = LAYOUT.COLORS.P2;
+        } else {
+            state.endSplashText = "DRAW";
+            state.endSplashColor = "#aaa";
+        }
+        
+        state.endSplashTimer = 55;
+        state.gameEndWaitTimer = 55;
         return;
     }
     startNewRound();
@@ -1006,6 +1040,30 @@ function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scal
     ctx.globalAlpha = 1.0; 
 }
 
+function drawEndSplash(ctx) {
+    if (!state.endSplashTimer || state.endSplashTimer <= 0) return;
+    
+    const cx = LAYOUT.CANVAS_WIDTH / 2;
+    const cy = LAYOUT.CANVAS_HEIGHT / 2;
+    const t = state.endSplashTimer;
+    const alpha = t > 40 ? (55 - t) / 15 : Math.min(1, t / 12);
+    
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    
+    ctx.font = getPixelFont(24);
+    ctx.textAlign = "center";
+    ctx.fillStyle = state.endSplashColor || "#fff";
+    ctx.fillText(state.endSplashText, cx, cy);
+    
+    ctx.font = getPixelFont(10);
+    ctx.fillStyle = "#aaa";
+    ctx.fillText("MATCH END", cx, cy + 35);
+    ctx.restore();
+}
+
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
@@ -1027,6 +1085,7 @@ function render(ctx) {
     
     } else if (state.screen === "game") { 
         drawGameScreen(ctx); 
+        drawEndSplash(ctx);
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
         state.resultScreenTimer++;
         const timer = state.resultScreenTimer;
@@ -1455,7 +1514,7 @@ function drawGameScreen(ctx) {
     
     // 背景暗転のみ(ゲーム中の暗転待機)
     if (state.gameOver && state.gameEndWaitTimer > 0) {
-        const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 40));
+        const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 55));
         ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
