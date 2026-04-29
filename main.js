@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + リザルト・統計情報実装)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + リザルト・統計情報実装 + 最終調整)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -243,16 +243,7 @@ function updateIntroSequence() {
 
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
-        if (state.gameEndWaitTimer === 20 && !state.resultPauseDone) {
-            state.resultPause = 30; 
-            state.resultPauseDone = true;
-        }
-
-        if (state.resultPause > 0) {
-            state.resultPause--;
-        } else {
-            state.gameEndWaitTimer--;
-        }
+        state.gameEndWaitTimer--;
 
         if (state.gameEndWaitTimer <= 0) {
             state.resultScreenTimer = 0; 
@@ -499,7 +490,7 @@ function finishEndRound() {
     if (state.round >= state.maxRounds) {
         state.gameOver = true;
         updateAllScores();
-        state.gameEndWaitTimer = 60; 
+        state.gameEndWaitTimer = 40; 
         return;
     }
     startNewRound();
@@ -768,7 +759,7 @@ function handleCanvasClick(event, canvas) {
         }
         return;
     } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
-        if (state.resultScreenTimer < 70) return;
+        if (state.resultScreenTimer < 55) return;
         
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
         if (state.screen === "stage_clear") {
@@ -1040,8 +1031,8 @@ function render(ctx) {
         state.resultScreenTimer++;
         const timer = state.resultScreenTimer;
         
-        if (timer >= 15) {
-            const alpha = Math.min(1, (timer - 15) / 10);
+        if (timer >= 10) {
+            const alpha = Math.min(1, (timer - 10) / 10);
             ctx.globalAlpha = alpha;
             ctx.font = getPixelFont(24);
             ctx.textAlign = "center";
@@ -1062,8 +1053,8 @@ function render(ctx) {
             ctx.globalAlpha = 1.0;
         }
         
-        if (timer >= 40) {
-            const alpha = Math.min(1, (timer - 40) / 10);
+        if (timer >= 30) {
+            const alpha = Math.min(1, (timer - 30) / 10);
             ctx.globalAlpha = alpha;
             const p1Score = state.players[0].score;
             const p2Score = state.players[1].score;
@@ -1082,8 +1073,8 @@ function render(ctx) {
             ctx.globalAlpha = 1.0;
         }
         
-        if (timer >= 70) {
-            const alpha = Math.min(1, (timer - 70) / 10);
+        if (timer >= 55) {
+            const alpha = Math.min(1, (timer - 55) / 10);
             ctx.globalAlpha = alpha;
             
             // 統計情報
@@ -1145,7 +1136,13 @@ function render(ctx) {
                 ctx.globalAlpha = alpha * pulse;
                 ctx.fillStyle = "#fff";
                 ctx.font = getPixelFont(14);
-                ctx.fillText("▶ REMATCH", cx, cy + 180);
+                if (state.screen === "clear") {
+                    ctx.fillText("▶ CONGRATULATIONS", cx, cy + 180);
+                } else if (state.gameMode === "ai") {
+                    ctx.fillText("▶ RETRY", cx, cy + 180);
+                } else {
+                    ctx.fillText("▶ REMATCH", cx, cy + 180);
+                }
             }
             ctx.globalAlpha = 1.0;
         }
@@ -1458,7 +1455,7 @@ function drawGameScreen(ctx) {
     
     // 背景暗転のみ(ゲーム中の暗転待機)
     if (state.gameOver && state.gameEndWaitTimer > 0) {
-        const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 60));
+        const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 40));
         ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
