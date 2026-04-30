@@ -254,8 +254,8 @@ function updateGameEndWait() {
 
         if (state.gameEndWaitTimer <= 0) {
             state.resultScreenTimer = 0; 
-            const p1 = state.players[0].score;
-            const p2 = state.players[1].score;
+            const p1 = state.players[0].finalScore || state.players[0].score;
+            const p2 = state.players[1].finalScore || state.players[1].score;
             if (p1 > p2) {
                 if (state.gameMode === "ai") {
                     if (state.currentStage >= 5) { state.screen = "clear"; state.winnerText = "SURVIVAL CLEAR"; }
@@ -498,8 +498,12 @@ function finishEndRound() {
         state.gameOver = true;
         updateAllScores();
         
-        const p1 = state.players[0].score;
-        const p2 = state.players[1].score;
+        state.players.forEach(p => {
+            p.finalScore = (p.servedScore || 0) + (p.resources || 0);
+        });
+
+        const p1 = state.players[0].finalScore;
+        const p2 = state.players[1].finalScore;
         
         if (p1 > p2) {
             if (state.gameMode === "ai") {
@@ -703,7 +707,8 @@ function tryBuildNode(node) {
 function tryHarvestNode(node) {
     const p = state.players[state.currentPlayer - 1];
     if (!node.built) return;
-    const isSteal = (node.owner !== null && node.owner !== state.currentPlayer);
+    const stolenFrom = node.owner;
+    const isSteal = (stolenFrom !== null && stolenFrom !== state.currentPlayer);
     const status = getCookLabel(node.type, node.cookState);
     if (isSteal) {
         if (status === "early") return; 
@@ -711,6 +716,16 @@ function tryHarvestNode(node) {
             if (p.resources < 1) return;
             p.resources -= 1;
             state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, startTime: performance.now() });
+            
+            if (stolenFrom !== null && state.players[stolenFrom - 1]) {
+                state.players[stolenFrom - 1].resources += 1;
+                state.visuals.statusMessages.push({
+                    type: 'meat',
+                    amount: 1,
+                    player: stolenFrom,
+                    startTime: performance.now()
+                });
+            }
         }
     }
     const scoreGained = getHarvestScore(node, isSteal, status);
@@ -1115,8 +1130,8 @@ function render(ctx) {
         if (timer >= 30) {
             const alpha = Math.min(1, (timer - 30) / 10);
             ctx.globalAlpha = alpha;
-            const p1Score = state.players[0].score;
-            const p2Score = state.players[1].score;
+            const p1Score = state.players[0].finalScore || state.players[0].score;
+            const p2Score = state.players[1].finalScore || state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
             
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2;
@@ -1124,11 +1139,18 @@ function render(ctx) {
             else if (p2Score > p1Score) p1Color = "#555";
             else { p1Color = "#aaa"; p2Color = "#aaa"; }
             
-            ctx.font = getPixelFont(16); 
-            ctx.textAlign = "left"; ctx.fillStyle = p1Color; ctx.fillText("P1", cx - 110, cy - 40);
-            ctx.textAlign = "right"; ctx.fillText(p1Score, cx + 60, cy - 40); drawDotIcon(ctx, "diamond", cx + 85, cy - 48, p1Color, 2.5);
-            ctx.textAlign = "left"; ctx.fillStyle = p2Color; ctx.fillText(p2Name, cx - 110, cy - 10);
-            ctx.textAlign = "right"; ctx.fillText(p2Score, cx + 60, cy - 10); drawDotIcon(ctx, "diamond", cx + 85, cy - 18, p2Color, 2.5);
+            ctx.font = getPixelFont(12); 
+            ctx.textAlign = "left"; ctx.fillStyle = p1Color; 
+            ctx.fillText("P1", cx - 140, cy - 40);
+            ctx.textAlign = "right"; 
+            ctx.fillText(`${state.players[0].servedScore} + MEAT ${state.players[0].resources} = ${p1Score}`, cx + 80, cy - 40); 
+            drawDotIcon(ctx, "diamond", cx + 95, cy - 48, p1Color, 2.5);
+            
+            ctx.textAlign = "left"; ctx.fillStyle = p2Color; 
+            ctx.fillText(p2Name, cx - 140, cy - 10);
+            ctx.textAlign = "right"; 
+            ctx.fillText(`${state.players[1].servedScore} + MEAT ${state.players[1].resources} = ${p2Score}`, cx + 80, cy - 10); 
+            drawDotIcon(ctx, "diamond", cx + 95, cy - 18, p2Color, 2.5);
             ctx.globalAlpha = 1.0;
         }
         
