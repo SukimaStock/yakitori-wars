@@ -201,7 +201,7 @@ const STAGE_CONFIG = {
     2: { profile: "thief",   level: 2, enemyName: "HIDEKI" },
     3: { profile: "reader",  level: 3, enemyName: "TETSUYA" },
     4: { profile: "master",  level: 4, enemyName: "MAKOTO" },
-    5: { profile: "master",  level: 5, enemyName: "BOSS" }
+    5: { profile: "master",  level: 5, enemyName: "FINAL BOSS" }
 };
 
 function updateTransition() {
@@ -815,7 +815,12 @@ function handleCanvasClick(event, canvas) {
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "pvp" };
         }
         return;
-    } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
+    } else if (state.screen === "clear") {
+        // エンディング画面では、一定時間経過後にクリックでタイトルに戻る
+        if (state.resultScreenTimer < 300) return;
+        initGameState();
+        return;
+    } else if (state.screen === "gameover" || state.screen === "stage_clear") {
         if (state.resultScreenTimer < 55) return;
         
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
@@ -1117,7 +1122,6 @@ function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     
-    // 表示時間のフィルタリング条件を動的に変更
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => {
         const duration = m.isSteal ? 2100 : 1900;
         return now - m.startTime < duration;
@@ -1140,7 +1144,79 @@ function render(ctx) {
     } else if (state.screen === "game") { 
         drawGameScreen(ctx); 
         drawEndSplash(ctx);
-    } else if (state.screen === "gameover" || state.screen === "clear" || state.screen === "stage_clear") {
+    } else if (state.screen === "clear") {
+        // エンディング用の静かで暖かみのある演出
+        state.resultScreenTimer++;
+        const timer = state.resultScreenTimer;
+
+        // 暖色のオーバーレイ
+        const alphaOverlay = Math.min(0.85, timer / 90);
+        ctx.fillStyle = `rgba(30, 15, 10, ${alphaOverlay})`;
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+
+        // ゆっくり舞い上がる残り火(Ember)のエフェクト
+        if (timer % 6 === 0) {
+            state.visuals.floaters.push({
+                x: Math.random() * LAYOUT.CANVAS_WIDTH,
+                y: LAYOUT.CANVAS_HEIGHT + 10,
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: -0.4 - Math.random() * 0.6,
+                life: 0,
+                maxLife: 200 + Math.random() * 150,
+                size: 2 + Math.random() * 4
+            });
+        }
+        for (let i = state.visuals.floaters.length - 1; i >= 0; i--) {
+            let f = state.visuals.floaters[i];
+            f.life++;
+            if (f.life >= f.maxLife) { state.visuals.floaters.splice(i, 1); continue; }
+            f.x += f.vx; f.y += f.vy;
+            const ratio = f.life / f.maxLife;
+            ctx.globalAlpha = Math.max(0, 1 - ratio);
+            const gColor = 100 + Math.random() * 50;
+            ctx.fillStyle = `rgba(255, ${gColor}, 50, 0.8)`;
+            ctx.fillRect(f.x, f.y, f.size, f.size);
+        }
+        ctx.globalAlpha = 1.0;
+
+        ctx.textAlign = "center";
+        
+        // 段階的なテキストのフェードイン
+        if (timer > 60) {
+            const alpha = Math.min(1, (timer - 60) / 45);
+            ctx.globalAlpha = alpha;
+            ctx.font = getPixelFont(24);
+            ctx.fillStyle = "#ffeb3b";
+            ctx.fillText("SURVIVAL CLEAR", cx, cy - 80);
+        }
+
+        if (timer > 140) {
+            const alpha = Math.min(1, (timer - 140) / 45);
+            ctx.globalAlpha = alpha;
+            ctx.font = getPixelFont(12);
+            ctx.fillStyle = "#e0e0e0";
+            ctx.fillText("You mastered the grill.", cx, cy - 30);
+        }
+
+        if (timer > 220) {
+            const alpha = Math.min(1, (timer - 220) / 45);
+            ctx.globalAlpha = alpha;
+            ctx.font = getPixelFont(12);
+            ctx.fillStyle = "#fa3";
+            ctx.fillText("THANK YOU FOR PLAYING", cx, cy + 20);
+        }
+
+        if (timer > 300) {
+            const alpha = Math.min(1, (timer - 300) / 45);
+            const pulse = 0.85 + 0.15 * Math.sin(getTime() / 600);
+            ctx.globalAlpha = alpha * pulse;
+            ctx.font = getPixelFont(14);
+            ctx.fillStyle = "#fff";
+            ctx.fillText("▶ BACK TO TITLE", cx, cy + 100);
+        }
+        ctx.globalAlpha = 1.0;
+
+    } else if (state.screen === "gameover" || state.screen === "stage_clear") {
         state.resultScreenTimer++;
         const timer = state.resultScreenTimer;
         
@@ -1278,9 +1354,7 @@ function render(ctx) {
                 ctx.fillStyle = "#fff";
                 ctx.font = getPixelFont(14);
                 ctx.textAlign = "center";
-                if (state.screen === "clear") {
-                    ctx.fillText("▶ CONGRATULATIONS", 0, 0);
-                } else if (state.gameMode === "ai") {
+                if (state.gameMode === "ai") {
                     ctx.fillText("▶ RETRY", 0, 0);
                 } else {
                     ctx.fillText("▶ REMATCH", 0, 0);
@@ -1722,7 +1796,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         const elapsed = now - msg.startTime; let alpha = 1, yAnimOffset = 0;
         let isHint = msg.type === "hint";
 
-        // アニメーションのタイミングを全体の長さに合わせて調整
         const totalDuration = msg.isSteal ? 2100 : 1900;
         const fadeOutDuration = 430;
         const maintainUntil = totalDuration - fadeOutDuration;
