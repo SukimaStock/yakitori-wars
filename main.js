@@ -201,7 +201,7 @@ const STAGE_CONFIG = {
     2: { profile: "thief",   level: 2, enemyName: "HIDEKI" },
     3: { profile: "reader",  level: 3, enemyName: "TETSUYA" },
     4: { profile: "master",  level: 4, enemyName: "MAKOTO" },
-    5: { profile: "master",  level: 5, enemyName: "FINAL BOSS" }
+    5: { profile: "master",  level: 5, enemyName: "BOSS" }
 };
 
 function updateTransition() {
@@ -1240,7 +1240,7 @@ function render(ctx) {
                 
                 if (state.screen === "gameover" && !state.winnerText.includes("DRAW") && diff <= 2) comment = "So close.";
                 else if (state.players[0].stats.perfect >= 3 || state.players[1].stats.perfect >= 3) comment = "Nice timing.";
-                else if (state.players[0].stats.burnt >= 3 || state.players[1].stats.burnt >= 3) comment = "Too late.";
+                else if (state.players[0].stats.burnt >= 3 || state.players[1].stats.burnt >= 3) comment = "Still counts.";
                 else if (state.players[0].stats.steal >= 2 || state.players[1].stats.steal >= 2) comment = "Nice steal.";
                 
                 state.visuals.resultComment = comment;
