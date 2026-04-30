@@ -453,7 +453,7 @@ function updateCookPreview() {
         return;
     }
 
-    const CHANGE_TIME = 36; // 進行度0.35のタイミングに同期 (55 * 0.65 = 35.75)
+    const CHANGE_TIME = 36; 
     if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === CHANGE_TIME) {
         const event = state.cookPreviewEvents[state.cookPreviewIndex];
         if (event) {
@@ -462,7 +462,7 @@ function updateCookPreview() {
             
             if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
                 state.visuals.peakFlashes[state.lanes[event.laneIndex].id] = performance.now();
-                state.visuals.perfectFlash = { timer: 15 }; // 演出時間を延長
+                state.visuals.perfectFlash = { timer: 15 }; 
             }
         }
     }
@@ -680,7 +680,7 @@ function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
     if (boxId === 1) { 
         p.resources += 1;
-        state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: state.currentPlayer, startTime: performance.now() });
+        state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now() });
         consumeWorker();
     } else {
         state.isBusy = true;
@@ -697,7 +697,7 @@ function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
     if (p.resources >= 1 && !node.built) {
         p.resources -= 1;
-        state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, startTime: performance.now() });
+        state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now() });
         node.built = true; node.owner = state.currentPlayer; node.cookState = 0; node.justPlaced = true;
         state.visuals.placedAt[node.id] = performance.now();
         consumeWorker();
@@ -715,7 +715,7 @@ function tryHarvestNode(node) {
         if (status !== "burnt") {
             if (p.resources < 1) return;
             p.resources -= 1;
-            state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, startTime: performance.now() });
+            state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now() });
             
             if (stolenFrom !== null && state.players[stolenFrom - 1]) {
                 state.players[stolenFrom - 1].resources += 1;
@@ -723,6 +723,7 @@ function tryHarvestNode(node) {
                     type: 'meat',
                     amount: 1,
                     player: stolenFrom,
+                    targetPlayerPanel: stolenFrom,
                     startTime: performance.now()
                 });
             }
@@ -812,13 +813,13 @@ function handleCanvasClick(event, canvas) {
         
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
         if (state.screen === "stage_clear") {
-            const retryY = cy + 135 + 30; // 調整したボタン位置に合わせてクリック判定も調整
+            const retryY = cy + 135 + 30; 
             if (y >= retryY - 15 && y <= retryY + 15) {
                 retryStage();
             } else if (y >= cy + 135 - 15 && y <= cy + 135 + 15) {
                 nextStage();
             } else {
-                nextStage(); // フォールバック
+                nextStage(); 
             }
         } else {
             if (state.gameMode === "ai") retryStage();
@@ -1081,6 +1082,30 @@ function drawEndSplash(ctx) {
     ctx.restore();
 }
 
+function drawScoreBreakdown(ctx, served, resources, endX, y) {
+    ctx.font = getPixelFont(10);
+    const text3 = `${resources})`;
+    const w3 = ctx.measureText(text3).width;
+    const text2 = ` + `;
+    const w2 = ctx.measureText(text2).width;
+    const text1 = `(${served}`;
+    const w1 = ctx.measureText(text1).width;
+    const iconW = 14; 
+    
+    const totalW = w1 + w2 + iconW + w3;
+    let currentX = endX - totalW;
+    
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#666";
+    ctx.fillText(text1, currentX, y);
+    currentX += w1;
+    ctx.fillText(text2, currentX, y);
+    currentX += w2;
+    drawDotIcon(ctx, "meat", currentX + 2, y - 6, "#666", 1.5);
+    currentX += iconW;
+    ctx.fillText(text3, currentX, y);
+}
+
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
@@ -1119,7 +1144,6 @@ function render(ctx) {
                 titleColor = "#ffeb3b";
             }
             
-            // 一言コメントの選定
             if (!state.visuals.resultComment) {
                 const p1Final = state.players[0].finalScore || state.players[0].score;
                 const p2Final = state.players[1].finalScore || state.players[1].score;
@@ -1137,20 +1161,18 @@ function render(ctx) {
             const alpha = Math.min(1, (timer - 10) / 10);
             ctx.globalAlpha = alpha;
             
-            // Subtle 1-frame flash
             if (timer === 10 || timer === 11) {
                 ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
                 ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
             }
             
-            ctx.font = getPixelFont(28); // 10-15% increase
+            ctx.font = getPixelFont(28); 
             ctx.textAlign = "center";
             ctx.fillStyle = titleColor;
             ctx.fillText(titleText, cx, cy - 110);
             
-            // コメントの表示(WINの直下)
-            ctx.font = getPixelFont(12); // +1 level
-            ctx.fillStyle = "#888"; // dim color
+            ctx.font = getPixelFont(12); 
+            ctx.fillStyle = "#888"; 
             ctx.fillText(state.visuals.resultComment, cx, cy - 80);
             
             ctx.globalAlpha = 1.0;
@@ -1166,28 +1188,23 @@ function render(ctx) {
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2;
             let p1Alpha = 1.0, p2Alpha = 1.0;
             
-            // Winner/Loser contrast
             if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; }
             else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; }
             else { p1Color = "#aaa"; p2Color = "#aaa"; }
             
-            // P1 Score Layout
             ctx.globalAlpha = alpha * p1Alpha;
             ctx.textAlign = "left"; ctx.fillStyle = p1Color; ctx.font = getPixelFont(16);
             ctx.fillText("P1", cx - 80, cy - 35);
             ctx.textAlign = "right"; ctx.fillText(`${p1Score}`, cx + 60, cy - 35); 
             drawDotIcon(ctx, "diamond", cx + 75, cy - 43, p1Color, 2.5);
-            ctx.font = getPixelFont(10); ctx.fillStyle = "#666"; // Breakdown (small, dim)
-            ctx.fillText(`(${state.players[0].servedScore} + ${state.players[0].resources})`, cx + 60, cy - 20);
+            drawScoreBreakdown(ctx, state.players[0].servedScore, state.players[0].resources, cx + 60, cy - 20);
 
-            // P2 Score Layout
             ctx.globalAlpha = alpha * p2Alpha;
             ctx.textAlign = "left"; ctx.fillStyle = p2Color; ctx.font = getPixelFont(16);
             ctx.fillText(p2Name, cx - 80, cy + 10);
             ctx.textAlign = "right"; ctx.fillText(`${p2Score}`, cx + 60, cy + 10); 
             drawDotIcon(ctx, "diamond", cx + 75, cy + 2, p2Color, 2.5);
-            ctx.font = getPixelFont(10); ctx.fillStyle = "#666"; // Breakdown (small, dim)
-            ctx.fillText(`(${state.players[1].servedScore} + ${state.players[1].resources})`, cx + 60, cy + 25);
+            drawScoreBreakdown(ctx, state.players[1].servedScore, state.players[1].resources, cx + 60, cy + 25);
             
             ctx.globalAlpha = 1.0;
         }
@@ -1203,7 +1220,6 @@ function render(ctx) {
             else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; }
             else { p1Color = "#aaa"; p2Color = "#aaa"; }
 
-            // 統計情報
             ctx.font = getPixelFont(10);
             const statsLabels = ["PERFECT", "BURNT", "STEAL"];
             
@@ -1226,25 +1242,19 @@ function render(ctx) {
                 ctx.fillText(state.players[1].stats[statKey], cx + 60, cy + 60 + i * 18);
             });
             
-            // 操作ボタンと点滅 (スケールアニメーションを削除し、パルスを穏やかに)
             const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500); 
             
             ctx.globalAlpha = alpha;
-            const btnY = cy + 135; // 位置はそのまま
+            const btnY = cy + 135; 
             
             ctx.save();
             ctx.translate(cx, btnY);
             
             if (state.screen === "stage_clear") {
-                const nextEnemy = STAGE_CONFIG[state.currentStage + 1].enemyName;
-                ctx.fillStyle = "#aaa";
-                ctx.font = getPixelFont(10);
-                ctx.textAlign = "center";
-                ctx.fillText(`NEXT: ${nextEnemy}`, 0, -25);
-                
                 ctx.globalAlpha = alpha * pulse;
                 ctx.fillStyle = "#fff";
                 ctx.font = getPixelFont(14);
+                ctx.textAlign = "center";
                 ctx.fillText("▶ NEXT STAGE", 0, 0);
                 
                 ctx.globalAlpha = alpha;
@@ -1276,7 +1286,7 @@ function render(ctx) {
         ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
     if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
-        const alpha = (state.visuals.perfectFlash.timer / 15) * 0.15; // フラッシュ時間を延長
+        const alpha = (state.visuals.perfectFlash.timer / 15) * 0.15; 
         ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         state.visuals.perfectFlash.timer--;
     }
@@ -1574,7 +1584,6 @@ function drawGameScreen(ctx) {
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
     
-    // 背景暗転のみ(ゲーム中の暗転待機)
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 55));
         ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`; 
@@ -1694,6 +1703,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     });
 
+    let p1MsgCount = 0;
+    let p2MsgCount = 0;
+
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime; let alpha = 1, yAnimOffset = 0;
         let isHint = msg.type === "hint";
@@ -1714,8 +1726,16 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (alpha <= 0) return; 
 
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); 
-        const fx = msg.x || cx; 
-        const fy = isHint ? (msg.y + yAnimOffset) : (130 + (idx * 32) + yAnimOffset); 
+        let fx = msg.x || cx; 
+        let fy = isHint ? (msg.y + yAnimOffset) : (130 + (idx * 32) + yAnimOffset); 
+
+        if (msg.targetPlayerPanel) {
+            const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
+            fx = msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
+            let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++;
+            fy = 140 + (offsetIdx * 32) + yAnimOffset; 
+        }
+        
         ctx.textAlign = "center";
 
         if (isHint) {
@@ -1726,16 +1746,43 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         } else {
             let isResult = msg.type === "result";
             let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : (msg.type === 'fire' ? 'fire' : 'diamond'));
-            let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
-            let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.type === 'fire' ? "#fa3" : (msg.amount > 0 ? "#ff4" : "#f33")));
             
-            ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
-            const txtW = ctx.measureText(text).width + (icon ? 50 : 30);
-            ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
-            if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
-            ctx.fillStyle = color; 
-            if (icon) { drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); ctx.fillText(text, fx + 15, fy); }
-            else ctx.fillText(text, fx, fy); 
+            if (msg.targetPlayerPanel) {
+                ctx.font = getPixelFont(14);
+                const text1 = `P${msg.targetPlayerPanel}`;
+                const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
+                const w1 = ctx.measureText(text1).width;
+                const w2 = ctx.measureText(text2).width;
+                const iconW = 16;
+                const gap = 8;
+                const totalW = w1 + gap + iconW + gap + w2;
+                
+                ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; 
+                ctx.fillRect(fx - totalW/2 - 10, fy - 22, totalW + 20, 30);
+                
+                let currentX = fx - totalW/2;
+                ctx.textAlign = "left";
+                ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+                ctx.fillText(text1, currentX, fy);
+                currentX += w1 + gap;
+                
+                drawDotIcon(ctx, 'meat', currentX + iconW/2 - 4, fy - 8, "#fff", 2);
+                currentX += iconW + gap;
+                
+                ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+                ctx.fillText(text2, currentX, fy);
+            } else {
+                let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
+                let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.type === 'fire' ? "#fa3" : (msg.amount > 0 ? "#ff4" : "#f33")));
+                
+                ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
+                const txtW = ctx.measureText(text).width + (icon ? 50 : 30);
+                ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
+                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
+                ctx.fillStyle = color; 
+                if (icon) { drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); ctx.fillText(text, fx + 15, fy); }
+                else ctx.fillText(text, fx, fy); 
+            }
         }
         ctx.shadowBlur = 0; 
     });
