@@ -715,7 +715,12 @@ function tryHarvestNode(node) {
         if (status !== "burnt") {
             if (p.resources < 1) return;
             p.resources -= 1;
-            state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now() });
+            
+            state.visuals.statusMessages.push({ 
+                type: 'meat', amount: -1, player: state.currentPlayer, 
+                targetPlayerPanel: state.currentPlayer, startTime: performance.now(),
+                isSteal: true
+            });
             
             if (stolenFrom !== null && state.players[stolenFrom - 1]) {
                 state.players[stolenFrom - 1].resources += 1;
@@ -724,9 +729,11 @@ function tryHarvestNode(node) {
                     amount: 1,
                     player: stolenFrom,
                     targetPlayerPanel: stolenFrom,
-                    startTime: performance.now()
+                    startTime: performance.now() + 150,
+                    isSteal: true
                 });
             }
+            state.hitStopTimer = 4;
         }
     }
     const scoreGained = getHarvestScore(node, isSteal, status);
@@ -1109,7 +1116,12 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
-    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => now - m.startTime < 1600);
+    
+    // 表示時間のフィルタリング条件を動的に変更
+    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => {
+        const duration = m.isSteal ? 2100 : 1900;
+        return now - m.startTime < duration;
+    });
     
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
@@ -1710,17 +1722,23 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         const elapsed = now - msg.startTime; let alpha = 1, yAnimOffset = 0;
         let isHint = msg.type === "hint";
 
+        // アニメーションのタイミングを全体の長さに合わせて調整
+        const totalDuration = msg.isSteal ? 2100 : 1900;
+        const fadeOutDuration = 430;
+        const maintainUntil = totalDuration - fadeOutDuration;
+
         if (isHint) {
             if (elapsed < 1000) { alpha = 1 - (elapsed / 1000); yAnimOffset = -(elapsed / 1000) * 15; } 
             else { alpha = 0; }
         } else if (msg.isPerfect) {
+            const perfectMaintainUntil = totalDuration - 500;
             if (elapsed < 150) { const p = elapsed / 150; alpha = p; yAnimOffset = 15 * (1 - p); } 
-            else if (elapsed < 1100) { alpha = 1; yAnimOffset = - (elapsed - 150) * 0.015; } 
-            else { const p = Math.min(1, (elapsed - 1100) / 500); alpha = 1 - p; yAnimOffset = -14.25 - 20 * p; }
+            else if (elapsed < perfectMaintainUntil) { alpha = 1; yAnimOffset = - (elapsed - 150) * 0.015; } 
+            else { const p = Math.min(1, (elapsed - perfectMaintainUntil) / 500); alpha = 1 - p; yAnimOffset = -14.25 - 20 * p; }
         } else {
             if (elapsed < 120) { const p = elapsed / 120; alpha = p; yAnimOffset = 10 * (1 - p); } 
-            else if (elapsed < 770) { alpha = 1; yAnimOffset = 0; } 
-            else { const p = Math.min(1, (elapsed - 770) / 430); alpha = 1 - p; yAnimOffset = -15 * p; }
+            else if (elapsed < maintainUntil) { alpha = 1; yAnimOffset = 0; } 
+            else { const p = Math.min(1, (elapsed - maintainUntil) / fadeOutDuration); alpha = 1 - p; yAnimOffset = -15 * p; }
         }
         
         if (alpha <= 0) return; 
