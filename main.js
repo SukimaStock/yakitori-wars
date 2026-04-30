@@ -812,11 +812,13 @@ function handleCanvasClick(event, canvas) {
         
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
         if (state.screen === "stage_clear") {
-            const retryY = cy + 215;
+            const retryY = cy + 135 + 30; // 調整したボタン位置に合わせてクリック判定も調整
             if (y >= retryY - 15 && y <= retryY + 15) {
                 retryStage();
-            } else {
+            } else if (y >= cy + 135 - 15 && y <= cy + 135 + 15) {
                 nextStage();
+            } else {
+                nextStage(); // フォールバック
             }
         } else {
             if (state.gameMode === "ai") retryStage();
@@ -1106,11 +1108,6 @@ function render(ctx) {
         const timer = state.resultScreenTimer;
         
         if (timer >= 10) {
-            const alpha = Math.min(1, (timer - 10) / 10);
-            ctx.globalAlpha = alpha;
-            ctx.font = getPixelFont(24);
-            ctx.textAlign = "center";
-            
             let titleText = state.winnerText;
             let titleColor = "#fff";
             
@@ -1122,109 +1119,155 @@ function render(ctx) {
                 titleColor = "#ffeb3b";
             }
             
+            // 一言コメントの選定
+            if (!state.visuals.resultComment) {
+                const p1Final = state.players[0].finalScore || state.players[0].score;
+                const p2Final = state.players[1].finalScore || state.players[1].score;
+                const diff = Math.abs(p1Final - p2Final);
+                let comment = "Good game.";
+                
+                if (state.screen === "gameover" && !state.winnerText.includes("DRAW") && diff <= 2) comment = "So close.";
+                else if (state.players[0].stats.perfect >= 3 || state.players[1].stats.perfect >= 3) comment = "Nice timing.";
+                else if (state.players[0].stats.burnt >= 3 || state.players[1].stats.burnt >= 3) comment = "Too late.";
+                else if (state.players[0].stats.steal >= 2 || state.players[1].stats.steal >= 2) comment = "Nice steal.";
+                
+                state.visuals.resultComment = comment;
+            }
+            
+            const alpha = Math.min(1, (timer - 10) / 10);
+            ctx.globalAlpha = alpha;
+            
+            // Subtle 1-frame flash
+            if (timer === 10 || timer === 11) {
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+                ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+            }
+            
+            ctx.font = getPixelFont(28); // 10-15% increase
+            ctx.textAlign = "center";
             ctx.fillStyle = titleColor;
-            ctx.fillText(titleText, cx, cy - 100);
+            ctx.fillText(titleText, cx, cy - 110);
+            
+            // コメントの表示(WINの直下)
+            ctx.font = getPixelFont(12); // +1 level
+            ctx.fillStyle = "#888"; // dim color
+            ctx.fillText(state.visuals.resultComment, cx, cy - 80);
+            
             ctx.globalAlpha = 1.0;
         }
         
         if (timer >= 30) {
             const alpha = Math.min(1, (timer - 30) / 10);
-            ctx.globalAlpha = alpha;
+            
             const p1Score = state.players[0].finalScore || state.players[0].score;
             const p2Score = state.players[1].finalScore || state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
             
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2;
-            if (p1Score > p2Score) p2Color = "#555";
-            else if (p2Score > p1Score) p1Color = "#555";
+            let p1Alpha = 1.0, p2Alpha = 1.0;
+            
+            // Winner/Loser contrast
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; }
+            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; }
             else { p1Color = "#aaa"; p2Color = "#aaa"; }
             
-            ctx.font = getPixelFont(12); 
-            ctx.textAlign = "left"; ctx.fillStyle = p1Color; 
-            ctx.fillText("P1", cx - 140, cy - 40);
-            ctx.textAlign = "right"; 
-            ctx.fillText(`${state.players[0].servedScore} + MEAT ${state.players[0].resources} = ${p1Score}`, cx + 80, cy - 40); 
-            drawDotIcon(ctx, "diamond", cx + 95, cy - 48, p1Color, 2.5);
+            // P1 Score Layout
+            ctx.globalAlpha = alpha * p1Alpha;
+            ctx.textAlign = "left"; ctx.fillStyle = p1Color; ctx.font = getPixelFont(16);
+            ctx.fillText("P1", cx - 80, cy - 35);
+            ctx.textAlign = "right"; ctx.fillText(`${p1Score}`, cx + 60, cy - 35); 
+            drawDotIcon(ctx, "diamond", cx + 75, cy - 43, p1Color, 2.5);
+            ctx.font = getPixelFont(10); ctx.fillStyle = "#666"; // Breakdown (small, dim)
+            ctx.fillText(`(${state.players[0].servedScore} + ${state.players[0].resources})`, cx + 60, cy - 20);
+
+            // P2 Score Layout
+            ctx.globalAlpha = alpha * p2Alpha;
+            ctx.textAlign = "left"; ctx.fillStyle = p2Color; ctx.font = getPixelFont(16);
+            ctx.fillText(p2Name, cx - 80, cy + 10);
+            ctx.textAlign = "right"; ctx.fillText(`${p2Score}`, cx + 60, cy + 10); 
+            drawDotIcon(ctx, "diamond", cx + 75, cy + 2, p2Color, 2.5);
+            ctx.font = getPixelFont(10); ctx.fillStyle = "#666"; // Breakdown (small, dim)
+            ctx.fillText(`(${state.players[1].servedScore} + ${state.players[1].resources})`, cx + 60, cy + 25);
             
-            ctx.textAlign = "left"; ctx.fillStyle = p2Color; 
-            ctx.fillText(p2Name, cx - 140, cy - 10);
-            ctx.textAlign = "right"; 
-            ctx.fillText(`${state.players[1].servedScore} + MEAT ${state.players[1].resources} = ${p2Score}`, cx + 80, cy - 10); 
-            drawDotIcon(ctx, "diamond", cx + 95, cy - 18, p2Color, 2.5);
             ctx.globalAlpha = 1.0;
         }
         
         if (timer >= 55) {
             const alpha = Math.min(1, (timer - 55) / 10);
-            ctx.globalAlpha = alpha;
             
+            const p1Score = state.players[0].finalScore || state.players[0].score;
+            const p2Score = state.players[1].finalScore || state.players[1].score;
+            let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2;
+            let p1Alpha = 1.0, p2Alpha = 1.0;
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; }
+            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; }
+            else { p1Color = "#aaa"; p2Color = "#aaa"; }
+
             // 統計情報
             ctx.font = getPixelFont(10);
             const statsLabels = ["PERFECT", "BURNT", "STEAL"];
             
+            ctx.globalAlpha = alpha;
             ctx.textAlign = "center";
             ctx.fillStyle = "#888";
-            statsLabels.forEach((label, i) => { ctx.fillText(label, cx, cy + 40 + i * 20); });
+            statsLabels.forEach((label, i) => { ctx.fillText(label, cx, cy + 60 + i * 18); });
             
             statsLabels.forEach((_, i) => {
                 const statKey = statsLabels[i].toLowerCase();
-                ctx.fillStyle = LAYOUT.COLORS.P1;
-                ctx.textAlign = "right";
-                ctx.fillText(state.players[0].stats[statKey], cx - 60, cy + 40 + i * 20);
                 
-                ctx.fillStyle = LAYOUT.COLORS.P2;
+                ctx.globalAlpha = alpha * p1Alpha;
+                ctx.fillStyle = p1Color;
+                ctx.textAlign = "right";
+                ctx.fillText(state.players[0].stats[statKey], cx - 60, cy + 60 + i * 18);
+                
+                ctx.globalAlpha = alpha * p2Alpha;
+                ctx.fillStyle = p2Color;
                 ctx.textAlign = "left";
-                ctx.fillText(state.players[1].stats[statKey], cx + 60, cy + 40 + i * 20);
+                ctx.fillText(state.players[1].stats[statKey], cx + 60, cy + 60 + i * 18);
             });
             
-            // 一言コメントの選定
-            if (!state.visuals.resultComment) {
-                const p1 = state.players[0], p2 = state.players[1];
-                const diff = Math.abs(p1.score - p2.score);
-                let comment = "Good game.";
-                
-                if (state.screen === "gameover" && !state.winnerText.includes("DRAW") && diff <= 2) comment = "So close.";
-                else if (p1.stats.perfect >= 3 || p2.stats.perfect >= 3) comment = "Nice timing.";
-                else if (p1.stats.burnt >= 3 || p2.stats.burnt >= 3) comment = "Too late.";
-                else if (p1.stats.steal >= 2 || p2.stats.steal >= 2) comment = "Nice steal.";
-                
-                state.visuals.resultComment = comment;
-            }
-            
-            ctx.fillStyle = "#666";
-            ctx.textAlign = "center";
-            ctx.fillText(state.visuals.resultComment, cx, cy + 115);
-            
-            // 操作ボタンと点滅
+            // 操作ボタンと点滅 (位置を上に調整し、微小なスケールパルスを追加)
             const pulse = 0.6 + 0.4 * Math.sin(getTime() / 200); 
+            const scalePulse = 1.0 + 0.02 * Math.sin(getTime() / 150);
+            
+            ctx.globalAlpha = alpha;
+            const btnY = cy + 135; // Moved up
+            
+            ctx.save();
+            ctx.translate(cx, btnY);
             
             if (state.screen === "stage_clear") {
                 const nextEnemy = STAGE_CONFIG[state.currentStage + 1].enemyName;
                 ctx.fillStyle = "#aaa";
                 ctx.font = getPixelFont(10);
-                ctx.fillText(`NEXT: ${nextEnemy}`, cx, cy + 145);
+                ctx.textAlign = "center";
+                ctx.fillText(`NEXT: ${nextEnemy}`, 0, -25);
                 
                 ctx.globalAlpha = alpha * pulse;
+                ctx.scale(scalePulse, scalePulse);
                 ctx.fillStyle = "#fff";
                 ctx.font = getPixelFont(14);
-                ctx.fillText("▶ NEXT STAGE", cx, cy + 180);
+                ctx.fillText("▶ NEXT STAGE", 0, 0);
                 
                 ctx.globalAlpha = alpha;
                 ctx.fillStyle = "#777";
                 ctx.font = getPixelFont(12);
-                ctx.fillText("▶ RETRY", cx, cy + 215);
+                ctx.fillText("▶ RETRY", 0, 30);
             } else {
                 ctx.globalAlpha = alpha * pulse;
+                ctx.scale(scalePulse, scalePulse);
                 ctx.fillStyle = "#fff";
                 ctx.font = getPixelFont(14);
+                ctx.textAlign = "center";
                 if (state.screen === "clear") {
-                    ctx.fillText("▶ CONGRATULATIONS", cx, cy + 180);
+                    ctx.fillText("▶ CONGRATULATIONS", 0, 0);
                 } else if (state.gameMode === "ai") {
-                    ctx.fillText("▶ RETRY", cx, cy + 180);
+                    ctx.fillText("▶ RETRY", 0, 0);
                 } else {
-                    ctx.fillText("▶ REMATCH", cx, cy + 180);
+                    ctx.fillText("▶ REMATCH", 0, 0);
                 }
             }
+            ctx.restore();
             ctx.globalAlpha = 1.0;
         }
     }
