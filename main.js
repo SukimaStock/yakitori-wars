@@ -1226,12 +1226,11 @@ function render(ctx) {
                 ctx.fillText(state.players[1].stats[statKey], cx + 60, cy + 60 + i * 18);
             });
             
-            // 操作ボタンと点滅 (位置を上に調整し、微小なスケールパルスを追加)
-            const pulse = 0.6 + 0.4 * Math.sin(getTime() / 200); 
-            const scalePulse = 1.0 + 0.02 * Math.sin(getTime() / 150);
+            // 操作ボタンと点滅 (スケールアニメーションを削除し、パルスを穏やかに)
+            const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500); 
             
             ctx.globalAlpha = alpha;
-            const btnY = cy + 135; // Moved up
+            const btnY = cy + 135; // 位置はそのまま
             
             ctx.save();
             ctx.translate(cx, btnY);
@@ -1244,7 +1243,6 @@ function render(ctx) {
                 ctx.fillText(`NEXT: ${nextEnemy}`, 0, -25);
                 
                 ctx.globalAlpha = alpha * pulse;
-                ctx.scale(scalePulse, scalePulse);
                 ctx.fillStyle = "#fff";
                 ctx.font = getPixelFont(14);
                 ctx.fillText("▶ NEXT STAGE", 0, 0);
@@ -1255,7 +1253,6 @@ function render(ctx) {
                 ctx.fillText("▶ RETRY", 0, 30);
             } else {
                 ctx.globalAlpha = alpha * pulse;
-                ctx.scale(scalePulse, scalePulse);
                 ctx.fillStyle = "#fff";
                 ctx.font = getPixelFont(14);
                 ctx.textAlign = "center";
