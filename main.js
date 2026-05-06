@@ -195,6 +195,22 @@ const getTime = () => performance.now();
 // 3. game/flow.js - ゲーム進行とスコア
 // ==========================================
 const COOK_PREVIEW_DUR = 55;
+const START_ROULETTE_INTERVAL = 4;
+const START_ROULETTE_BASE_COUNT = 15;
+const START_ROULETTE_RANDOM_RANGE = 2;
+const COOK_LABEL_RULES = {
+    weak: { burntMin: 8, perfectMin: 6, perfectMax: 7, okayMin: 5, okayMax: 5 },
+    medium: { burntMin: 7, perfectMin: 6, perfectMax: 6, okayMin: 5, okayMax: 5 },
+    strong: { burntMin: 7, perfectMin: 6, perfectMax: 6, okayMin: 5, okayMax: 5 }
+};
+const HARVEST_SCORE_TABLE = {
+    burntSteal: 0,
+    burntOwn: -2,
+    early: -5,
+    weak: { perfect: 12, okay: 3 },
+    medium: { perfect: 8, okay: 2 },
+    strong: { perfect: 6, okay: 2 }
+};
 
 const STAGE_CONFIG = {
     1: { profile: "gambler", level: 1, enemyName: "KENTA" },
@@ -282,55 +298,42 @@ function setupAIForStage(stageNumber) {
     return true;
 }
 
-function startGame(mode) {
+function initializeStartRoulette() {
+    state.startRouletteActive = true;
+    state.startRouletteInterval = START_ROULETTE_INTERVAL;
+    state.startRouletteTickTimer = START_ROULETTE_INTERVAL;
+    state.startRouletteCount = 0;
+    state.startRouletteIndex = 1;
+    state.startRouletteMaxCount = START_ROULETTE_BASE_COUNT + Math.floor(Math.random() * START_ROULETTE_RANDOM_RANGE);
+    state.startRouletteBlinkActive = false;
+    state.startRouletteFinalPlayer = null;
+}
+
+function resetGameToBattleScreen(mode) {
     initGameState();
     state.gameMode = mode;
     state.screen = "game";
+    initializeStartRoulette();
+}
+
+function startGame(mode) {
+    resetGameToBattleScreen(mode);
     if (mode === "ai") setupAIForStage(1);
-    
-    state.startRouletteActive = true;
-    state.startRouletteInterval = 4;
-    state.startRouletteTickTimer = 4;
-    state.startRouletteCount = 0;
-    state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
-    state.startRouletteBlinkActive = false;
-    state.startRouletteFinalPlayer = null;
 }
 
 function retryStage() {
     const stg = state.currentStage;
     const prevMode = state.gameMode;
-    initGameState();
-    state.gameMode = prevMode;
-    state.screen = "game";
+    resetGameToBattleScreen(prevMode);
     setupAIForStage(stg);
-    state.startRouletteActive = true;
-    state.startRouletteInterval = 4;
-    state.startRouletteTickTimer = 4;
-    state.startRouletteCount = 0;
-    state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
-    state.startRouletteBlinkActive = false;
-    state.startRouletteFinalPlayer = null;
 }
 
 function nextStage() {
     const nextStg = state.currentStage + 1;
     if (nextStg > 5) return;
     const prevMode = state.gameMode;
-    initGameState();
-    state.gameMode = prevMode;
-    state.screen = "game";
+    resetGameToBattleScreen(prevMode);
     setupAIForStage(nextStg);
-    state.startRouletteActive = true;
-    state.startRouletteInterval = 4;
-    state.startRouletteTickTimer = 4;
-    state.startRouletteCount = 0;
-    state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); 
-    state.startRouletteBlinkActive = false;
-    state.startRouletteFinalPlayer = null;
 }
 
 function updateAllScores() {
@@ -620,27 +623,27 @@ function resolvePendingTurnFlow() {
 // 4. game/rules.js - 調理ルールとアクション
 // ==========================================
 function getCookLabel(laneType, cv) {
-    if (laneType === "weak") {
-        if (cv >= 8) return "burnt";
-        if (cv >= 6) return "perfect";
-        if (cv === 5) return "okay";
-    } else {
-        if (cv >= 7) return "burnt";
-        if (cv === 6) return "perfect";
-        if (cv === 5) return "okay";
-    }
+    const rule = COOK_LABEL_RULES[laneType] || COOK_LABEL_RULES.medium;
+    if (cv >= rule.burntMin) return "burnt";
+    if (cv >= rule.perfectMin && cv <= rule.perfectMax) return "perfect";
+    if (cv >= rule.okayMin && cv <= rule.okayMax) return "okay";
     return "early";
+}
+
+function forEachBuiltLaneStatus(callback) {
+    for (let n of state.lanes) {
+        if (!n.built) continue;
+        const status = getCookLabel(n.type, n.cookState);
+        if (callback(n, status)) return true;
+    }
+    return false;
 }
 
 function hasPerfectHarvestTarget(playerIndex) {
     const p = state.players[playerIndex - 1];
-    for (let n of state.lanes) {
-        if (n.built) {
-            const status = getCookLabel(n.type, n.cookState);
-            if (status === "perfect" && (n.owner === playerIndex || p.resources >= 1)) return true;
-        }
-    }
-    return false;
+    return forEachBuiltLaneStatus((n, status) => {
+        return status === "perfect" && (n.owner === playerIndex || p.resources >= 1);
+    });
 }
 
 function brightenColor(hex, ratio) {
@@ -654,25 +657,19 @@ function brightenColor(hex, ratio) {
 }
 
 function getHarvestScore(node, isSteal, status) {
-    if (status === "burnt") return isSteal ? 0 : -2;
-    if (status === "early") return -5;
-    const heat = getBaseHeat(node.type);
-    if (heat === 1) return (status === "perfect") ? 12 : 3;
-    if (heat === 3) return (status === "perfect") ? 6 : 2;
-    return (status === "perfect") ? 8 : 2;
+    if (status === "burnt") return isSteal ? HARVEST_SCORE_TABLE.burntSteal : HARVEST_SCORE_TABLE.burntOwn;
+    if (status === "early") return HARVEST_SCORE_TABLE.early;
+    const scoreByType = HARVEST_SCORE_TABLE[node.type] || HARVEST_SCORE_TABLE.medium;
+    return status === "perfect" ? scoreByType.perfect : scoreByType.okay;
 }
 
 function canUseMeat(playerIndex) { return true; }
 function canUseSkewer(playerIndex) { return state.players[playerIndex - 1].resources >= 1 && state.lanes.some(l => !l.built); }
 function canUseServe(playerIndex) {
     const p = state.players[playerIndex - 1];
-    for (let n of state.lanes) {
-        if (n.built) {
-            const status = getCookLabel(n.type, n.cookState);
-            if (status === "burnt" || n.owner === playerIndex || (p.resources >= 1 && (status === "okay" || status === "perfect"))) return true; 
-        }
-    }
-    return false;
+    return forEachBuiltLaneStatus((n, status) => {
+        return status === "burnt" || n.owner === playerIndex || (p.resources >= 1 && (status === "okay" || status === "perfect"));
+    });
 }
 function canUseUchiwa(playerIndex) { return state.lanes.some(l => l.built); }
 
