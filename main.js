@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 成熟フェーズv0.1)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 成熟フェーズv0.1 修正版)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -39,13 +39,12 @@ function initGameState() {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
             peakFlashes: {}, ghosts: [], floaters: [], statusMessages: [], particles: [], 
             cancelClick: 0, titleClick: null, perfectFlash: { timer: 0 }, resultComment: null,
-            aiTargetLane: null // AIの微振動用
+            aiTargetLane: null
         }
     };
 }
 initGameState();
 
-// 画像リソースの読み込み
 let logoImage = new Image(); logoImage.src = "Logo.png";
 function getPixelFont(size) { return `${size}px 'Press Start 2P', monospace`; }
 
@@ -67,11 +66,11 @@ let LAYOUT = {
     ]
 };
 
-// 色の調整 (成熟フェーズ v0.1)
+// 色の調整 (PERFECTを少し明るく修正)
 const VISUAL_STATES = {
     RAW: { meat: "#f09b9b", negi: "#eef7ee", dot: "#fff" },
     OKAY: { meat: "#c88450", negi: "#dcedc8", dot: "#f90" },
-    PERFECT: { meat: "#8f4b1e", negi: "#7cb342", dot: "#ff4" },
+    PERFECT: { meat: "#9f5524", negi: "#7cb342", dot: "#ff4" },
     BURNT: { meat: "#3c2a23", negi: "#303d32", dot: "#f33" }
 };
 
@@ -193,10 +192,8 @@ function nextStage() {
 }
 
 function updateAllScores() { state.players.forEach(p => p.score = p.servedScore || 0); }
-
 function getBaseHeat(type) { if (type === "weak") return 1; if (type === "medium") return 2; if (type === "strong") return 3; return 1; }
 
-// 煙のエフェクト (成熟フェーズ対応)
 function spawnSmokeEffect(laneIndex, amount, status) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
@@ -238,10 +235,7 @@ function spawnSmokeEffect(laneIndex, amount, status) {
             y: meatY + (Math.random() - 0.5) * 15,  
             vx: (Math.random() - 0.5) * 1.0, 
             vy: (-1 - Math.random() * 1.5) * speedMult,             
-            life: 0, 
-            maxLife: 20 + Math.random() * 15, 
-            size: 8 + Math.random() * 12,
-            color: color
+            life: 0, maxLife: 20 + Math.random() * 15, size: 8 + Math.random() * 12, color: color
         });
     }
 }
@@ -597,6 +591,7 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
     }
     return score;
 }
+
 function playAITurn() {
     if (!isAIPlayer(state.currentPlayer)) return;
     if (state.screen !== "game" || state.isBusy || state.isAIThinking || state.gameOver || state.introSequenceActive) return;
@@ -618,16 +613,18 @@ function playAITurn() {
     let delay = 450;
     if (best.type === "meat") delay = 250 + Math.random() * 100; else if (best.type === "put") delay = 400 + Math.random() * 150;
     else if (best.type === "serve") delay = 500 + Math.random() * 200; else if (best.type === "uchiwa") delay = 650 + Math.random() * 250;
+
+    // AIの狙いレーンを記録 (setTimeoutの前に移動)
+    if (best.nodeId) {
+        state.visuals.aiTargetLane = {
+            laneId: best.nodeId,
+            startTime: performance.now(),
+            duration: Math.min(delay, 500)
+        };
+    }
+
     setTimeout(() => {
         try {
-            // AIの狙いレーンを記録 (成熟フェーズ対応)
-            if (best.nodeId) {
-                state.visuals.aiTargetLane = {
-                    laneId: best.nodeId,
-                    startTime: performance.now(),
-                    duration: 500
-                };
-            }
             if (best.type === "meat") placeWorker(1);
             else if (best.type === "put") { state.buildMode="sapling"; state.buildModeStartTime=performance.now(); tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
             else if (best.type === "serve") { state.buildMode="harvest"; state.buildModeStartTime=performance.now(); tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
@@ -662,7 +659,7 @@ function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false)
     const offset = isPressed ? 2 : 0; ctx.fillStyle = "#f4e6d0"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
 }
 
-// 1ピクセル照り (成熟フェーズ対応)
+// 1ピクセル照り (大文字のstatusを期待する)
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay = false, status = "RAW", laneType = "medium", now = 0) {
     ctx.fillStyle = baseColor;
     if (isNegi) { 
@@ -899,7 +896,6 @@ function drawGameScreen(ctx) {
         [0.2, 0.8].forEach(ratio => { const barX = b.x + b.w * ratio; ctx.moveTo(barX, b.y); ctx.lineTo(barX, b.y + b.h); });
         ctx.stroke();
         
-        // 焼き台の性格演出 (成熟フェーズ対応)
         const fireIntensity = lane.fire * 0.15; 
         let currentFireIntensity = fireIntensity;
         if (lane.type === "strong") { currentFireIntensity += (Math.sin(now / 100) * 0.05); } 
@@ -937,7 +933,9 @@ function drawGameScreen(ctx) {
         if (lane.built) {
             const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && isFlashable);
             const targetCookState = isUchiwaPreviewActive ? uchiwaTargetState : displayCookState;
-            const displayStatus = getCookLabel(lane.type, targetCookState), p = getVisualPalette(displayStatus.toUpperCase());
+            const displayStatus = getCookLabel(lane.type, targetCookState);
+            const displayStatusUpper = displayStatus.toUpperCase(); // 大文字に統一
+            const p = getVisualPalette(displayStatusUpper);
             let targetAlpha = lane.justPlaced ? 0.6 : 1.0; let fallYOffset = 0; let currentAlpha = targetAlpha;
             const pTime = state.visuals.placedAt[lane.id];
             if (pTime && now - pTime < 220) {
@@ -950,14 +948,13 @@ function drawGameScreen(ctx) {
             ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx - 2, stickTop, 4, stickH);
             const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW / 2;
             
-            // 描画関数の呼び出し更新 (成熟フェーズ対応)
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, isDanger, displayStatus.toUpperCase(), lane.type, now);
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, isDanger, displayStatus.toUpperCase(), lane.type, now);
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, isDanger, displayStatus.toUpperCase(), lane.type, now);
+            // 確実に大文字のstatusとlane.type, nowを渡す
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, isDanger, displayStatusUpper, lane.type, now);
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, isDanger, displayStatusUpper, lane.type, now);
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, isDanger, displayStatusUpper, lane.type, now);
             
             ctx.globalAlpha = 1.0;
 
-            // AI対象レーンの微振動 (成熟フェーズ対応)
             const markerY = b.y - 10, markerSize = 9; ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             let markerXOffset = 0;
             if (state.visuals.aiTargetLane && state.visuals.aiTargetLane.laneId === lane.id) {
@@ -1126,13 +1123,20 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(22); ctx.textAlign = "center"; ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
     }
     ctx.globalAlpha = 1.0;
+    
+    // ゴースト描画部でも確実に引数を渡すよう修正
     state.visuals.ghosts.forEach(g => {
         const elapsed = now - g.startTime, progress = Math.min(1, elapsed / 800), yOffset = -150 * (1 - Math.pow(1 - progress, 3)); ctx.globalAlpha = 1 - progress;
         const b = getLaneBounds(g.laneIndex), laneCx = b.x + b.w / 2, p = getVisualPalette(g.status), stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + yOffset; 
         if (g.cookState !== undefined) {
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(laneCx-2, stickTop, 4, stickH);
             const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW/2;
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false); drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true); drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false);
+            const ghostStatusUpper = g.status.toUpperCase();
+            // ゴーストのレーンタイプは記録していないためデフォルトとして "medium" を渡す
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now); 
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, false, ghostStatusUpper, "medium", now); 
+            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
+            
             ctx.fillStyle = g.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
         }
     });
