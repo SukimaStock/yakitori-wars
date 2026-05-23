@@ -1143,16 +1143,60 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
 
     let p1MsgCount = 0; let p2MsgCount = 0;
     state.visuals.statusMessages.forEach((msg, idx) => {
-        const elapsed = now - msg.startTime; let alpha = 1, yAnimOffset = 0; let isHint = msg.type === "hint";
-        const totalDuration = msg.isSteal ? 2100 : 1900; const fadeOutDuration = 430; const maintainUntil = totalDuration - fadeOutDuration;
-        if (isHint) {
-            if (elapsed < 1000) { alpha = 1 - (elapsed / 1000); yAnimOffset = -(elapsed / 1000) * 15; } else { alpha = 0; }
-        } else if (msg.isPerfect) {
-            const perfectMaintainUntil = totalDuration - 500;
-            if (elapsed < 150) { const p = elapsed / 150; alpha = p; yAnimOffset = 15 * (1 - p); } else if (elapsed < perfectMaintainUntil) { alpha = 1; yAnimOffset = - (elapsed - 150) * 0.015; } else { const p = Math.min(1, (elapsed - perfectMaintainUntil) / 500); alpha = 1 - p; yAnimOffset = -14.25 - 20 * p; }
-        } else {
-            if (elapsed < 120) { const p = elapsed / 120; alpha = p; yAnimOffset = 10 * (1 - p); } else if (elapsed < maintainUntil) { alpha = 1; yAnimOffset = 0; } else { const p = Math.min(1, (elapsed - maintainUntil) / fadeOutDuration); alpha = 1 - p; yAnimOffset = -15 * p; }
-        }
+const elapsed = now - msg.startTime;
+let alpha = 1;
+let yAnimOffset = 0;
+let isHint = msg.type === "hint";
+
+const totalDuration = msg.isSteal ? 2100 : 1900;
+const fadeInDuration = 140;
+const fadeOutDuration = 520;
+
+function easeOutCubic(t) {
+    t = Math.max(0, Math.min(1, t));
+    return 1 - Math.pow(1 - t, 3);
+}
+
+function easeInOutCubic(t) {
+    t = Math.max(0, Math.min(1, t));
+    return t < 0.5
+        ? 4 * t * t * t
+        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+if (isHint) {
+    const p = Math.min(1, elapsed / 1000);
+    alpha = 1 - p;
+    yAnimOffset = -15 * easeOutCubic(p);
+
+} else {
+    const life = Math.min(1, elapsed / totalDuration);
+
+    // 表示直後だけ、下から少しだけ入る
+    const appearP = Math.min(1, elapsed / fadeInDuration);
+
+    // 全体を通して、ずっと少しずつ上に流す
+    const riseP = easeInOutCubic(life);
+
+    if (msg.isPerfect) {
+        // PERFECTは少し大きく、でも滑らかに
+        yAnimOffset = 12 * (1 - easeOutCubic(appearP)) - 34 * riseP;
+    } else {
+        // 通常得点は控えめに、止まらず浮く
+        yAnimOffset = 8 * (1 - easeOutCubic(appearP)) - 22 * riseP;
+    }
+
+    // フェードイン
+    if (elapsed < fadeInDuration) {
+        alpha = easeOutCubic(appearP);
+    }
+
+    // フェードアウト
+    if (elapsed > totalDuration - fadeOutDuration) {
+        const outP = (elapsed - (totalDuration - fadeOutDuration)) / fadeOutDuration;
+        alpha = 1 - easeOutCubic(outP);
+    }
+}
         if (alpha <= 0) return;
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); let fx = msg.x || cx; let fy = isHint ? (msg.y + yAnimOffset) : (130 + (idx * 32) + yAnimOffset);
         if (msg.targetPlayerPanel) {
