@@ -1114,17 +1114,23 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); 
     }
 
-    // 今日の客 (Today's Customer) - 画面上部に控えめに残す
+// 今日の客 (Today's Customer) - 画面上部に控えめに残す
     if (state.todaysOrder) {
-        const orderY = safeTop + 70;
+        const orderY = safeTop + 65; // 2行になるため、開始位置を少し上に調整
         ctx.textAlign = "center";
         ctx.font = getPixelFont(9);
-        const text = `"${state.todaysOrder.quote}"  ${state.todaysOrder.effectText}`;
-        const tw = ctx.measureText(text).width;
         
+        // 1行目:客のアイコンとセリフ
+        const quoteText = `"${state.todaysOrder.quote}"`;
+        const qw = ctx.measureText(quoteText).width;
         ctx.fillStyle = "#bbb";
-        ctx.fillText(text, cx + 8, orderY);
-        drawDotIcon(ctx, "customer", cx - tw / 2 - 8, orderY - 4, "#fff", 1.5);
+        ctx.fillText(quoteText, cx + 8, orderY);
+        drawDotIcon(ctx, "customer", cx - qw / 2 - 8, orderY - 4, "#fff", 1.5);
+        
+        // 2行目:注文の効果(改行して少し下に表示)
+        const effectText = state.todaysOrder.effectText;
+        ctx.fillStyle = "#fa3"; // 効果テキストは色を変えて視認性をアップ
+        ctx.fillText(effectText, cx, orderY + 15);
     }
 
     state.lanes.forEach((lane, i) => {
