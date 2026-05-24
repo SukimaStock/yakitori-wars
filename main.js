@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版)
+// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.5.1)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -16,6 +16,7 @@ function initGameState() {
         isBusy: false, isAIThinking: false, transition: currentTransition,
         introSequenceActive: false, introSequenceDone: false, introPhase: null, 
         introVsTimer: 0, fightSplashTimer: 0, introOrderTimer: 0, introPauseTimer: 0, 
+        orderIntroDone: false, // 注文表示が完了したかどうかのフラグ
         todaysOrder: null, // 今日の客
         gameEndWaitTimer: 0, endSplashTimer: 0, endSplashText: "", endSplashColor: "#fff",
         resultScreenTimer: 0, resultPause: 0, resultPauseDone: false, hitStopTimer: 0,
@@ -135,10 +136,14 @@ function updateIntroSequence() {
         if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25; }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
-        if (state.fightSplashTimer <= 0) { state.introPhase = "order"; state.introOrderTimer = 80; } // 客の声を表示
+        if (state.fightSplashTimer <= 0) { state.introPhase = "order"; state.introOrderTimer = 120; } // 客の声を長めに表示
     } else if (state.introPhase === "order") {
         state.introOrderTimer--;
-        if (state.introOrderTimer <= 0) { state.introPhase = "pause"; state.introPauseTimer = 15; }
+        if (state.introOrderTimer <= 0) { 
+            state.orderIntroDone = true; // 注文提示が完了したフラグをオン
+            state.introPhase = "pause"; 
+            state.introPauseTimer = 15; 
+        }
     } else if (state.introPhase === "pause") {
         state.introPauseTimer--;
         if (state.introPauseTimer <= 0) { 
@@ -1118,8 +1123,8 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); 
     }
 
-    // 今日の客 (Today's Customer) - 画面上部に小さく効果のみを残す
-    if (state.todaysOrder) {
+    // 今日の客 (Today's Customer) - 注文表示が完了した後だけ画面上部に小さく効果を残す
+    if (state.todaysOrder && state.orderIntroDone) {
         const orderY = safeTop + 65; 
         ctx.textAlign = "center";
         ctx.font = getPixelFont(9);
