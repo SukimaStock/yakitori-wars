@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.6 UI調整版)
+// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.7 屋台の夜アップデート)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -16,13 +16,11 @@ function initGameState() {
         isBusy: false, isAIThinking: false, transition: currentTransition,
         introSequenceActive: false, introSequenceDone: false, introPhase: null, 
         introVsTimer: 0, fightSplashTimer: 0, introOrderTimer: 0, 
-        introPauseTimer: 0, 
-        orderIntroDone: false, 
-        todaysOrder: null, 
+        introPauseTimer: 0, orderIntroDone: false, todaysOrder: null, 
         
         extraOrder: null, extraOrderActive: false, extraOrderClaimed: false, 
         extraOrderWinner: null, extraOrderIntroActive: false, extraOrderIntroTimer: 0, 
-        extraOrderSpawnRound: 5, 
+        extraOrderSpawnRound: 7, 
 
         gameEndWaitTimer: 0, endSplashTimer: 0, endSplashText: "", endSplashColor: "#fff",
         resultScreenTimer: 0, resultPause: 0, resultPauseDone: false, hitStopTimer: 0,
@@ -64,8 +62,8 @@ function getPixelFont(size) { return `${size}px 'Press Start 2P', monospace`; }
 let LAYOUT = {
     CANVAS_WIDTH: window.innerWidth, CANVAS_HEIGHT: window.innerHeight,
     COLORS: {
-        BG: "#161620", TEXT_MAIN: "#fff", TEXT_DIM: "#aaa",
-        P1: "#3c96ff", P2: "#ff5078", NEUTRAL: "#333", PANEL_BG: "#242430", OVERLAY_BG: "rgba(0, 0, 0, 0.7)",
+        BG: "#1e1410", TEXT_MAIN: "#fff", TEXT_DIM: "#aaa", // 屋台の夜アップデート
+        P1: "#3c96ff", P2: "#ff5078", NEUTRAL: "#333", PANEL_BG: "#2c1e16", OVERLAY_BG: "rgba(0, 0, 0, 0.7)",
         STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334", HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
     BUTTONS: [
@@ -204,7 +202,8 @@ function retryStage() {
     const stg = state.currentStage, prevMode = state.gameMode;
     initGameState(); 
     state.todaysOrder = getRandomOrder();
-    state.gameMode = prevMode; state.screen = "game";
+    state.gameMode = prevMode;
+    state.screen = "game";
     setupAIForStage(stg);
     state.startRouletteActive = true; state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4; state.startRouletteCount = 0; state.startRouletteIndex = 1;
@@ -218,16 +217,16 @@ function nextStage() {
     initGameState(); 
     state.todaysOrder = getRandomOrder();
     state.gameMode = prevMode; state.screen = "game"; setupAIForStage(nextStg);
-    state.startRouletteActive = true; state.startRouletteInterval = 4;
+    state.startRouletteActive = true;
+    state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4; state.startRouletteCount = 0; state.startRouletteIndex = 1;
-    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); state.startRouletteBlinkActive = false;
+    state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2);
+    state.startRouletteBlinkActive = false;
     state.startRouletteFinalPlayer = null;
 }
 
 function updateAllScores() { state.players.forEach(p => p.score = p.servedScore || 0); }
-function getBaseHeat(type) { if (type === "weak") return 1;
-    if (type === "medium") return 2; if (type === "strong") return 3; return 1;
-}
+function getBaseHeat(type) { if (type === "weak") return 1; if (type === "medium") return 2; if (type === "strong") return 3; return 1; }
 
 function spawnSmokeEffect(laneIndex, amount, status) {
     const b = getLaneBounds(laneIndex);
@@ -240,7 +239,7 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     let speedMult = 1.0;
     const nextStatus = getCookLabel(lane.type, lane.cookState + getBaseHeat(lane.type));
     const isAlmostBurnt = (status !== "burnt" && nextStatus === "burnt");
-
+    
     if (status === "burnt") {
         numParticles = 10 + amount * 2;
         color = "#333333";              
@@ -396,7 +395,6 @@ function startNewRound() {
     state.buildMode = null; state.pendingBox = null;
     state.currentPlayer = state.firstPlayer;
     state.pendingPlayer = state.firstPlayer; state.pendingTurnSplash = true; state.pendingAiBreath = false;
-
     if (state.round === state.extraOrderSpawnRound) {
         state.extraOrder = getRandomExtraOrder();
         state.extraOrderActive = true;
@@ -434,7 +432,6 @@ function updateRoulette() {
 
 function resolvePendingTurnFlow() {
     if (state.cookPreviewActive || state.introSequenceActive || state.roundEndPauseTimer > 0) return;
-
     if (state.extraOrderIntroActive) {
         state.extraOrderIntroTimer--;
         if (state.extraOrderIntroTimer <= 0) {
@@ -479,10 +476,8 @@ function getRandomExtraOrder() {
 }
 
 function getCookLabel(laneType, cv) {
-    if (laneType === "weak") { if (cv >= 8) return "burnt";
-        if (cv >= 6) return "perfect"; if (cv === 5) return "okay";
-    } else { if (cv >= 7) return "burnt"; if (cv === 6) return "perfect";
-        if (cv === 5) return "okay"; }
+    if (laneType === "weak") { if (cv >= 8) return "burnt"; if (cv >= 6) return "perfect"; if (cv === 5) return "okay"; } 
+    else { if (cv >= 7) return "burnt"; if (cv === 6) return "perfect"; if (cv === 5) return "okay"; }
     return "early";
 }
 function hasPerfectHarvestTarget(playerIndex) {
@@ -589,7 +584,6 @@ function tryHarvestNode(node) {
     }
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
     if (status === "perfect") p.stats.perfect++; if (status === "burnt") p.stats.burnt++; if (isSteal && scoreGained > 0) p.stats.steal++;
-    
     let isBonus = false; let bonusText = "";
     const order = state.todaysOrder ? state.todaysOrder.id : null;
     if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true; bonusText = "ORDER +2"; }
@@ -615,7 +609,7 @@ function tryHarvestNode(node) {
         if (exId === "first_steal" && isSteal && scoreGained > 0) achieved = true;
         if (exId === "first_burnt" && status === "burnt") achieved = true;
         if (exId === "first_strong" && node.type === "strong" && scoreGained > 0) achieved = true;
-
+        
         if (achieved) {
             state.extraOrderClaimed = true;
             state.extraOrderWinner = state.currentPlayer;
@@ -801,8 +795,7 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
         const isSteal = !isOwn;
         
         const actualScore = getHarvestScore(node, isSteal, lbl);
-        score += actualScore * 10; 
-        
+        score += actualScore * 10;
         if (lbl === "burnt") { 
             score += 25;
             if (profileName === "master") score += 20;
@@ -1029,11 +1022,9 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
 
 // --- 伝票描画関数(今日の注文・追加注文兼用) ---
 function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, claimed = false, winner = null) {
-    const isToday = title === "ORDER";
     const paddingX = 16 * scale;
-    
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
-    const textFontSize = isIntro ? 12 * scale : (isToday ? 8 * scale : 9 * scale);
+    const textFontSize = isIntro ? 12 * scale : 8 * scale; // フォントサイズも統一気味に
     
     ctx.font = getPixelFont(textFontSize);
     const textW = ctx.measureText(text).width;
@@ -1047,8 +1038,10 @@ function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, clai
     const cardX = cx - cardW / 2;
     const cardY = y;
     
-    drawBevelRect(ctx, cardX, cardY, cardW, cardH, isToday ? "#e0d6c8" : "#f0e6d0");
+    // 紙の色を統一(くすんだ生成り)
+    drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#e0d6c8");
     
+    // 枠の色(焦げ茶)
     ctx.fillStyle = "#5a4a3a";
     ctx.fillRect(cardX, cardY, cardW, 3 * scale);
     
@@ -1058,6 +1051,7 @@ function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, clai
     ctx.font = getPixelFont(titleFontSize);
     ctx.fillText(title, cx, cardY + (isIntro ? 15 * scale : 12 * scale));
     
+    // 赤茶色のテキスト
     ctx.fillStyle = "#c85a4a";
     ctx.font = getPixelFont(textFontSize);
     ctx.fillText(text, cx, cardY + (isIntro ? 28 * scale : 24 * scale), cardW - 8 * scale);
@@ -1074,7 +1068,6 @@ function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, clai
         ctx.fillStyle = "#c85a4a";
         ctx.font = getPixelFont(8 * scale);
         ctx.fillText("DONE", 0, 3 * scale);
-        
         if (winner) {
             const pColor = winner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.fillStyle = pColor;
@@ -1088,13 +1081,40 @@ function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, clai
 }
 // ----------------------------------------
 
+// 新規追加:卓上(背景)を描画する関数
+function drawTableBackground(ctx) {
+    ctx.fillStyle = LAYOUT.COLORS.BG;
+    ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    
+    // スーファミ風のシンプルな木目パターン
+    ctx.fillStyle = "#150d0a";
+    for (let y = 0; y < LAYOUT.CANVAS_HEIGHT; y += 32) {
+        ctx.fillRect(0, y, LAYOUT.CANVAS_WIDTH, 2);
+    }
+    
+    // 上部にぼんやりとした提灯の赤い光(視認性を邪魔しない程度)
+    ctx.globalAlpha = 0.15;
+    const grad = ctx.createRadialGradient(LAYOUT.CANVAS_WIDTH / 2, 0, 0, LAYOUT.CANVAS_WIDTH / 2, 0, 300);
+    grad.addColorStop(0, "#ff4400");
+    grad.addColorStop(1, "rgba(255, 68, 0, 0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, 300);
+    ctx.globalAlpha = 1.0;
+}
+
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { return now - m.startTime < (m.isSteal ? 2100 : 1900); });
     state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
     
-    ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    if (state.screen === "game") {
+        drawTableBackground(ctx);
+    } else {
+        ctx.fillStyle = LAYOUT.COLORS.BG; 
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    }
+    
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
     if (state.screen === "title") {
         const logoOffsetY = -205, buttonOffsetY = 85;
@@ -1140,7 +1160,8 @@ function render(ctx) {
             let titleText = state.winnerText;
             let titleColor = "#fff";
             if (state.screen === "gameover") { if (titleText.includes("P1")) titleColor = LAYOUT.COLORS.P1; else if (titleText.includes("DRAW")) titleColor = "#888";
-                else titleColor = LAYOUT.COLORS.P2; } else { titleColor = "#ffeb3b"; }
+            else titleColor = LAYOUT.COLORS.P2; } else { titleColor = "#ffeb3b";
+            }
             if (!state.visuals.resultComment) {
                 const diff = Math.abs((state.players[0].finalScore || state.players[0].score) - (state.players[1].finalScore || state.players[1].score));
                 let comment = "Good game.";
@@ -1160,17 +1181,21 @@ function render(ctx) {
             ctx.fillText(state.visuals.resultComment, cx, cy - 80); ctx.globalAlpha = 1.0;
         }
         if (timer >= 30) {
-            const alpha = Math.min(1, (timer - 30) / 10), p1Score = state.players[0].finalScore || state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
+            const alpha = Math.min(1, (timer - 30) / 10), p1Score = state.players[0].finalScore ||
+                state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
             if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
-            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } else { p1Color = "#aaa"; p2Color = "#aaa"; }
+            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
+            else { p1Color = "#aaa"; p2Color = "#aaa"; }
+            
             ctx.globalAlpha = alpha * p1Alpha;
             ctx.textAlign = "left";
             ctx.fillStyle = p1Color; ctx.font = getPixelFont(16); ctx.fillText("P1", cx - 80, cy - 35);
             ctx.textAlign = "right";
             ctx.fillText(`${p1Score}`, cx + 60, cy - 35); drawDotIcon(ctx, "diamond", cx + 75, cy - 43, p1Color, 2.5);
             drawScoreBreakdown(ctx, state.players[0].servedScore, state.players[0].resources, cx + 60, cy - 20);
+            
             ctx.globalAlpha = alpha * p2Alpha; ctx.textAlign = "left"; ctx.fillStyle = p2Color;
             ctx.font = getPixelFont(16); ctx.fillText(p2Name, cx - 80, cy + 10);
             ctx.textAlign = "right"; ctx.fillText(`${p2Score}`, cx + 60, cy + 10);
@@ -1178,10 +1203,13 @@ function render(ctx) {
             ctx.globalAlpha = 1.0;
         }
         if (timer >= 55) {
-            const alpha = Math.min(1, (timer - 55) / 10), p1Score = state.players[0].finalScore || state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
+            const alpha = Math.min(1, (timer - 55) / 10), p1Score = state.players[0].finalScore ||
+                state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
             if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
-            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } else { p1Color = "#aaa"; p2Color = "#aaa"; }
+            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
+            else { p1Color = "#aaa"; p2Color = "#aaa"; }
+            
             ctx.font = getPixelFont(10);
             const statsLabels = ["PERFECT", "BURNT", "STEAL"];
             ctx.globalAlpha = alpha; ctx.textAlign = "center"; ctx.fillStyle = "#888";
@@ -1201,7 +1229,8 @@ function render(ctx) {
             } else {
                 ctx.globalAlpha = alpha * pulse;
                 ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center";
-                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0); } else { ctx.fillText("▶ REMATCH", 0, 0); }
+                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0); } 
+                else { ctx.fillText("▶ REMATCH", 0, 0); }
             }
             ctx.restore();
             ctx.globalAlpha = 1.0;
@@ -1228,8 +1257,14 @@ function drawGameScreen(ctx) {
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, panelH, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, panelH, 2, activePlayer);
     
-    ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14);
-    ctx.textAlign = "center"; ctx.fillText(`ROUND ${state.round}/${state.maxRounds}`, cx, safeTop + 25);
+    // ラウンド表示を「勝負札」風に
+    ctx.font = getPixelFont(14);
+    const roundText = `ROUND ${state.round}/${state.maxRounds}`;
+    const tw = ctx.measureText(roundText).width;
+    drawBevelRect(ctx, cx - tw / 2 - 15, safeTop + 5, tw + 30, 28, "#2c1e16"); // 木の札
+    ctx.fillStyle = "#e0d6c8"; // 生成り色の文字
+    ctx.textAlign = "center"; 
+    ctx.fillText(roundText, cx, safeTop + 25);
     
     if (state.gameMode === "ai") { 
         ctx.font = getPixelFont(10);
@@ -1237,7 +1272,6 @@ function drawGameScreen(ctx) {
     }
 
     let orderYOffset = safeTop + 60;
-    
     // 今日の客 (Today's Customer)
     if (state.todaysOrder && state.orderIntroDone) {
         drawOrderSlip(ctx, cx, orderYOffset, "ORDER", state.todaysOrder.effectText, 1, false);
@@ -1256,6 +1290,7 @@ function drawGameScreen(ctx) {
         tracesForLane.forEach(trace => {
             if (lane.built) return; 
             const elapsed = now - trace.time;
+         
             let traceAlpha = 0;
             if (trace.type === "perfect") {
                 traceAlpha = Math.max(0, 1 - (elapsed / 1200)) * 0.15;
@@ -1291,6 +1326,7 @@ function drawGameScreen(ctx) {
 
         if (state.cookPreviewActive) {
             previewEventForThisLane = state.cookPreviewEvents.find(e => e.laneIndex === i);
+            
             const activeEvent = state.cookPreviewEvents[state.cookPreviewIndex];
             if (activeEvent && activeEvent.laneIndex === i) {
                 isCurrentPreviewLane = true; previewProg = 1.0 - (state.cookPreviewPhaseTimer / COOK_PREVIEW_DUR);
@@ -1299,10 +1335,8 @@ function drawGameScreen(ctx) {
                 effectiveCookState = displayCookState;
             } else if (previewEventForThisLane) {
                 const eventIndex = state.cookPreviewEvents.indexOf(previewEventForThisLane);
-                if (eventIndex > state.cookPreviewIndex) { effectiveCookState = previewEventForThisLane.prevCookState; displayCookState = previewEventForThisLane.prevCookState; gaugeCookState = previewEventForThisLane.prevCookState;
-                } 
-                else { effectiveCookState = previewEventForThisLane.newCookState;
-                    displayCookState = previewEventForThisLane.newCookState; gaugeCookState = previewEventForThisLane.newCookState; }
+                if (eventIndex > state.cookPreviewIndex) { effectiveCookState = previewEventForThisLane.prevCookState; displayCookState = previewEventForThisLane.prevCookState; gaugeCookState = previewEventForThisLane.prevCookState; } 
+                else { effectiveCookState = previewEventForThisLane.newCookState; displayCookState = previewEventForThisLane.newCookState; gaugeCookState = previewEventForThisLane.newCookState; }
             }
         }
 
@@ -1312,8 +1346,7 @@ function drawGameScreen(ctx) {
         if (state.buildMode) {
             isFlashable = isNodeValidForMode(lane, state.buildMode);
             if (state.buildMode === "harvest" && lane.built && lane.owner === activePlayer && getCookLabel(lane.type, effectiveCookState) === "early") isFlashable = true;
-            if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) { if (getCookLabel(lane.type, effectiveCookState) !== "burnt" && pResources < 1) isFlashable = false;
-            }
+            if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) { if (getCookLabel(lane.type, effectiveCookState) !== "burnt" && pResources < 1) isFlashable = false; }
             if (state.buildMode === "harvest" && isFlashable && lane.built) { const status = getCookLabel(lane.type, effectiveCookState);
                 if (status === "perfect") isPerfectTarget = true; }
             if (state.buildMode === "uchiwa" && isFlashable && lane.built) { uchiwaTargetState = baseEndState + 1;
@@ -1348,10 +1381,8 @@ function drawGameScreen(ctx) {
         ctx.stroke();
         
         let fireIntensity = lane.fire * 0.15; 
-        
         const uchiwaTime = state.visuals.uchiwaGusts[lane.id];
-        let gustWobble = 0;
-        let fireSwayX = 0;
+        let gustWobble = 0; let fireSwayX = 0;
         if (uchiwaTime && now - uchiwaTime < 800) {
             const gustP = 1 - ((now - uchiwaTime) / 800);
             fireIntensity += 0.15 * gustP;
@@ -1362,10 +1393,7 @@ function drawGameScreen(ctx) {
         let currentFireIntensity = fireIntensity;
         if (lane.type === "strong") { currentFireIntensity += (Math.sin(now / 100) * 0.05); } 
         else if (lane.type === "weak") { currentFireIntensity -= 0.05; }
-        
-        if (isPreBurnt && !lane.justPlaced) {
-            currentFireIntensity += (Math.sin(now / 50) * 0.1);
-        }
+        if (isPreBurnt && !lane.justPlaced) { currentFireIntensity += (Math.sin(now / 50) * 0.1); }
 
         const gradient = ctx.createLinearGradient(0, b.y + b.h - 50, 0, b.y + b.h);
         gradient.addColorStop(0, "rgba(255, 50, 0, 0)"); 
@@ -1417,12 +1445,8 @@ function drawGameScreen(ctx) {
             }
 
             let breatheY = 0;
-            if (displayStatusUpper === "PERFECT" && !lane.justPlaced) {
-                breatheY = Math.sin(now / 260) * 1.5;
-            }
-            if (isPrePerfect && !lane.justPlaced) {
-                breatheY = Math.sin(now / 150) * 0.5;
-            }
+            if (displayStatusUpper === "PERFECT" && !lane.justPlaced) { breatheY = Math.sin(now / 260) * 1.5; }
+            if (isPrePerfect && !lane.justPlaced) { breatheY = Math.sin(now / 150) * 0.5; }
 
             const stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + fallYOffset + breatheY;
             const shakenLaneCx = laneCx + gustWobble;
@@ -1490,10 +1514,8 @@ function drawGameScreen(ctx) {
             } else if (j < uchiwaPreviewNextCv) {
                 if (j === uchiwaDotIndex) {
                     let fillStyle = "rgba(255, 255, 255, 0.8)", strokeStyle = "rgba(255, 255, 255, 1.0)";
-                    if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") { fillStyle = "rgba(255, 230, 100, 0.8)";
-                        strokeStyle = "rgba(255, 230, 100, 1.0)"; }
-                    else if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") { fillStyle = "rgba(255, 100, 100, 0.8)";
-                        strokeStyle = "rgba(255, 100, 100, 1.0)"; }
+                    if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") { fillStyle = "rgba(255, 230, 100, 0.8)"; strokeStyle = "rgba(255, 230, 100, 1.0)"; }
+                    else if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") { fillStyle = "rgba(255, 100, 100, 0.8)"; strokeStyle = "rgba(255, 100, 100, 1.0)"; }
                     ctx.fillStyle = fillStyle;
                     ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                     ctx.strokeStyle = strokeStyle; ctx.lineWidth = 1; ctx.strokeRect(dx, dotStartY, dotSize, dotSize);
@@ -1544,9 +1566,7 @@ function drawGameScreen(ctx) {
                 if (uchiwaTargetStatus === "burnt") statusText = "BURN"; if (uchiwaTargetStatus === "okay") statusText = "OK";
                 let color = "#fff", textAlpha = modeAlpha;
                 if (uchiwaTargetStatus === "perfect") { color = "#ffeb3b"; } 
-                else if (uchiwaTargetStatus === "burnt") { color = "#ff5555";
-                    textAlpha = modeAlpha * (0.6 + 0.4 * Math.sin(now / 80));
-                } 
+                else if (uchiwaTargetStatus === "burnt") { color = "#ff5555"; textAlpha = modeAlpha * (0.6 + 0.4 * Math.sin(now / 80)); } 
                 else if (uchiwaTargetStatus === "okay") { color = "#dddddd"; } else { color = "#aaaaaa"; }
                 ctx.globalAlpha = textAlpha;
                 ctx.font = getPixelFont(10);
@@ -1604,7 +1624,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const b = getButtonBounds(i), boxId = i + 1; let canUse = false;
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);  if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); 
             if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
-            
+          
             const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
             let baseColor = (canUse && !isLocked) ? btn.color : "#445"; let btnAlpha = 0.9; 
             const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); if (isError) baseColor = "#6a3a3a"; 
@@ -1662,15 +1682,20 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
-            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S ORDER", state.todaysOrder.effectText, 1.5, true); 
+            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S ORDER", state.todaysOrder.effectText, 1.5, true);
         }
         ctx.textBaseline = "alphabetic";
-    
     } else if (state.extraOrderIntroActive) {
-        ctx.fillStyle = "rgba(22, 22, 32, 0.85)";
+        ctx.fillStyle = "rgba(30, 20, 15, 0.85)"; // 暗い茶色のオーバーレイ
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-        drawOrderSlip(ctx, cx, cy - 30, "EXTRA ORDER", state.extraOrder.label, 1.5, true); 
-    
+        
+        // カクッとした伝票の差し込み演出
+        let scale = 1.0;
+        if (state.extraOrderIntroTimer > 60) scale = 2.0; 
+        else if (state.extraOrderIntroTimer > 30) scale = 1.6; 
+        else scale = 1.5; 
+        
+        drawOrderSlip(ctx, cx, cy - 30 * scale, "EXTRA ORDER", state.extraOrder.label, scale, true);
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
         ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
@@ -1685,6 +1710,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (g.status === "BURNT") { moveDist = -40; alphaProg = Math.min(1, elapsed / 500); }
   
         const yOffset = moveDist * (1 - Math.pow(1 - progress, 3)); ctx.globalAlpha = Math.max(0, 1 - alphaProg);
+        
         const b = getLaneBounds(g.laneIndex), laneCx = b.x + b.w / 2, p = getVisualPalette(g.status), stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + yOffset; 
         if (g.cookState !== undefined) {
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; 
@@ -1758,7 +1784,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
                 const txtW = ctx.measureText(text).width + (icon ? 50 : 30);
                 const bgH = msg.isBonus ? 40 : 30; 
-                ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; 
+                ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
                 ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, bgH + (msg.isPerfect?4:0));
                 if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
                 
