@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.6)
+// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.6 UI調整版)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -17,14 +17,12 @@ function initGameState() {
         introSequenceActive: false, introSequenceDone: false, introPhase: null, 
         introVsTimer: 0, fightSplashTimer: 0, introOrderTimer: 0, 
         introPauseTimer: 0, 
-        orderIntroDone: false, // 注文表示が完了したかどうかのフラグ
-        todaysOrder: null, // 今日の客
+        orderIntroDone: false, 
+        todaysOrder: null, 
         
-        // --- v0.6 追加注文(ショートゴール) ---
         extraOrder: null, extraOrderActive: false, extraOrderClaimed: false, 
         extraOrderWinner: null, extraOrderIntroActive: false, extraOrderIntroTimer: 0, 
-        extraOrderSpawnRound: 5, // Round 5 で出現
-        // ------------------------------------
+        extraOrderSpawnRound: 5, 
 
         gameEndWaitTimer: 0, endSplashTimer: 0, endSplashText: "", endSplashColor: "#fff",
         resultScreenTimer: 0, resultPause: 0, resultPauseDone: false, hitStopTimer: 0,
@@ -399,12 +397,11 @@ function startNewRound() {
     state.currentPlayer = state.firstPlayer;
     state.pendingPlayer = state.firstPlayer; state.pendingTurnSplash = true; state.pendingAiBreath = false;
 
-    // --- v0.6 Round 5 開始時に追加注文をセット ---
     if (state.round === state.extraOrderSpawnRound) {
         state.extraOrder = getRandomExtraOrder();
         state.extraOrderActive = true;
         state.extraOrderIntroActive = true;
-        state.extraOrderIntroTimer = 90; // 約1.5秒間、画面中央で紹介する
+        state.extraOrderIntroTimer = 90; 
     }
 }
 
@@ -438,7 +435,6 @@ function updateRoulette() {
 function resolvePendingTurnFlow() {
     if (state.cookPreviewActive || state.introSequenceActive || state.roundEndPauseTimer > 0) return;
 
-    // --- v0.6 イントロ演出中はターン表示などを一時停止 ---
     if (state.extraOrderIntroActive) {
         state.extraOrderIntroTimer--;
         if (state.extraOrderIntroTimer <= 0) {
@@ -471,7 +467,6 @@ function getRandomOrder() {
     return TODAYS_ORDERS[Math.floor(Math.random() * TODAYS_ORDERS.length)];
 }
 
-// --- v0.6 追加注文データの追加 ---
 const EXTRA_ORDERS = [
     { id: "first_okay", label: "FIRST OKAY +3", bonus: 3 },
     { id: "first_perfect", label: "FIRST PERFECT +4", bonus: 4 },
@@ -611,7 +606,6 @@ function tryHarvestNode(node) {
         });
     }
 
-    // --- v0.6 追加注文(EXTRA ORDER)の達成判定 ---
     if (state.extraOrderActive && !state.extraOrderClaimed) {
         let achieved = false;
         const exId = state.extraOrder.id;
@@ -625,7 +619,7 @@ function tryHarvestNode(node) {
         if (achieved) {
             state.extraOrderClaimed = true;
             state.extraOrderWinner = state.currentPlayer;
-            p.servedScore += state.extraOrder.bonus; // ボーナスを加算
+            p.servedScore += state.extraOrder.bonus; 
             
             state.visuals.statusMessages.push({ 
                 type: 'score', amount: state.extraOrder.bonus, player: state.currentPlayer, 
@@ -668,7 +662,6 @@ function isNodeValidForMode(node, mode) {
 // 5. game/input.js - 入力処理
 // ==========================================
 function isInputLocked() {
-    // --- v0.6 追加注文のイントロ中もロック ---
     if (state.startRouletteActive || state.startRouletteBlinkActive || state.introSequenceActive || state.cookPreviewActive || state.roundEndPauseTimer > 0 || state.extraOrderIntroActive) return true;
     const cp = state.currentPlayer;
     return state.screen !== "game" || state.isBusy || state.isAIThinking || state.pendingPlayer !== null ||
@@ -1034,61 +1027,66 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
     drawDotIcon(ctx, "meat", currentX + 2, y - 6, "#666", 1.5); currentX += iconW; ctx.fillText(text3, currentX, y);
 }
 
-// --- v0.6 追加注文伝票の描画関数 ---
-function drawExtraOrderSlip(ctx, cx, y, scale = 1, isIntro = false) {
-    if (!state.extraOrder) return;
-    const cardW = 150 * scale, cardH = 34 * scale;
-    const cardX = cx - cardW / 2, cardY = y;
+// --- 伝票描画関数(今日の注文・追加注文兼用) ---
+function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, claimed = false, winner = null) {
+    const isToday = title === "ORDER";
+    const paddingX = 16 * scale;
     
-    // 紙の背景(ベージュ)
-    drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#e8dcca");
+    const titleFontSize = isIntro ? 10 * scale : 8 * scale;
+    const textFontSize = isIntro ? 12 * scale : (isToday ? 8 * scale : 9 * scale);
     
-    // 伝票上部の赤いライン
-    ctx.fillStyle = "#d54";
+    ctx.font = getPixelFont(textFontSize);
+    const textW = ctx.measureText(text).width;
+    ctx.font = getPixelFont(titleFontSize);
+    const titleW = ctx.measureText(title).width;
+    
+    const contentW = Math.max(textW, titleW);
+    const maxW = Math.min(320 * scale, LAYOUT.CANVAS_WIDTH * 0.48);
+    const cardW = Math.min(maxW, Math.max(120 * scale, contentW + paddingX * 2));
+    const cardH = isIntro ? 34 * scale : 28 * scale;
+    const cardX = cx - cardW / 2;
+    const cardY = y;
+    
+    drawBevelRect(ctx, cardX, cardY, cardW, cardH, isToday ? "#e0d6c8" : "#f0e6d0");
+    
+    ctx.fillStyle = "#5a4a3a";
     ctx.fillRect(cardX, cardY, cardW, 3 * scale);
     
     ctx.textAlign = "center";
     
-    if (isIntro) {
-        ctx.fillStyle = "#333";
-        ctx.font = getPixelFont(10 * scale);
-        ctx.fillText("EXTRA ORDER", cx, cardY + 15 * scale);
-        ctx.fillStyle = "#d54";
-        ctx.font = getPixelFont(12 * scale);
-        ctx.fillText(state.extraOrder.label, cx, cardY + 28 * scale);
-    } else {
-        ctx.fillStyle = "#333";
-        ctx.font = getPixelFont(8 * scale);
-        ctx.fillText("EXTRA ORDER", cx, cardY + 13 * scale);
-        ctx.fillStyle = "#d54";
-        ctx.font = getPixelFont(9 * scale);
-        ctx.fillText(state.extraOrder.label, cx, cardY + 25 * scale);
-    }
+    ctx.fillStyle = "#4a4a4a";
+    ctx.font = getPixelFont(titleFontSize);
+    ctx.fillText(title, cx, cardY + (isIntro ? 15 * scale : 12 * scale));
+    
+    ctx.fillStyle = "#c85a4a";
+    ctx.font = getPixelFont(textFontSize);
+    ctx.fillText(text, cx, cardY + (isIntro ? 28 * scale : 24 * scale), cardW - 8 * scale);
 
-    // DONEスタンプ
-    if (state.extraOrderClaimed) {
+    if (claimed) {
         ctx.save();
-        ctx.translate(cardX + cardW - 25 * scale, cardY + cardH / 2);
-        ctx.rotate(-0.15); // 少し斜めに押す
-        ctx.strokeStyle = "#d54";
-        ctx.lineWidth = 2 * scale;
-        ctx.strokeRect(-18 * scale, -8 * scale, 36 * scale, 16 * scale);
-        ctx.fillStyle = "#d54";
+        const stampX = cardX + cardW - 22 * scale;
+        const stampY = cardY + cardH / 2;
+        ctx.translate(stampX, stampY);
+        ctx.rotate(-0.15); 
+        ctx.strokeStyle = "#c85a4a";
+        ctx.lineWidth = 1.5 * scale;
+        ctx.strokeRect(-16 * scale, -8 * scale, 32 * scale, 16 * scale);
+        ctx.fillStyle = "#c85a4a";
         ctx.font = getPixelFont(8 * scale);
         ctx.fillText("DONE", 0, 3 * scale);
         
-        // 勝者バッジ
-        if (state.extraOrderWinner) {
-            const pColor = state.extraOrderWinner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+        if (winner) {
+            const pColor = winner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.fillStyle = pColor;
-            ctx.fillRect(8 * scale, 4 * scale, 14 * scale, 10 * scale);
+            ctx.fillRect(8 * scale, 3 * scale, 14 * scale, 10 * scale);
             ctx.fillStyle = "#fff";
             ctx.font = getPixelFont(7 * scale);
-            ctx.fillText(`P${state.extraOrderWinner}`, 15 * scale, 12 * scale);
+            ctx.fillText(`P${winner}`, 15 * scale, 11 * scale);
         }
         ctx.restore();
     }
 }
+// ----------------------------------------
 
 function render(ctx) {
     const now = getTime();
@@ -1238,18 +1236,18 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); 
     }
 
-    // 今日の客 (Today's Customer) 
+    let orderYOffset = safeTop + 60;
+    
+    // 今日の客 (Today's Customer)
     if (state.todaysOrder && state.orderIntroDone) {
-        const orderY = safeTop + 65;
-        ctx.textAlign = "center";
-        ctx.font = getPixelFont(9);
-        ctx.fillStyle = "#fa3";
-        ctx.fillText(state.todaysOrder.shortText, cx, orderY);
+        drawOrderSlip(ctx, cx, orderYOffset, "ORDER", state.todaysOrder.effectText, 1, false);
+        orderYOffset += 32; 
+    }
 
-        // --- v0.6 追加注文の常時表示 (小さめ) ---
-        if (state.extraOrderActive && !state.extraOrderIntroActive) {
-            drawExtraOrderSlip(ctx, cx, orderY + 10, 1, false);
-        }
+    // 追加注文の常時表示
+    if (state.extraOrderActive && !state.extraOrderIntroActive) {
+        let shortText = state.extraOrder.label.replace("FIRST ", "");
+        drawOrderSlip(ctx, cx, orderYOffset, "EXTRA", shortText, 1, false, state.extraOrderClaimed, state.extraOrderWinner);
     }
 
     state.lanes.forEach((lane, i) => {
@@ -1664,26 +1662,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
-            const cardW = 280, cardH = 80;
-            const cardX = cx - cardW / 2, cardY = cy - cardH / 2;
-            drawBevelRect(ctx, cardX, cardY, cardW, cardH, LAYOUT.COLORS.PANEL_BG);
-            
-            ctx.fillStyle = "#ffeb3b"; ctx.font = getPixelFont(12); ctx.textAlign = "center";
-            ctx.fillText(state.todaysOrder.title, cx, cardY + 25);
-            ctx.fillStyle = "#fff"; ctx.font = getPixelFont(10);
-            ctx.fillText(`"${state.todaysOrder.quote}"`, cx, cardY + 50);
-            
-            ctx.fillStyle = "#fa3"; ctx.font = getPixelFont(10);
-            ctx.fillText(state.todaysOrder.effectText, cx, cardY + 70);
+            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S ORDER", state.todaysOrder.effectText, 1.5, true); 
         }
         ctx.textBaseline = "alphabetic";
     
-    // --- v0.6 ラウンド5の追加注文の演出 ---
     } else if (state.extraOrderIntroActive) {
         ctx.fillStyle = "rgba(22, 22, 32, 0.85)";
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-        drawExtraOrderSlip(ctx, cx, cy - 30, 1.5, true); 
-    // ----------------------------------------
+        drawOrderSlip(ctx, cx, cy - 30, "EXTRA ORDER", state.extraOrder.label, 1.5, true); 
     
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
