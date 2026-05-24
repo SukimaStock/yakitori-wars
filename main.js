@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.7 細部UI調整)
+// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.7 細部UI調整 + チュートリアル&アイコン注文化)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -7,7 +7,6 @@ function initGameState() {
     const currentTransition = (state && state.transition && state.transition.active) 
         ? state.transition 
         : { active: false, type: null, timer: 0, duration: 20, targetMode: null };
-    
     state = {
         screen: "title", gameMode: "pvp", currentStage: 1, enemyName: "KENTA",
         aiLevel: 2, aiProfile: "master", round: 1, maxRounds: 13, 
@@ -123,6 +122,21 @@ const STAGE_CONFIG = {
     3: { profile: "reader", level: 3, enemyName: "TETSUYA" }, 4: { profile: "master", level: 4, enemyName: "MAKOTO" },
     5: { profile: "master", level: 5, enemyName: "BOSS" }
 };
+
+// チュートリアル(Stage 1)かどうかを判定します
+function isTutorialStage() {
+    return state.gameMode === "ai" && state.currentStage === 1;
+}
+
+// 現在のステージに応じて注文を設定します
+function assignOrderForCurrentStage() {
+    if (isTutorialStage()) {
+        state.todaysOrder = null; // Stage 1は注文なし
+    } else {
+        state.todaysOrder = getRandomOrder(); // Stage 2以降はランダムに注文
+    }
+}
+
 function updateTransition() {
     if (state.transition && state.transition.active) {
         state.transition.timer++;
@@ -140,7 +154,16 @@ function updateIntroSequence() {
         if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25; }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
-        if (state.fightSplashTimer <= 0) { state.introPhase = "order"; state.introOrderTimer = 120; }
+        if (state.fightSplashTimer <= 0) { 
+            if (isTutorialStage() || !state.todaysOrder) {
+                state.orderIntroDone = true;
+                state.introPhase = "pause"; 
+                state.introPauseTimer = 15;
+            } else {
+                state.introPhase = "order"; 
+                state.introOrderTimer = 120;
+            }
+        }
     } else if (state.introPhase === "order") {
         state.introOrderTimer--;
         if (state.introOrderTimer <= 0) { 
@@ -189,10 +212,12 @@ function setupAIForStage(stageNumber) {
 
 function startGame(mode) {
     initGameState(); 
-    state.todaysOrder = getRandomOrder();
     state.gameMode = mode;
     state.screen = "game";
     if (mode === "ai") setupAIForStage(1);
+    
+    assignOrderForCurrentStage();
+    
     state.startRouletteActive = true; state.startRouletteInterval = 4; state.startRouletteTickTimer = 4; state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
     state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); state.startRouletteBlinkActive = false; state.startRouletteFinalPlayer = null;
@@ -201,10 +226,12 @@ function startGame(mode) {
 function retryStage() {
     const stg = state.currentStage, prevMode = state.gameMode;
     initGameState(); 
-    state.todaysOrder = getRandomOrder();
     state.gameMode = prevMode;
     state.screen = "game";
     setupAIForStage(stg);
+    
+    assignOrderForCurrentStage();
+    
     state.startRouletteActive = true; state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4; state.startRouletteCount = 0; state.startRouletteIndex = 1;
     state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); state.startRouletteBlinkActive = false;
@@ -215,8 +242,10 @@ function nextStage() {
     const nextStg = state.currentStage + 1; if (nextStg > 5) return;
     const prevMode = state.gameMode; 
     initGameState(); 
-    state.todaysOrder = getRandomOrder();
     state.gameMode = prevMode; state.screen = "game"; setupAIForStage(nextStg);
+    
+    assignOrderForCurrentStage();
+    
     state.startRouletteActive = true;
     state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4; state.startRouletteCount = 0; state.startRouletteIndex = 1;
@@ -375,8 +404,7 @@ function updateRoundEndPause() {
 function isAIPlayer(playerIndex) { return state.gameMode === "ai" && playerIndex === 2; }
 function consumeWorker() {
     const p = state.players[state.currentPlayer - 1]; p.workersRemaining -= 1;
-    state.buildMode = null;
-    state.pendingBox = null; updateAllScores(); switchTurn();
+    state.buildMode = null; state.pendingBox = null; updateAllScores(); switchTurn();
 }
 function switchTurn() {
     state.isBusy = true;
@@ -395,7 +423,8 @@ function startNewRound() {
     state.buildMode = null; state.pendingBox = null;
     state.currentPlayer = state.firstPlayer;
     state.pendingPlayer = state.firstPlayer; state.pendingTurnSplash = true; state.pendingAiBreath = false;
-    if (state.round === state.extraOrderSpawnRound) {
+    
+    if (state.round === state.extraOrderSpawnRound && !isTutorialStage()) {
         state.extraOrder = getRandomExtraOrder();
         state.extraOrderActive = true;
         state.extraOrderIntroActive = true;
@@ -460,9 +489,7 @@ const TODAYS_ORDERS = [
     { id: "steal", title: "TODAY'S CUSTOMER", quote: "I want the best one!", effectText: "STEAL +3", shortText: "ORDER: STEAL +3" },
     { id: "meat_save", title: "TODAY'S CUSTOMER", quote: "Save some meat.", effectText: "LEFT MEAT +2", shortText: "ORDER: LEFT MEAT +2" }
 ];
-function getRandomOrder() {
-    return TODAYS_ORDERS[Math.floor(Math.random() * TODAYS_ORDERS.length)];
-}
+function getRandomOrder() { return TODAYS_ORDERS[Math.floor(Math.random() * TODAYS_ORDERS.length)]; }
 
 const EXTRA_ORDERS = [
     { id: "first_okay", label: "FIRST OKAY +3", bonus: 3 },
@@ -471,9 +498,7 @@ const EXTRA_ORDERS = [
     { id: "first_burnt", label: "FIRST BURNT +2", bonus: 2 },
     { id: "first_strong", label: "FIRST STRONG +3", bonus: 3 }
 ];
-function getRandomExtraOrder() {
-    return EXTRA_ORDERS[Math.floor(Math.random() * EXTRA_ORDERS.length)];
-}
+function getRandomExtraOrder() { return EXTRA_ORDERS[Math.floor(Math.random() * EXTRA_ORDERS.length)]; }
 
 function getCookLabel(laneType, cv) {
     if (laneType === "weak") { if (cv >= 8) return "burnt"; if (cv >= 6) return "perfect"; if (cv === 5) return "okay"; } 
@@ -609,7 +634,6 @@ function tryHarvestNode(node) {
         if (exId === "first_steal" && isSteal && scoreGained > 0) achieved = true;
         if (exId === "first_burnt" && status === "burnt") achieved = true;
         if (exId === "first_strong" && node.type === "strong" && scoreGained > 0) achieved = true;
-        
         if (achieved) {
             state.extraOrderClaimed = true;
             state.extraOrderWinner = state.currentPlayer;
@@ -659,7 +683,7 @@ function isInputLocked() {
     if (state.startRouletteActive || state.startRouletteBlinkActive || state.introSequenceActive || state.cookPreviewActive || state.roundEndPauseTimer > 0 || state.extraOrderIntroActive) return true;
     const cp = state.currentPlayer;
     return state.screen !== "game" || state.isBusy || state.isAIThinking || state.pendingPlayer !== null ||
-        state.turnSplashTimer > 0 || state.aiBreathTimer > 0 || state.gameOver || state.players[cp - 1].workersRemaining <= 0 || isAIPlayer(cp);
+           state.turnSplashTimer > 0 || state.aiBreathTimer > 0 || state.gameOver || state.players[cp - 1].workersRemaining <= 0 || isAIPlayer(cp);
 }
 function handleCanvasClick(event, canvas) {
     const rect = canvas.getBoundingClientRect(), x = event.clientX - rect.left, y = event.clientY - rect.top;
@@ -754,8 +778,7 @@ function isActionValidForAI(currentState, action, playerIndex, profileName, leve
         if (!node) return false;
         const isOwn = node.owner === playerIndex, lbl = getCookLabel(node.type, node.cookState);
         if (isOwn) { if (lbl === "early") return false; } 
-        else { if (lbl === "early") return false;
-            if (lbl !== "burnt" && p.resources < 1) return false; }
+        else { if (lbl === "early") return false; if (lbl !== "burnt" && p.resources < 1) return false; }
         return true;
     }
     if (action.type === "uchiwa") {
@@ -1004,8 +1027,7 @@ function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scal
 function drawEndSplash(ctx) {
     if (!state.endSplashTimer || state.endSplashTimer <= 0) return;
     const cx = LAYOUT.CANVAS_WIDTH / 2;
-    const cy = LAYOUT.CANVAS_HEIGHT / 2; const t = state.endSplashTimer; const alpha = t > 40 ?
-        (55 - t) / 15 : Math.min(1, t / 12);
+    const cy = LAYOUT.CANVAS_HEIGHT / 2; const t = state.endSplashTimer; const alpha = t > 40 ? (55 - t) / 15 : Math.min(1, t / 12);
     ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     ctx.fillStyle = "rgba(0, 0, 0, 0.45)"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     ctx.font = getPixelFont(24); ctx.textAlign = "center"; ctx.fillStyle = state.endSplashColor || "#fff"; ctx.fillText(state.endSplashText, cx, cy);
@@ -1020,14 +1042,81 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
     drawDotIcon(ctx, "meat", currentX + 2, y - 6, "#666", 1.5); currentX += iconW; ctx.fillText(text3, currentX, y);
 }
 
+// 注文の条件をアイコンとダイヤで描画する新しい関数
+function drawOrderConditionIcon(ctx, orderId, isExtra, cx, cy, scale) {
+    ctx.save();
+    
+    // 追加注文(EXTRA)の場合は、左端にチェッカーフラッグ風のマークを描画して「早い者勝ち」感を演出
+    let startX = cx - (40 * scale);
+    if (isExtra) {
+        ctx.fillStyle = "#333";
+        ctx.fillRect(startX - 15 * scale, cy - 8 * scale, 10 * scale, 10 * scale);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(startX - 15 * scale, cy - 8 * scale, 5 * scale, 5 * scale);
+        ctx.fillRect(startX - 10 * scale, cy - 3 * scale, 5 * scale, 5 * scale);
+        startX += 5 * scale;
+    }
+
+    const iconY = cy;
+    let bonusText = "";
+
+    // 注文IDに応じたアイコンの描画
+    if (orderId === "strong" || orderId === "first_strong") {
+        drawDotIcon(ctx, "fire", startX, iconY, "#fa3", 2 * scale);
+        drawDotIcon(ctx, "fire", startX + 15 * scale, iconY, "#fa3", 2 * scale);
+        drawDotIcon(ctx, "fire", startX + 30 * scale, iconY, "#fa3", 2 * scale);
+        bonusText = orderId === "strong" ? "+2" : "+3";
+    } else if (orderId === "okay" || orderId === "first_okay") {
+        drawDeliciousYakitori(ctx, startX + 15 * scale, iconY - 10 * scale, 30 * scale, 15 * scale, "#c88450", false, false, "OKAY", "medium", getTime());
+        bonusText = "+3";
+    } else if (orderId === "burnt" || orderId === "first_burnt") {
+        drawDeliciousYakitori(ctx, startX + 15 * scale, iconY - 10 * scale, 30 * scale, 15 * scale, "#3c2a23", false, false, "BURNT", "medium", getTime());
+        bonusText = orderId === "burnt" ? "+1" : "+2";
+    } else if (orderId === "weak_vip" || orderId === "first_perfect") {
+        drawDeliciousYakitori(ctx, startX + 15 * scale, iconY - 10 * scale, 30 * scale, 15 * scale, "#9f5524", false, false, "PERFECT", "medium", getTime());
+        if (orderId === "weak_vip") {
+            drawDotIcon(ctx, "fire", startX - 5 * scale, iconY, "#fa3", 1.5 * scale);
+            bonusText = "+5";
+        } else {
+            bonusText = "+4";
+        }
+    } else if (orderId === "steal" || orderId === "first_steal") {
+        ctx.fillStyle = "#a55"; 
+        ctx.fillRect(startX, iconY - 5 * scale, 15 * scale, 5 * scale);
+        ctx.fillStyle = "#888";
+        ctx.font = getPixelFont(8 * scale);
+        ctx.fillText("→", startX + 22 * scale, iconY + 2 * scale);
+        drawDotIcon(ctx, "serve_plate", startX + 35 * scale, iconY + 2 * scale, "#fff", 2 * scale);
+        bonusText = "+3";
+    } else if (orderId === "meat_save") {
+        drawDotIcon(ctx, "meat", startX, iconY, "#fff", 2 * scale);
+        ctx.fillStyle = "#888";
+        ctx.font = getPixelFont(8 * scale);
+        ctx.fillText("x", startX + 15 * scale, iconY + 2 * scale);
+        ctx.fillStyle = "#888";
+        ctx.font = getPixelFont(7 * scale);
+        ctx.fillText("END", startX + 32 * scale, iconY + 2 * scale);
+        bonusText = "+2";
+    }
+
+    // 右側にダイヤとスコアを描画
+    const bonusX = cx + (35 * scale);
+    drawDotIcon(ctx, "diamond", bonusX, iconY, "#6cf", 2.5 * scale);
+    ctx.fillStyle = "#fff";
+    ctx.font = getPixelFont(10 * scale);
+    ctx.textAlign = "left";
+    ctx.fillText(bonusText, bonusX + 12 * scale, iconY + 4 * scale);
+
+    ctx.restore();
+}
+
 // --- 伝票描画関数(今日の注文・追加注文兼用) ---
-function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, claimed = false, winner = null) {
+function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false, claimed = false, winner = null) {
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
-    const textFontSize = isIntro ? 12 * scale : 8 * scale;
     
     // 内容によって揺れないよう、固定の幅と高さを指定
-    const cardW = Math.round((isIntro ? 260 : 160) * scale);
-    const cardH = Math.round((isIntro ? 34 : 28) * scale);
+    const cardW = Math.round((isIntro ? 260 : 180) * scale);
+    const cardH = Math.round((isIntro ? 45 : 36) * scale);
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
     
@@ -1040,16 +1129,15 @@ function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, clai
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
-    
     ctx.fillStyle = "#4a4a4a";
     ctx.font = getPixelFont(titleFontSize);
     const titleY = Math.round(cardY + (isIntro ? 15 * scale : 12 * scale));
     ctx.fillText(title, Math.round(cx), titleY);
     
-    ctx.fillStyle = "#c85a4a";
-    ctx.font = getPixelFont(textFontSize);
-    const textY = Math.round(cardY + (isIntro ? 28 * scale : 24 * scale));
-    ctx.fillText(text, Math.round(cx), textY, cardW - 8 * scale);
+    // アイコン描画を呼び出す
+    const iconY = Math.round(cardY + (isIntro ? 32 * scale : 26 * scale));
+    const isExtra = title.includes("EXTRA");
+    drawOrderConditionIcon(ctx, orderObj.id, isExtra, cx, iconY, scale);
     ctx.restore();
 
     // 既存の文字を押し除けず、上にスタンプを重ねる
@@ -1137,7 +1225,8 @@ function render(ctx) {
         state.resultScreenTimer++; const timer = state.resultScreenTimer;
         const alphaOverlay = Math.min(0.85, timer / 90);
         ctx.fillStyle = `rgba(30, 15, 10, ${alphaOverlay})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-        if (timer % 6 === 0) { state.visuals.floaters.push({ x: Math.random() * LAYOUT.CANVAS_WIDTH, y: LAYOUT.CANVAS_HEIGHT + 10, vx: (Math.random() - 0.5) * 0.4, vy: -0.4 - Math.random() * 0.6, life: 0, maxLife: 200 + Math.random() * 150, size: 2 + Math.random() * 4 }); }
+        if (timer % 6 === 0) { state.visuals.floaters.push({ x: Math.random() * LAYOUT.CANVAS_WIDTH, y: LAYOUT.CANVAS_HEIGHT + 10, vx: (Math.random() - 0.5) * 0.4, vy: -0.4 - Math.random() * 0.6, life: 0, maxLife: 200 + Math.random() * 150, size: 2 + Math.random() * 4 });
+        }
         for (let i = state.visuals.floaters.length - 1; i >= 0; i--) {
             let f = state.visuals.floaters[i];
             f.life++; if (f.life >= f.maxLife) { state.visuals.floaters.splice(i, 1); continue; }
@@ -1165,7 +1254,7 @@ function render(ctx) {
             let titleText = state.winnerText;
             let titleColor = "#fff";
             if (state.screen === "gameover") { if (titleText.includes("P1")) titleColor = LAYOUT.COLORS.P1; else if (titleText.includes("DRAW")) titleColor = "#888";
-            else titleColor = LAYOUT.COLORS.P2; } else { titleColor = "#ffeb3b";
+                else titleColor = LAYOUT.COLORS.P2; } else { titleColor = "#ffeb3b";
             }
             if (!state.visuals.resultComment) {
                 const diff = Math.abs((state.players[0].finalScore || state.players[0].score) - (state.players[1].finalScore || state.players[1].score));
@@ -1190,9 +1279,12 @@ function render(ctx) {
                 state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
-            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
-            else { p1Color = "#aaa"; p2Color = "#aaa"; }
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
+            } 
+            else if (p2Score > p1Score) { p1Color = "#555";
+                p1Alpha = 0.5; } 
+            else { p1Color = "#aaa";
+                p2Color = "#aaa"; }
             
             ctx.globalAlpha = alpha * p1Alpha;
             ctx.textAlign = "left";
@@ -1211,9 +1303,12 @@ function render(ctx) {
             const alpha = Math.min(1, (timer - 55) / 10), p1Score = state.players[0].finalScore ||
                 state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
-            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
-            else { p1Color = "#aaa"; p2Color = "#aaa"; }
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
+            } 
+            else if (p2Score > p1Score) { p1Color = "#555";
+                p1Alpha = 0.5; } 
+            else { p1Color = "#aaa";
+                p2Color = "#aaa"; }
             
             ctx.font = getPixelFont(10);
             const statsLabels = ["PERFECT", "BURNT", "STEAL"];
@@ -1223,6 +1318,7 @@ function render(ctx) {
                 const statKey = statsLabels[i].toLowerCase();
                 ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right"; ctx.fillText(state.players[0].stats[statKey], cx - 60, cy + 60 + i * 18);
                 ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left"; ctx.fillText(state.players[1].stats[statKey], cx + 60, cy + 60 + i * 18);
+    
             });
             const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500);
             ctx.globalAlpha = alpha; const btnY = cy + 135; ctx.save(); ctx.translate(cx, btnY);
@@ -1234,8 +1330,10 @@ function render(ctx) {
             } else {
                 ctx.globalAlpha = alpha * pulse;
                 ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center";
-                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0); } 
-                else { ctx.fillText("▶ REMATCH", 0, 0); }
+                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0);
+                } 
+                else { ctx.fillText("▶ REMATCH", 0, 0);
+                }
             }
             ctx.restore();
             ctx.globalAlpha = 1.0;
@@ -1270,11 +1368,10 @@ function drawGameScreen(ctx) {
     const roundText = `ROUND ${state.round}/${state.maxRounds}`;
     const tw = ctx.measureText(roundText).width;
     const hudW = Math.min(tw + 40, centerSpace - 20, 340);
-    
     ctx.fillStyle = "rgba(26, 16, 12, 0.75)";
     ctx.fillRect(cx - hudW / 2, safeTop + 2, hudW, 36);
     
-    ctx.fillStyle = "#e0d6c8"; 
+    ctx.fillStyle = "#e0d6c8";
     ctx.textAlign = "center"; 
     ctx.fillText(roundText, cx, safeTop + 22);
     
@@ -1283,16 +1380,14 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 40); 
     }
 
-    let orderYOffset = safeTop + 65; 
-    
+    let orderYOffset = safeTop + 65;
     if (state.todaysOrder && state.orderIntroDone) {
-        drawOrderSlip(ctx, cx, orderYOffset, "ORDER", state.todaysOrder.effectText, 1, false);
-        orderYOffset += 36; 
+        drawOrderSlip(ctx, cx, orderYOffset, "ORDER", state.todaysOrder, 1, false);
+        orderYOffset += 40; 
     }
 
     if (state.extraOrderActive && !state.extraOrderIntroActive) {
-        let shortText = state.extraOrder.label.replace("FIRST ", "");
-        drawOrderSlip(ctx, cx, orderYOffset, "EXTRA", shortText, 1, false, state.extraOrderClaimed, state.extraOrderWinner);
+        drawOrderSlip(ctx, cx, orderYOffset, "EXTRA", state.extraOrder, 1, false, state.extraOrderClaimed, state.extraOrderWinner);
     }
 
     state.lanes.forEach((lane, i) => {
@@ -1346,8 +1441,10 @@ function drawGameScreen(ctx) {
                 effectiveCookState = displayCookState;
             } else if (previewEventForThisLane) {
                 const eventIndex = state.cookPreviewEvents.indexOf(previewEventForThisLane);
-                if (eventIndex > state.cookPreviewIndex) { effectiveCookState = previewEventForThisLane.prevCookState; displayCookState = previewEventForThisLane.prevCookState; gaugeCookState = previewEventForThisLane.prevCookState; } 
-                else { effectiveCookState = previewEventForThisLane.newCookState; displayCookState = previewEventForThisLane.newCookState; gaugeCookState = previewEventForThisLane.newCookState; }
+                if (eventIndex > state.cookPreviewIndex) { effectiveCookState = previewEventForThisLane.prevCookState; displayCookState = previewEventForThisLane.prevCookState; gaugeCookState = previewEventForThisLane.prevCookState;
+                } 
+                else { effectiveCookState = previewEventForThisLane.newCookState;
+                    displayCookState = previewEventForThisLane.newCookState; gaugeCookState = previewEventForThisLane.newCookState; }
             }
         }
 
@@ -1357,7 +1454,8 @@ function drawGameScreen(ctx) {
         if (state.buildMode) {
             isFlashable = isNodeValidForMode(lane, state.buildMode);
             if (state.buildMode === "harvest" && lane.built && lane.owner === activePlayer && getCookLabel(lane.type, effectiveCookState) === "early") isFlashable = true;
-            if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) { if (getCookLabel(lane.type, effectiveCookState) !== "burnt" && pResources < 1) isFlashable = false; }
+            if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) { if (getCookLabel(lane.type, effectiveCookState) !== "burnt" && pResources < 1) isFlashable = false;
+            }
             if (state.buildMode === "harvest" && isFlashable && lane.built) { const status = getCookLabel(lane.type, effectiveCookState);
                 if (status === "perfect") isPerfectTarget = true; }
             if (state.buildMode === "uchiwa" && isFlashable && lane.built) { uchiwaTargetState = baseEndState + 1;
@@ -1402,9 +1500,12 @@ function drawGameScreen(ctx) {
         }
 
         let currentFireIntensity = fireIntensity;
-        if (lane.type === "strong") { currentFireIntensity += (Math.sin(now / 100) * 0.05); } 
-        else if (lane.type === "weak") { currentFireIntensity -= 0.05; }
-        if (isPreBurnt && !lane.justPlaced) { currentFireIntensity += (Math.sin(now / 50) * 0.1); }
+        if (lane.type === "strong") { currentFireIntensity += (Math.sin(now / 100) * 0.05);
+        } 
+        else if (lane.type === "weak") { currentFireIntensity -= 0.05;
+        }
+        if (isPreBurnt && !lane.justPlaced) { currentFireIntensity += (Math.sin(now / 50) * 0.1);
+        }
 
         const gradient = ctx.createLinearGradient(0, b.y + b.h - 50, 0, b.y + b.h);
         gradient.addColorStop(0, "rgba(255, 50, 0, 0)"); 
@@ -1419,9 +1520,11 @@ function drawGameScreen(ctx) {
                 let fillAlphaBase = 0.08, fillAlphaRange = 0.10, strokeAlphaBase = 0.25, strokeAlphaRange = 0.20, rgb = "255, 255, 255";
                 if (isPerfectTarget) rgb = "255, 230, 100";
                 else if (harvestStatus === "burnt") { if (lane.owner !== activePlayer) rgb = "180, 180, 180";
-                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; strokeAlphaBase = 0.15; strokeAlphaRange = 0.10; } 
+                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; strokeAlphaBase = 0.15; strokeAlphaRange = 0.10;
+                    } 
                 } 
-                else if (harvestStatus === "early") { rgb = "255, 80, 80"; }
+                else if (harvestStatus === "early") { rgb = "255, 80, 80";
+                }
                 const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange, currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
                 ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
                 ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
@@ -1456,8 +1559,10 @@ function drawGameScreen(ctx) {
             }
 
             let breatheY = 0;
-            if (displayStatusUpper === "PERFECT" && !lane.justPlaced) { breatheY = Math.sin(now / 260) * 1.5; }
-            if (isPrePerfect && !lane.justPlaced) { breatheY = Math.sin(now / 150) * 0.5; }
+            if (displayStatusUpper === "PERFECT" && !lane.justPlaced) { breatheY = Math.sin(now / 260) * 1.5;
+            }
+            if (isPrePerfect && !lane.justPlaced) { breatheY = Math.sin(now / 150) * 0.5;
+            }
 
             const stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + fallYOffset + breatheY;
             const shakenLaneCx = laneCx + gustWobble;
@@ -1476,7 +1581,8 @@ function drawGameScreen(ctx) {
             let markerXOffset = 0;
             if (state.visuals.aiTargetLane && state.visuals.aiTargetLane.laneId === lane.id) {
                 const elapsedAI = now - state.visuals.aiTargetLane.startTime;
-                if (elapsedAI < state.visuals.aiTargetLane.duration) { markerXOffset = Math.sin(now / 40) * 1.5; }
+                if (elapsedAI < state.visuals.aiTargetLane.duration) { markerXOffset = Math.sin(now / 40) * 1.5;
+                }
             }
             ctx.beginPath();
             ctx.moveTo(laneCx + markerXOffset, markerY); 
@@ -1505,7 +1611,8 @@ function drawGameScreen(ctx) {
         if (lane.built) {
             cv = Math.min(gaugeCookState || 0, 6);
             uchiwaPreviewNextCv = baseEndHeatCv;
-            if (state.buildMode === "uchiwa" && isFlashable) { uchiwaDotIndex = Math.min(5, baseEndState); uchiwaPreviewNextCv = Math.min(6, baseEndState + 1); }
+            if (state.buildMode === "uchiwa" && isFlashable) { uchiwaDotIndex = Math.min(5, baseEndState); uchiwaPreviewNextCv = Math.min(6, baseEndState + 1);
+            }
         }
 
         const dotSize = 8, dotGap = 2, gridW = 6 * dotSize + 5 * dotGap, dotStartX = laneCx - gridW / 2, dotStartY = b.y + b.h + 12;
@@ -1525,12 +1632,15 @@ function drawGameScreen(ctx) {
             } else if (j < uchiwaPreviewNextCv) {
                 if (j === uchiwaDotIndex) {
                     let fillStyle = "rgba(255, 255, 255, 0.8)", strokeStyle = "rgba(255, 255, 255, 1.0)";
-                    if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") { fillStyle = "rgba(255, 230, 100, 0.8)"; strokeStyle = "rgba(255, 230, 100, 1.0)"; }
-                    else if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") { fillStyle = "rgba(255, 100, 100, 0.8)"; strokeStyle = "rgba(255, 100, 100, 1.0)"; }
+                    if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") { fillStyle = "rgba(255, 230, 100, 0.8)";
+                        strokeStyle = "rgba(255, 230, 100, 1.0)"; }
+                    else if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") { fillStyle = "rgba(255, 100, 100, 0.8)";
+                        strokeStyle = "rgba(255, 100, 100, 1.0)"; }
                     ctx.fillStyle = fillStyle;
                     ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                     ctx.strokeStyle = strokeStyle; ctx.lineWidth = 1; ctx.strokeRect(dx, dotStartY, dotSize, dotSize);
-                } else { ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize); }
+                } else { ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
+                }
             } else { ctx.fillStyle = "rgba(10, 10, 15, 0.9)";
                 ctx.fillRect(dx, dotStartY, dotSize, dotSize); }
         }
@@ -1576,9 +1686,13 @@ function drawGameScreen(ctx) {
                 let statusText = uchiwaTargetStatus.toUpperCase();
                 if (uchiwaTargetStatus === "burnt") statusText = "BURN"; if (uchiwaTargetStatus === "okay") statusText = "OK";
                 let color = "#fff", textAlpha = modeAlpha;
-                if (uchiwaTargetStatus === "perfect") { color = "#ffeb3b"; } 
-                else if (uchiwaTargetStatus === "burnt") { color = "#ff5555"; textAlpha = modeAlpha * (0.6 + 0.4 * Math.sin(now / 80)); } 
-                else if (uchiwaTargetStatus === "okay") { color = "#dddddd"; } else { color = "#aaaaaa"; }
+                if (uchiwaTargetStatus === "perfect") { color = "#ffeb3b";
+                } 
+                else if (uchiwaTargetStatus === "burnt") { color = "#ff5555";
+                    textAlpha = modeAlpha * (0.6 + 0.4 * Math.sin(now / 80));
+                } 
+                else if (uchiwaTargetStatus === "okay") { color = "#dddddd";
+                } else { color = "#aaaaaa"; }
                 ctx.globalAlpha = textAlpha;
                 ctx.font = getPixelFont(10);
                 ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText("NEXT", laneCx + 1, floatY - 14 + 1); ctx.fillStyle = "#aaaaaa";
@@ -1687,25 +1801,25 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillStyle = "#fff";
             ctx.font = getPixelFont(28); ctx.fillText("VS", cx, cy); const p2Name = state.gameMode === "ai" ? state.enemyName : "P2"; ctx.fillStyle = LAYOUT.COLORS.P2;
             ctx.font = getPixelFont(36); ctx.fillText(p2Name, cx + 80 - (p_vs * 30), cy + 60);
-            if (state.gameMode === "ai") { ctx.fillStyle = "#aaa"; ctx.font = getPixelFont(11); ctx.fillText(`STAGE ${state.currentStage}`, cx, cy + 120); }
+            if (state.gameMode === "ai") { ctx.fillStyle = "#aaa"; ctx.font = getPixelFont(11); ctx.fillText(`STAGE ${state.currentStage}`, cx, cy + 120);
+            }
         } else if (state.introPhase === "fight") {
             const p_fight = state.fightSplashTimer / 25, elapsedP = 1 - p_fight, scale = 1.0 + elapsedP * 0.08, alpha = p_fight < 0.2 ? p_fight * 5 : 1.0;
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
-            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S ORDER", state.todaysOrder.effectText, 1.5, true);
+            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S ORDER", state.todaysOrder, 1.5, true);
         }
         ctx.textBaseline = "alphabetic";
     } else if (state.extraOrderIntroActive) {
-        ctx.fillStyle = "rgba(30, 20, 15, 0.85)"; 
+        ctx.fillStyle = "rgba(30, 20, 15, 0.85)";
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         
         let scale = 1.0;
-        if (state.extraOrderIntroTimer > 60) scale = 2.0; 
+        if (state.extraOrderIntroTimer > 60) scale = 2.0;
         else if (state.extraOrderIntroTimer > 30) scale = 1.6; 
-        else scale = 1.5; 
-        
-        drawOrderSlip(ctx, cx, cy - 30 * scale, "EXTRA ORDER", state.extraOrder.label, scale, true);
+        else scale = 1.5;
+        drawOrderSlip(ctx, cx, cy - 30 * scale, "EXTRA ORDER", state.extraOrder, scale, true);
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
         ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
@@ -1762,17 +1876,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
 
         if (alpha <= 0) return;
-
         // ポイント表示の開始位置を伝票の下(Y:170付近)まで下げる&座標を整数化
         let fx = Math.round(msg.x || cx);
         let fy = isHint ? Math.round(msg.y + yAnimOffset) : Math.round(170 + (idx * 32) + yAnimOffset);
-
         if (msg.targetPlayerPanel) {
             const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
             fx = Math.round(msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2);
             let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++;
             fy = Math.round(140 + (offsetIdx * 32) + yAnimOffset);
-            
             ctx.globalAlpha = alpha;
             ctx.textAlign = "center";
             ctx.font = getPixelFont(14);
@@ -1787,7 +1898,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
             ctx.fillText(text2, currentX, fy);
         } else {
-            ctx.globalAlpha = alpha; // 全体に同じフェードを適用
+            ctx.globalAlpha = alpha;
+            // 全体に同じフェードを適用
             ctx.textAlign = "center";
             if (isHint) {
                 ctx.font = getPixelFont(10);
@@ -1803,7 +1915,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.type === 'fire' ? "#fa3" : (msg.amount > 0 ? "#ff4" : "#f33")));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
                 
-                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
+                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha;
+                }
                 
                 ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
                 if (icon) {
@@ -1845,7 +1958,8 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(12); ctx.textAlign = "left";
     ctx.fillText(`P${idx}`, x + 10, y + 25);
     ctx.fillStyle = "#ccc"; ctx.font = getPixelFont(10);
-    if (idx === 1) { ctx.fillText("PLAYER", x + 10, y + 42); } 
+    if (idx === 1) { ctx.fillText("PLAYER", x + 10, y + 42);
+    } 
     else if (idx === 2) { const p2Text = state.gameMode === "ai" ? state.enemyName : "PLAYER";
         ctx.fillText(p2Text, x + 10, y + 42); }
     const offsetY = 20;
@@ -1872,14 +1986,16 @@ window.addEventListener("DOMContentLoaded", () => {
     canvas.addEventListener("click", (e) => { if (Date.now() - lastTouchTime < 500) return; handleCanvasClick(e, canvas); });
     function loop() {
         try {
-            if (state && state.hitStopTimer > 0) { state.hitStopTimer--; }
+            if (state && state.hitStopTimer > 0) { state.hitStopTimer--;
+            }
             else { 
                 updateTransition();
                 updateRoulette(); updateIntroSequence(); updateCookPreview(); 
                 updateRoundEndPause();
                 resolvePendingTurnFlow(); updateGameEndWait(); render(ctx); playAITurn(); 
             }
-        } catch (e) { console.error("GAME LOOP ERROR:", e); }
+        } catch (e) { console.error("GAME LOOP ERROR:", e);
+        }
         requestAnimationFrame(loop);
     }
     loop();
