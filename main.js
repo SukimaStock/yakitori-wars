@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.7 UI仕上げ調整)
+// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.7 細部UI調整)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -1022,70 +1022,74 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
 
 // --- 伝票描画関数(今日の注文・追加注文兼用) ---
 function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, claimed = false, winner = null) {
-    const paddingX = 16 * scale;
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
     const textFontSize = isIntro ? 12 * scale : 8 * scale;
     
-    ctx.font = getPixelFont(textFontSize);
-    const textW = ctx.measureText(text).width;
-    ctx.font = getPixelFont(titleFontSize);
-    const titleW = ctx.measureText(title).width;
-    
-    const contentW = Math.max(textW, titleW);
-    const maxW = Math.min(320 * scale, LAYOUT.CANVAS_WIDTH * 0.48);
-    const cardW = Math.min(maxW, Math.max(120 * scale, contentW + paddingX * 2));
-    const cardH = isIntro ? 34 * scale : 28 * scale;
-    const cardX = cx - cardW / 2;
-    const cardY = y;
+    // 内容によって揺れないよう、固定の幅と高さを指定
+    const cardW = Math.round((isIntro ? 260 : 160) * scale);
+    const cardH = Math.round((isIntro ? 34 : 28) * scale);
+    const cardX = Math.round(cx - cardW / 2);
+    const cardY = Math.round(y);
     
     drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#e0d6c8");
     
     ctx.fillStyle = "#5a4a3a";
-    ctx.fillRect(cardX, cardY, cardW, 3 * scale);
+    ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
     
+    // テキスト設定を明示し、少数座標を丸める
+    ctx.save();
     ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    
     ctx.fillStyle = "#4a4a4a";
     ctx.font = getPixelFont(titleFontSize);
-    ctx.fillText(title, cx, cardY + (isIntro ? 15 * scale : 12 * scale));
+    const titleY = Math.round(cardY + (isIntro ? 15 * scale : 12 * scale));
+    ctx.fillText(title, Math.round(cx), titleY);
     
     ctx.fillStyle = "#c85a4a";
     ctx.font = getPixelFont(textFontSize);
-    ctx.fillText(text, cx, cardY + (isIntro ? 28 * scale : 24 * scale), cardW - 8 * scale);
+    const textY = Math.round(cardY + (isIntro ? 28 * scale : 24 * scale));
+    ctx.fillText(text, Math.round(cx), textY, cardW - 8 * scale);
+    ctx.restore();
 
+    // 既存の文字を押し除けず、上にスタンプを重ねる
     if (claimed) {
         ctx.save();
-        const stampX = cardX + cardW - 22 * scale;
-        const stampY = cardY + cardH / 2;
+        const stampX = Math.round(cardX + cardW - 22 * scale);
+        const stampY = Math.round(cardY + cardH / 2);
         ctx.translate(stampX, stampY);
         ctx.rotate(-0.15); 
         
-        // 達成後のスタンプの主張を抑えるため透明度を下げる
         ctx.globalAlpha = 0.75; 
-        ctx.strokeStyle = "#b04030"; // 少し暗めの赤茶に
-        ctx.lineWidth = 1.5 * scale;
-        ctx.strokeRect(-16 * scale, -8 * scale, 32 * scale, 16 * scale);
+        ctx.strokeStyle = "#b04030";
+        ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
+        ctx.strokeRect(Math.round(-16 * scale), Math.round(-8 * scale), Math.round(32 * scale), Math.round(16 * scale));
+        
         ctx.fillStyle = "#b04030";
         ctx.font = getPixelFont(8 * scale);
-        ctx.fillText("DONE", 0, 3 * scale);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("DONE", 0, 0); 
+        
         if (winner) {
             const pColor = winner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             ctx.fillStyle = pColor;
-            ctx.fillRect(8 * scale, 3 * scale, 14 * scale, 10 * scale);
+            ctx.fillRect(Math.round(8 * scale), Math.round(2 * scale), Math.round(14 * scale), Math.round(10 * scale));
             ctx.fillStyle = "#fff";
             ctx.font = getPixelFont(7 * scale);
-            ctx.fillText(`P${winner}`, 15 * scale, 11 * scale);
+            ctx.textAlign = "left";
+            ctx.textBaseline = "alphabetic";
+            ctx.fillText(`P${winner}`, Math.round(10 * scale), Math.round(10 * scale));
         }
         ctx.restore();
     }
 }
 // ----------------------------------------
 
-// 卓上(背景)を描画する関数
 function drawTableBackground(ctx) {
     ctx.fillStyle = LAYOUT.COLORS.BG;
     ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     
-    // 背景の木目線を少し弱めて主張を抑える
     ctx.fillStyle = "rgba(10, 5, 2, 0.15)";
     for (let y = 0; y < LAYOUT.CANVAS_HEIGHT; y += 32) {
         ctx.fillRect(0, y, LAYOUT.CANVAS_WIDTH, 2);
@@ -1103,7 +1107,10 @@ function drawTableBackground(ctx) {
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
-    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { return now - m.startTime < (m.isSteal ? 2100 : 1900); });
+    // メッセージの寿命を全体的に短縮
+    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { 
+        return now - m.startTime < 1000; 
+    });
     state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
     
     if (state.screen === "game") {
@@ -1255,7 +1262,6 @@ function drawGameScreen(ctx) {
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, panelH, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, panelH, 2, activePlayer);
     
-    // ラウンド表示:P1/P2パネルに被らないように中央HUD領域に収める
     const p1Right = 10 + panelW;
     const p2Left = LAYOUT.CANVAS_WIDTH - panelW - 10;
     const centerSpace = p2Left - p1Right;
@@ -1265,7 +1271,6 @@ function drawGameScreen(ctx) {
     const tw = ctx.measureText(roundText).width;
     const hudW = Math.min(tw + 40, centerSpace - 20, 340);
     
-    // 背景を控えめな焦げ茶色に
     ctx.fillStyle = "rgba(26, 16, 12, 0.75)";
     ctx.fillRect(cx - hudW / 2, safeTop + 2, hudW, 36);
     
@@ -1278,7 +1283,6 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 40); 
     }
 
-    // ORDER / EXTRA の配置間隔を広げ、密集を緩和する
     let orderYOffset = safeTop + 65; 
     
     if (state.todaysOrder && state.orderIntroDone) {
@@ -1734,54 +1738,64 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime;
         let alpha = 1; let yAnimOffset = 0; let isHint = msg.type === "hint";
-        const totalDuration = msg.isSteal ? 2100 : 1900;
-        const fadeInDuration = 140; const fadeOutDuration = 520;
-
-        function easeOutCubic(t) { t = Math.max(0, Math.min(1, t)); return 1 - Math.pow(1 - t, 3); }
-        function easeInOutCubic(t) { t = Math.max(0, Math.min(1, t)); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
-
-        const isNegative = typeof msg.amount === 'number' && msg.amount < 0;
+        
+        // 全体表示時間を短縮(800ms〜1000ms)し、最後の250msでフェードアウト
+        const totalDuration = msg.isSteal ? 1000 : 800;
+        const fadeOutStart = totalDuration - 250;
+        const fadeInDuration = 100;
 
         if (isHint) {
-            const p = Math.min(1, elapsed / 1000); alpha = 1 - p; yAnimOffset = -15 * easeOutCubic(p);
+            const p = Math.min(1, elapsed / 800);
+            alpha = 1 - p;
+            yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
         } else {
-            const life = Math.min(1, elapsed / totalDuration);
-            const appearP = Math.min(1, elapsed / fadeInDuration);
-            const riseP = easeInOutCubic(life);
-
-            if (msg.isPerfect) { yAnimOffset = 12 * (1 - easeOutCubic(appearP)) - 34 * riseP; } 
-            else if (isNegative) { yAnimOffset = -6 * (1 - easeOutCubic(appearP)) + 18 * riseP; } 
-            else { yAnimOffset = 8 * (1 - easeOutCubic(appearP)) - 22 * riseP; }
-
-            if (elapsed < fadeInDuration) { alpha = easeOutCubic(appearP); }
-            if (elapsed > totalDuration - fadeOutDuration) {
-                const outP = (elapsed - (totalDuration - fadeOutDuration)) / fadeOutDuration;
-                alpha = 1 - easeOutCubic(outP);
+            if (elapsed < fadeInDuration) {
+                alpha = elapsed / fadeInDuration;
+                yAnimOffset = 10 * (1 - alpha);
+            } else if (elapsed > fadeOutStart) {
+                alpha = Math.max(0, 1 - (elapsed - fadeOutStart) / 250);
+                yAnimOffset = -15 * (1 - alpha);
+            } else {
+                alpha = 1;
+                yAnimOffset = 0;
             }
         }
+
         if (alpha <= 0) return;
-        ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); let fx = msg.x || cx; let fy = isHint ? (msg.y + yAnimOffset) : (130 + (idx * 32) + yAnimOffset);
+
+        // ポイント表示の開始位置を伝票の下(Y:170付近)まで下げる&座標を整数化
+        let fx = Math.round(msg.x || cx);
+        let fy = isHint ? Math.round(msg.y + yAnimOffset) : Math.round(170 + (idx * 32) + yAnimOffset);
+
         if (msg.targetPlayerPanel) {
             const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
-            fx = msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
-            let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++; fy = 140 + (offsetIdx * 32) + yAnimOffset;
+            fx = Math.round(msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2);
+            let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++;
+            fy = Math.round(140 + (offsetIdx * 32) + yAnimOffset);
+            
+            ctx.globalAlpha = alpha;
             ctx.textAlign = "center";
             ctx.font = getPixelFont(14);
             const text1 = `P${msg.targetPlayerPanel}`; const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
             const w1 = ctx.measureText(text1).width;
             const w2 = ctx.measureText(text2).width; const iconW = 16; const gap = 8;
-            let currentX = fx - (w1 + gap + iconW + gap + w2)/2;
+            let currentX = Math.round(fx - (w1 + gap + iconW + gap + w2)/2);
             ctx.textAlign = "left";
-            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.fillText(text1, currentX, fy); currentX += w1 + gap;
-            drawDotIcon(ctx, 'meat', currentX + iconW/2 - 4, fy - 8, "#fff", 2); currentX += iconW + gap;
-            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.fillText(text2, currentX, fy);
+            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
+            ctx.fillText(text1, currentX, fy); currentX += w1 + gap;
+            drawDotIcon(ctx, 'meat', Math.round(currentX + iconW/2 - 4), Math.round(fy - 8), "#fff", 2); currentX += iconW + gap;
+            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
+            ctx.fillText(text2, currentX, fy);
         } else {
+            ctx.globalAlpha = alpha; // 全体に同じフェードを適用
             ctx.textAlign = "center";
             if (isHint) {
                 ctx.font = getPixelFont(10);
-                const txtW = ctx.measureText(msg.text).width + 16;
-                ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(fx - txtW/2, fy - 12, txtW, 18);
-                ctx.fillStyle = "#ff5555"; ctx.fillText(msg.text, fx, fy);
+                const txtW = Math.round(ctx.measureText(msg.text).width + 16);
+                ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; 
+                ctx.fillRect(Math.round(fx - txtW/2), Math.round(fy - 12), txtW, 18);
+                ctx.fillStyle = "#ff5555"; 
+                ctx.fillText(msg.text, fx, fy);
             } else {
                 let isResult = msg.type === "result";
                 let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : (msg.type === 'fire' ? 'fire' : 'diamond'));
@@ -1789,38 +1803,35 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.type === 'fire' ? "#fa3" : (msg.amount > 0 ? "#ff4" : "#f33")));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
                 
-                // 黒背景の削除:影文字で表現
                 if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
                 
-                // 影の描画
                 ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
                 if (icon) {
-                    drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0) + 1, fy - 8 + 1, "#000", 2.5);
-                    ctx.fillText(text, fx + 15 + 1, fy + 1);
+                    drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0) + 1), Math.round(fy - 8 + 1), "#000", 2.5);
+                    ctx.fillText(text, Math.round(fx + 15 + 1), Math.round(fy + 1));
                 } else {
-                    ctx.fillText(text, fx + 1, fy + 1);
+                    ctx.fillText(text, Math.round(fx + 1), Math.round(fy + 1));
                 }
 
-                // 本体の描画
                 ctx.fillStyle = color;
                 if (icon) { 
-                    drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5);
-                    ctx.fillText(text, fx + 15, fy);
+                    drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0)), Math.round(fy - 8), "#fff", 2.5);
+                    ctx.fillText(text, Math.round(fx + 15), fy);
                 } else {
                     ctx.fillText(text, fx, fy);
                 }
                 
-                // ボーナステキストの影と本体
                 if (msg.isBonus && msg.bonusText) {
                     ctx.font = getPixelFont(8);
                     ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-                    ctx.fillText(msg.bonusText, fx + (icon ? 15 : 0) + 1, fy + 12 + 1);
+                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0) + 1), Math.round(fy + 12 + 1));
                     ctx.fillStyle = "#ffeb3b";
-                    ctx.fillText(msg.bonusText, fx + (icon ? 15 : 0), fy + 12);
+                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0)), Math.round(fy + 12));
                 }
             }
         }
         ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
     });
     ctx.globalAlpha = 1.0;
 }
