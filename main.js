@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 成熟フェーズv0.3 修正版)
+// # main.js - YAKITORI WARS: SFC Atmosphere Update (完全版 + 成熟フェーズv0.4)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -31,10 +31,11 @@ function initGameState() {
             { id: 1, score: 0, servedScore: 0, resources: 0, workersRemaining: 1, stats: { perfect: 0, burnt: 0, steal: 0 } },
             { id: 2, score: 0, servedScore: 0, resources: 0, workersRemaining: 1, stats: { perfect: 0, burnt: 0, steal: 0 } }
         ],
+        // v0.4: hiddenHeat と grease を追加
         lanes: [
-            { id: "s1", fire: 1, type: "weak", owner: null, cookState: 0, uchiwaBoost: 0, justPlaced: false, built: false },
-            { id: "s2", fire: 2, type: "medium", owner: null, cookState: 0, uchiwaBoost: 0, justPlaced: false, built: false },
-            { id: "s3", fire: 3, type: "strong", owner: null, cookState: 0, uchiwaBoost: 0, justPlaced: false, built: false }
+            { id: "s1", fire: 1, type: "weak", owner: null, cookState: 0, uchiwaBoost: 0, hiddenHeat: 0, grease: 0, justPlaced: false, built: false },
+            { id: "s2", fire: 2, type: "medium", owner: null, cookState: 0, uchiwaBoost: 0, hiddenHeat: 0, grease: 0, justPlaced: false, built: false },
+            { id: "s3", fire: 3, type: "strong", owner: null, cookState: 0, uchiwaBoost: 0, hiddenHeat: 0, grease: 0, justPlaced: false, built: false }
         ],
         visuals: {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
@@ -196,72 +197,92 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     const laneCx = b.x + b.w / 2;
     const stickTop = b.y + b.h * 0.1;
     const meatY = stickTop + (b.h * 0.7) * 0.4;
-    
     const lane = state.lanes[laneIndex];
+    
+    // v0.4: SFC的な煙(色数を減らし、パーティクル数を制御)
     let numParticles = 0;
-    let color = "#e0e0e0";
+    let color = "#b0b0b0"; 
     let speedMult = 1.0;
 
     const nextStatus = getCookLabel(lane.type, lane.cookState + getBaseHeat(lane.type));
     const isAlmostBurnt = (status !== "burnt" && nextStatus === "burnt");
+    
     if (status === "burnt") {
-        numParticles = 10 + amount * 2;
-        color = "#333333";              
-        speedMult = 1.2;
+        numParticles = 6 + amount; // 大量発生を抑える
+        color = "#222";              
+        speedMult = 1.0;
     } else if (status === "perfect") {
-        numParticles = 4 + amount;
-        color = "#f8f8f8";              
+        numParticles = 2 + amount;
+        color = "#eee";              
     } else {
-        numParticles = 3 + amount;
+        numParticles = 2;
         if (isAlmostBurnt) {
-            color = "#a0a0a0"; 
-            speedMult = 1.4;
-            numParticles += (lane.type === "strong" ? 2 : 0);
-        } else {
-            color = "#cccccc";
+            color = "#888"; 
+            speedMult = 1.2;
+            numParticles += (lane.type === "strong" ? 1 : 0);
         }
     }
 
-    if (lane.type === "weak") numParticles = Math.max(1, numParticles - 1);
-    if (lane.type === "strong") numParticles += 1;
+    // Grease(汚れ)が高いと、時折汚い煙が混ざる
+    if (lane.grease >= 2 && Math.random() < 0.5) {
+        numParticles += 1;
+        color = "#444";
+    }
 
     for (let i = 0; i < numParticles; i++) {
         state.visuals.particles.push({
             x: laneCx + (Math.random() - 0.5) * 30, 
             y: meatY + (Math.random() - 0.5) * 15,  
-            vx: (Math.random() - 0.5) * 1.0, 
-            vy: (-1 - Math.random() * 1.5) * speedMult,             
-            life: 0, maxLife: 20 + Math.random() * 15, size: 8 + Math.random() * 12, color: color
+            vx: (Math.random() - 0.5) * 0.8, 
+            vy: (-1 - Math.random() * 1.0) * speedMult,             
+            life: 0, maxLife: 15 + Math.random() * 10, size: 6 + Math.random() * 8, color: color
         });
     }
 }
 
 function spawnPerfectHarvestEffect(laneIndex) {
-    const b = getLaneBounds(laneIndex), laneCx = b.x + b.w / 2, meatY = b.y + b.h * 0.4, colors = ["#fff7b0", "#ffdf6b", "#ffffff"];
-    for (let i = 0; i < 24; i++) {
+    const b = getLaneBounds(laneIndex), laneCx = b.x + b.w / 2, meatY = b.y + b.h * 0.4, colors = ["#ffea00", "#ffffff"];
+    for (let i = 0; i < 12; i++) { // パーティクル半減
         state.visuals.particles.push({
-            x: laneCx + (Math.random() - 0.5) * 50, y: meatY + (Math.random() - 0.5) * 30,  
-            vx: (Math.random() - 0.5) * 2.5, vy: -1.5 - Math.random() * 3.5, 
-            life: 0, maxLife: 30 + Math.random() * 30, size: 4 + Math.random() * 6,
+            x: laneCx + (Math.random() - 0.5) * 40, y: meatY + (Math.random() - 0.5) * 20,  
+            vx: (Math.random() - 0.5) * 2.0, vy: -1.0 - Math.random() * 2.0, 
+            life: 0, maxLife: 20 + Math.random() * 20, size: 4, // サイズ固定化でドット感
             color: colors[Math.floor(Math.random() * colors.length)], isSparkle: true 
         });
     }
     state.visuals.particles.push({
-        x: laneCx, y: b.y - 15, vx: 0, vy: -0.6, life: 0, maxLife: 50, size: 18, 
-        color: "#ffdf6b", isText: true, text: "PERFECT!"
+        x: laneCx, y: b.y - 15, vx: 0, vy: -0.5, life: 0, maxLife: 40, size: 16, 
+        color: "#ffeb3b", isText: true, text: "PERFECT" // 影なしのベタ塗りテキストへ変更
     });
 }
 
 function advanceAllSkewersAtRoundEnd() {
     state.cookPreviewEvents = [];
     state.lanes.forEach((n, index) => {
+        // v0.4: 熱と汚れの自然減衰
+        n.hiddenHeat = Math.max(0, n.hiddenHeat - 0.2);
+
         if (n.built) {
             if (n.justPlaced) n.justPlaced = false;
             else {
                 const baseHeat = getBaseHeat(n.type), boost = n.uchiwaBoost || 0;
                 const prevCookState = n.cookState, prevStatus = getCookLabel(n.type, prevCookState);
-                n.cookState = Math.min(8, n.cookState + baseHeat + boost);
+                
+                let nextState = n.cookState + baseHeat + boost;
+
+                // v0.4: 焼き台の機嫌(サイレントな状態変化)
+                // 熱が蓄積していると、寸止め(Okay)からPerfectへ滑り込みやすくなる
+                if (n.hiddenHeat >= 2 && getCookLabel(n.type, nextState) === "okay" && getCookLabel(n.type, nextState + 1) === "perfect") {
+                    nextState += 1;
+                }
+                // 汚れが蓄積していると、PerfectからBurntへ滑り落ちやすくなる
+                if (n.grease >= 2 && getCookLabel(n.type, nextState) === "perfect" && getCookLabel(n.type, nextState + 1) === "burnt") {
+                    nextState += 1;
+                }
+
+                n.cookState = Math.min(8, nextState);
                 const newStatus = getCookLabel(n.type, n.cookState);
+                
                 if (n.cookState > prevCookState) {
                     state.cookPreviewEvents.push({ laneIndex: index, prevCookState: prevCookState, newCookState: n.cookState, prevStatus: prevStatus, newStatus: newStatus });
                     if (newStatus === "burnt" && prevStatus !== "burnt" && n.owner) state.players[n.owner - 1].stats.burnt++;
@@ -418,14 +439,13 @@ function brightenColor(hex, ratio) {
     b = Math.min(255, Math.floor(b + (255 - b) * ratio));
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
-function mixColor(color1, color2, weight) {
-    let c1 = color1.replace(/^#/, ''); let c2 = color2.replace(/^#/, '');
-    if (c1.length === 3) c1 = c1.split('').map(c => c+c).join('');
-    if (c2.length === 3) c2 = c2.split('').map(c => c+c).join('');
-    const r1 = parseInt(c1.substring(0,2), 16), g1 = parseInt(c1.substring(2,4), 16), b1 = parseInt(c1.substring(4,6), 16);
-    const r2 = parseInt(c2.substring(0,2), 16), g2 = parseInt(c2.substring(2,4), 16), b2 = parseInt(c2.substring(4,6), 16);
-    const r = Math.round(r1 * (1 - weight) + r2 * weight), g = Math.round(g1 * (1 - weight) + g2 * weight), b = Math.round(b1 * (1 - weight) + b2 * weight);
-    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+// SFC的なパレットチェンジ用(補間を避ける)
+function shiftPalette(color, isPreBurnt) {
+    if (!isPreBurnt) return color;
+    // 焦げ前は脂で少し黒ずんだ赤み(発光ではない)
+    if (color === VISUAL_STATES.OKAY.meat || color === VISUAL_STATES.PERFECT.meat) return "#9a4a2a";
+    if (color === VISUAL_STATES.OKAY.negi || color === VISUAL_STATES.PERFECT.negi) return "#9ba362";
+    return color;
 }
 
 function getHarvestScore(node, isSteal, status) {
@@ -498,9 +518,11 @@ function tryHarvestNode(node) {
         spawnPerfectHarvestEffect(state.lanes.indexOf(node)); 
         state.hitStopTimer = 8;
         state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "perfect", time: performance.now() });
+        node.hiddenHeat = Math.min(3, node.hiddenHeat + 1); // v0.4: Perfectで熱が残る
     } else if (status === "burnt") {
         spawnSmokeEffect(state.lanes.indexOf(node), 2, "burnt");
         state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "burnt", time: performance.now() });
+        node.grease = Math.min(3, node.grease + 1.5); // v0.4: 焦がすと一気に汚れが溜まる
     } else if (status === "okay") {
         state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "okay", time: performance.now() });
     }
@@ -514,6 +536,7 @@ function tryUchiwaNode(node) {
         node.uchiwaBoost += 1;
         state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now() }); 
         state.visuals.uchiwaGusts[node.id] = performance.now();
+        node.hiddenHeat = Math.min(3, node.hiddenHeat + 0.5); // うちわでも微かに熱が蓄積
         consumeWorker();
     }
 }
@@ -747,15 +770,7 @@ function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false)
 }
 
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay = false, status = "RAW", laneType = "medium", now = 0, isPreBurnt = false, isPrePerfect = false) {
-    let finalBaseColor = baseColor;
-    
-    // v0.3: 焦げ直前は「脂が乗っている湿度」を重視。発光ではなく、くすんだ赤みのシズル感。
-    if (isPreBurnt) {
-        finalBaseColor = brightenColor(finalBaseColor, 0.05); // ほんの僅かに明るく
-        finalBaseColor = mixColor(finalBaseColor, "#aa5533", 0.08); // 焼けた脂の赤茶色を薄く混ぜる
-    } else if (isPrePerfect) {
-        finalBaseColor = brightenColor(finalBaseColor, 0.05); 
-    }
+    let finalBaseColor = shiftPalette(baseColor, isPreBurnt); // v0.4: パレットの直接差し替え(SFC的)
 
     ctx.fillStyle = finalBaseColor;
     if (isNegi) { 
@@ -766,7 +781,7 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
         ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
         ctx.fillRect(nx, y + h - 6, nw, 6); ctx.fillRect(nx + nw - 4, y, 4, h);
         if (status === "PERFECT" || isPreBurnt) {
-            ctx.fillStyle = isPreBurnt ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.15)";
+            ctx.fillStyle = isPreBurnt ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.15)";
             ctx.fillRect(nx + 2, y + h/2, 2, 2);
         }
     } else { 
@@ -778,20 +793,21 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
         
         if (status === "OKAY" || status === "PERFECT" || isPreBurnt) {
             let shineAlpha = 0;
-            const flicker = Math.sin(now / 150 + x) * 0.5 + 0.5;
+            // v0.4: flicker を単純な点滅に(なめらかな波を排除)
+            const isTick = (Math.floor(now / 400) % 2 === 0);
+            
             if (isPreBurnt) {
-                // 発光(アーケード的)ではなく、脂のテカり(湿度)
-                shineAlpha = 0.25 + flicker * 0.1; 
+                // v0.4: 脂のテカり。チカチカさせず、ごく薄く湿ったまま。
+                shineAlpha = 0.15;
             } else if (status === "OKAY") {
-                shineAlpha = 0.2 + flicker * 0.2;
+                shineAlpha = 0.1;
             } else if (status === "PERFECT") {
-                shineAlpha = 0.5 + flicker * 0.4;
-                if (laneType === "medium") shineAlpha += 0.2; 
+                shineAlpha = 0.2 + (isTick ? 0.1 : 0);
             }
             if (shineAlpha > 0) {
-                ctx.fillStyle = `rgba(255, 255, 220, ${Math.min(1, shineAlpha)})`;
+                ctx.fillStyle = `rgba(255, 255, 220, ${shineAlpha})`;
                 ctx.fillRect(x + 8, y + 8, 2, 2);
-                if ((status === "PERFECT" || isPreBurnt) && flicker > 0.5) ctx.fillRect(x + w - 10, y + h/2, 1, 1);
+                if (status === "PERFECT") ctx.fillRect(x + w - 10, y + h/2, 1, 1);
             }
         }
     }
@@ -837,9 +853,6 @@ function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scal
     const positions = [{ dx: -32, dy: 15 }, { dx: 32, dy: 40 }, { dx: -28, dy: 70 }, { dx: 26, dy: 85 }];
     const w1 = 3 * scale, h1 = 10 * scale, w2 = 10 * scale, h2 = 3 * scale;
     positions.forEach((pos, idx) => { ctx.fillRect(cx + pos.dx - w1/2, y + pos.dy - h1/2, w1, h1); ctx.fillRect(cx + pos.dx - w2/2, y + pos.dy - h2/2, w2, h2); });
-    if (extraAlpha > 0) { ctx.globalAlpha = extraAlpha * 0.5; ctx.beginPath();
-        const grad = ctx.createRadialGradient(cx, y + 45, 0, cx, y + 45, 45 * scale); grad.addColorStop(0, "rgba(255, 255, 200, 0.8)");
-        grad.addColorStop(1, "rgba(255, 255, 200, 0)"); ctx.fillStyle = grad; ctx.fill(); }
     ctx.globalAlpha = 1.0;
 }
 function drawEndSplash(ctx) {
@@ -865,8 +878,8 @@ function render(ctx) {
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { return now - m.startTime < (m.isSteal ? 2100 : 1900); });
     
-    // v0.3: トレース(痕跡)の寿命管理(極薄化のため表示時間を短縮)
-    state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
+    // v0.4: 痕跡は極力短く(残像レベルへ)
+    state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 1200);
     
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
@@ -1009,39 +1022,30 @@ function drawGameScreen(ctx) {
     if (state.gameMode === "ai") { ctx.font = getPixelFont(10);
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); }
 
-    // v0.3: 盤面に残る履歴(トレース)の描画。UI感を消し、気配だけを残す。
+    // v0.4: 痕跡(トレース)の描画。UI感を消し、気配(残像)だけを残す。
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i), laneCx = b.x + b.w / 2;
         const tracesForLane = state.visuals.traces.filter(t => t.laneIndex === i);
         tracesForLane.forEach(trace => {
             if (lane.built) return; 
             const elapsed = now - trace.time;
-            let traceAlpha = 0;
             
             if (trace.type === "perfect") {
-                traceAlpha = Math.max(0, 1 - (elapsed / 1200)) * 0.15; // 薄く、すぐ消える
+                // 熱の残像(うっすら赤み、すぐ消える)
+                let traceAlpha = Math.max(0, 1 - (elapsed / 600)) * 0.1;
                 if (traceAlpha > 0) {
-                    const grad = ctx.createRadialGradient(laneCx, b.y + b.h*0.4, 0, laneCx, b.y + b.h*0.4, 30);
-                    grad.addColorStop(0, `rgba(255, 100, 30, ${traceAlpha})`);
-                    grad.addColorStop(1, "rgba(255, 100, 30, 0)");
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(laneCx - 30, b.y + b.h*0.1, 60, 100);
+                    ctx.fillStyle = `rgba(255, 100, 30, ${traceAlpha})`;
+                    ctx.fillRect(laneCx - 20, b.y + b.h*0.3, 40, 60);
                 }
             } else if (trace.type === "burnt") {
-                traceAlpha = Math.max(0, 1 - (elapsed / 2000)) * 0.2; // 少し長く、黒く淀む
+                // 焦げの黒いシミ(少し長く残るが薄い)
+                let traceAlpha = Math.max(0, 1 - (elapsed / 1200)) * 0.15;
                 if (traceAlpha > 0) {
                     ctx.fillStyle = `rgba(10, 10, 10, ${traceAlpha})`;
-                    ctx.beginPath();
-                    ctx.ellipse(laneCx, b.y + b.h*0.4, 15, 35, 0, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.fillRect(laneCx - 10, b.y + b.h*0.4, 20, 20);
                 }
-            } else if (trace.type === "okay") {
-                traceAlpha = Math.max(0, 1 - (elapsed / 800)) * 0.05; // ほぼ見えない
-                if (traceAlpha > 0) {
-                    ctx.fillStyle = `rgba(200, 100, 50, ${traceAlpha})`;
-                    ctx.fillRect(laneCx - 10, b.y + b.h*0.2, 20, 60);
-                }
-            }
+            } 
+            // "okay" の痕跡は削除(「あった気がする」レベル以下)
         });
     });
 
@@ -1068,14 +1072,12 @@ function drawGameScreen(ctx) {
         }
 
         const heat = getBaseHeat(lane.type), boost = lane.uchiwaBoost || 0, baseEndState = effectiveCookState + heat + boost, baseEndStatus = getCookLabel(lane.type, baseEndState);
-        let isFlashable = false, isPerfectTarget = false;
+        let isFlashable = false;
         let uchiwaTargetState = baseEndState; let uchiwaTargetStatus = baseEndStatus;
         if (state.buildMode) {
             isFlashable = isNodeValidForMode(lane, state.buildMode);
             if (state.buildMode === "harvest" && lane.built && lane.owner === activePlayer && getCookLabel(lane.type, effectiveCookState) === "early") isFlashable = true;
             if (state.buildMode === "harvest" && lane.built && lane.owner !== activePlayer) { if (getCookLabel(lane.type, effectiveCookState) !== "burnt" && pResources < 1) isFlashable = false; }
-            if (state.buildMode === "harvest" && isFlashable && lane.built) { const status = getCookLabel(lane.type, effectiveCookState);
-                if (status === "perfect") isPerfectTarget = true; }
             if (state.buildMode === "uchiwa" && isFlashable && lane.built) { uchiwaTargetState = baseEndState + 1;
                 uchiwaTargetStatus = getCookLabel(lane.type, uchiwaTargetState); }
         }
@@ -1083,16 +1085,17 @@ function drawGameScreen(ctx) {
         drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
         ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
 
+        // v0.4: Grease(油)の蓄積を網の上の黒点(ドット)として表現
+        if (lane.grease >= 1) {
+            ctx.fillStyle = "#1a1a1a";
+            ctx.fillRect(b.x + 20, b.y + 40, 4, 4);
+            if (lane.grease >= 2) ctx.fillRect(b.x + 60, b.y + 80, 4, 4);
+            if (lane.grease >= 3) ctx.fillRect(b.x + 30, b.y + 120, 6, 4);
+        }
+
         const currentStatus = getCookLabel(lane.type, effectiveCookState);
         const isPrePerfect = (currentStatus !== "perfect" && currentStatus !== "burnt" && baseEndStatus === "perfect");
         const isPreBurnt = (currentStatus !== "burnt" && baseEndStatus === "burnt");
-
-        if (lane.built) {
-            if (currentStatus === "perfect") { const pulse = 0.5 + 0.5 * Math.sin(now / 300);
-                ctx.strokeStyle = `rgba(255, 230, 120, ${0.2 + pulse * 0.2})`; ctx.lineWidth = 2;
-                ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
-            }
-        }
         
         let isDanger = false;
         if (lane.built && !lane.justPlaced) {
@@ -1107,42 +1110,47 @@ function drawGameScreen(ctx) {
             ctx.moveTo(b.x, barY); ctx.lineTo(b.x + b.w, barY); }
         [0.2, 0.8].forEach(ratio => { const barX = b.x + b.w * ratio; ctx.moveTo(barX, b.y); ctx.lineTo(barX, b.y + b.h); });
         ctx.stroke();
+
+        // v0.4: HiddenHeat(熱の残り)を炭の赤みで表現
+        if (lane.hiddenHeat > 0) {
+            ctx.fillStyle = (Math.floor(now/300) % 2 === 0) ? "#521" : "#632";
+            ctx.fillRect(b.x + 10, b.y + b.h - 15, b.w - 20, 8);
+        }
         
+        // v0.4: グラデーションを排除した、ステップ状のSFC的火の表現
         let fireIntensity = lane.fire * 0.15; 
-        
-        // v0.3: うちわの微かな空気変化(風ではなく、温度と気圧のゆらぎ)
         const uchiwaTime = state.visuals.uchiwaGusts[lane.id];
         let gustWobble = 0;
         let fireSwayX = 0;
-        if (uchiwaTime && now - uchiwaTime < 800) {
-            const gustP = 1 - ((now - uchiwaTime) / 800);
-            fireIntensity += 0.15 * gustP; // わずかな温度上昇
-            gustWobble = Math.sin(now / 30) * 0.5 * gustP; // 串は最大0.5px揺れるか揺れないか
-            fireSwayX = Math.sin(now / 40) * 2 * gustP; // 火は左右に1~2px揺れる
+        
+        if (uchiwaTime && now - uchiwaTime < 600) {
+            fireIntensity += 0.1; // うちわで熱が少し上がる
+            gustWobble = (Math.floor(now / 50) % 2 === 0) ? 0.5 : 0; // 串の揺れ(0.5px)
+            fireSwayX = (Math.floor(now / 80) % 2 === 0) ? 2 : -2; // 火の左右の揺れ(2px)
         }
 
         let currentFireIntensity = fireIntensity;
-        if (lane.type === "strong") { currentFireIntensity += (Math.sin(now / 100) * 0.05); } 
+        if (lane.type === "strong") { currentFireIntensity += ((Math.floor(now/200) % 2 === 0) ? 0.05 : 0); } 
         else if (lane.type === "weak") { currentFireIntensity -= 0.05; }
         
-        // 焦げ直前は火自体も少し揺れる
+        // 焦げ直前は火が少しブレる(危険な気配)
         if (isPreBurnt && !lane.justPlaced) {
-            currentFireIntensity += (Math.sin(now / 50) * 0.1);
+            currentFireIntensity += ((Math.floor(now/100) % 2 === 0) ? 0.05 : 0);
         }
 
-        const gradient = ctx.createLinearGradient(0, b.y + b.h - 50, 0, b.y + b.h);
-        gradient.addColorStop(0, "rgba(255, 50, 0, 0)"); 
-        gradient.addColorStop(1, `rgba(255, 60, 10, ${Math.max(0, currentFireIntensity)})`);
-        ctx.fillStyle = gradient;
-        ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
+        // グラデーションではなく、透明度の違う矩形を重ねてSFC風のグローを作る
+        let intensitySteps = Math.floor(currentFireIntensity * 4); // 0〜4
+        ctx.fillStyle = "rgba(255, 60, 10, 0.15)";
+        if(intensitySteps > 0) ctx.fillRect(b.x, b.y + b.h - 10, b.w, 10);
+        if(intensitySteps > 1) ctx.fillRect(b.x, b.y + b.h - 25, b.w, 15);
+        if(intensitySteps > 2) ctx.fillRect(b.x, b.y + b.h - 40, b.w, 15);
 
         if (isFlashable) {
             const selectPulse = 0.5 + 0.5 * Math.sin(now / 350);
             if (state.buildMode === "harvest") {
                 const harvestStatus = getCookLabel(lane.type, effectiveCookState);
                 let fillAlphaBase = 0.08, fillAlphaRange = 0.10, strokeAlphaBase = 0.25, strokeAlphaRange = 0.20, rgb = "255, 255, 255";
-                if (isPerfectTarget) rgb = "255, 230, 100";
-                else if (harvestStatus === "burnt") { if (lane.owner !== activePlayer) rgb = "180, 180, 180";
+                if (harvestStatus === "burnt") { if (lane.owner !== activePlayer) rgb = "180, 180, 180";
                     else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; strokeAlphaBase = 0.15; strokeAlphaRange = 0.10; } 
                 } 
                 else if (harvestStatus === "early") { rgb = "255, 80, 80"; }
@@ -1181,16 +1189,17 @@ function drawGameScreen(ctx) {
 
             let breatheY = 0;
             if (displayStatusUpper === "PERFECT" && !lane.justPlaced) {
-                breatheY = Math.sin(now / 260) * 1.5;
+                // v0.4: Math.sin を排除。カチッとした1pxのジャンプ
+                breatheY = (Math.floor(now / 400) % 2 === 0) ? 1 : 0; 
             }
             
-            // Perfect直前の「そろそろか?」という微細な脈動
+            // Perfect直前の「そろそろか?」という1pxの脈動
             if (isPrePerfect && !lane.justPlaced) {
-                breatheY = Math.sin(now / 150) * 0.5;
+                breatheY = (Math.floor(now / 200) % 2 === 0) ? 1 : 0; 
             }
 
             const stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + fallYOffset + breatheY;
-            const shakenLaneCx = laneCx + gustWobble; // 空気圧の変化による極微細なズレ
+            const shakenLaneCx = laneCx + gustWobble; // 空気圧の変化による極微細なズレ(0.5px)
 
             ctx.globalAlpha = currentAlpha; ctx.fillStyle = "#111"; ctx.fillRect(shakenLaneCx - 1, stickTop, 4, stickH); 
             ctx.fillStyle = LAYOUT.COLORS.STICK;
@@ -1206,29 +1215,13 @@ function drawGameScreen(ctx) {
             let markerXOffset = 0;
             if (state.visuals.aiTargetLane && state.visuals.aiTargetLane.laneId === lane.id) {
                 const elapsedAI = now - state.visuals.aiTargetLane.startTime;
-                if (elapsedAI < state.visuals.aiTargetLane.duration) { markerXOffset = Math.sin(now / 40) * 1.5; }
+                if (elapsedAI < state.visuals.aiTargetLane.duration) { markerXOffset = (Math.floor(now / 60) % 2 === 0) ? 1 : -1; }
             }
             ctx.beginPath();
             ctx.moveTo(laneCx + markerXOffset, markerY); 
             ctx.lineTo(laneCx - markerSize + markerXOffset, markerY - markerSize); 
             ctx.lineTo(laneCx + markerSize + markerXOffset, markerY - markerSize);
             ctx.fill();
-
-            const isOwn = lane.owner === activePlayer, realCanSteal = !isOwn && currentStatus !== "early" && currentStatus !== "burnt" && pResources >= 1;
-            if (!lane.justPlaced) {
-                const peakTime = state.visuals.peakFlashes[lane.id];
-                let peakAlpha = 0, peakScale = 1;
-                if (peakTime && now - peakTime < 700) { 
-                    const elapsed = now - peakTime, progress = elapsed / 700;
-                    if (elapsed < 300) { ctx.save(); ctx.globalAlpha = (1 - (elapsed / 300)) * 0.2;
-                        ctx.fillStyle = "rgba(255, 255, 200, 1.0)"; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.restore();
-                    }
-                    peakAlpha = (1 - progress) * 0.4;
-                    peakScale = 1 + (1 - progress) * 0.2; 
-                }
-                if (currentStatus === "perfect" && (isOwn || realCanSteal)) drawSparkles(ctx, laneCx, stickTop, state.buildMode === "harvest", false, peakAlpha, peakScale);
-                else if (isUchiwaPreviewActive && uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") drawSparkles(ctx, laneCx, stickTop, false, true, 0, 0.7);
-            }
         }
         
         let cv = 0, uchiwaDotIndex = -1, uchiwaPreviewNextCv = 0, baseEndHeatCv = Math.min(6, baseEndState);
@@ -1285,7 +1278,7 @@ function drawGameScreen(ctx) {
         }
 
         const fireScale = 2.5, fireSize = 8 * fireScale, totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1)), startFireX = laneCx - totalFireW / 2 + fireSize / 2;
-        // 火の描画に fireSwayX (空気のゆらぎ) を適用
+        // 火の描画に fireSwayX (空気圧によるズレ) を適用
         for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, b.y + b.h + 40, "#fa3", fireScale);
         if (lane.uchiwaBoost > 0) { ctx.globalAlpha = 0.6; drawDotIcon(ctx, "fire", b.x + b.w - 18, b.y + b.h - 18, "#f85", 2); ctx.globalAlpha = 1.0; }
         
@@ -1342,13 +1335,13 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (p.isText) {
             ctx.globalAlpha = 1 - ratio;
             ctx.fillStyle = p.color; ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); ctx.textAlign = "center";
-            ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 10 * (1 - ratio); ctx.fillText(p.text, p.x, p.y); ctx.shadowBlur = 0;
+            ctx.fillText(p.text, p.x, p.y); 
         } else if (p.isSparkle) {
             ctx.fillStyle = p.color;
             const size = p.size * (1 - ratio * 0.5); ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else {
-            ctx.fillStyle = p.color || "#e0e0e0"; ctx.beginPath(); ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = p.color || "#e0e0e0"; ctx.fillRect(p.x, p.y, Math.max(2, p.size * (1 + ratio)), Math.max(2, p.size * (1 + ratio))); // 丸から四角(ドット)へ
         }
     }
     ctx.globalAlpha = 1.0;
@@ -1464,7 +1457,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         function easeOutCubic(t) { t = Math.max(0, Math.min(1, t)); return 1 - Math.pow(1 - t, 3); }
         function easeInOutCubic(t) { t = Math.max(0, Math.min(1, t)); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 
-        // v0.3修正: マイナス(肉消費、焦げペナルティなど)は沈み込むように変更
         const isNegative = typeof msg.amount === 'number' && msg.amount < 0;
 
         if (isHint) {
@@ -1522,7 +1514,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 
                 ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
                 
-                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
                 ctx.fillStyle = color;
                 if (icon) { drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); ctx.fillText(text, fx + 15, fy);
                 } else ctx.fillText(text, fx, fy);
