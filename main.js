@@ -1061,7 +1061,7 @@ function drawGameScreen(ctx) {
 // 今日の注文UI (Today's Order)
     if (state.todaysOrder) {
         // ▼ ここを safeTop + 75 から safeTop + 115 に変更します
-        const orderY = safeTop + 150;
+        const orderY = safeTop + 130;
         const isBlinking = Math.floor(now / 400) % 2 === 0;
         
         ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
