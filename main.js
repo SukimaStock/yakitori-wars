@@ -1058,9 +1058,10 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); 
     }
 
-    // 今日の注文UI (Today's Order)
+// 今日の注文UI (Today's Order)
     if (state.todaysOrder) {
-        const orderY = safeTop + 75;
+        // ▼ ここを safeTop + 75 から safeTop + 115 に変更します
+        const orderY = safeTop + 115;
         const isBlinking = Math.floor(now / 400) % 2 === 0;
         
         ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
