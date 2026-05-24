@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 成熟フェーズv0.3)
+// # main.js - YAKITORI WARS: Uchiwa Affordance Update (完全版 + 成熟フェーズv0.3 修正版)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -19,7 +19,7 @@ function initGameState() {
         resultScreenTimer: 0, resultPause: 0, resultPauseDone: false, hitStopTimer: 0,
         cookPreviewActive: false, cookPreviewEvents: [], cookPreviewIndex: 0,
         cookPreviewPhase: null, cookPreviewPhaseTimer: 0,
-        roundEndPauseTimer: 0, // v0.3: ラウンド終了時の余韻タイマー
+        roundEndPauseTimer: 0,
         startRouletteActive: false, startRouletteInterval: 4, startRouletteTickTimer: 4,    
         startRouletteCount: 0, startRouletteMaxCount: 16, startRouletteIndex: 1,
         startRouletteFinalPlayer: null, startRouletteBlinkActive: false,
@@ -40,7 +40,7 @@ function initGameState() {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
             peakFlashes: {}, ghosts: [], floaters: [], statusMessages: [], particles: [], 
             cancelClick: 0, titleClick: null, perfectFlash: { timer: 0 }, resultComment: null,
-            aiTargetLane: null, traces: [], uchiwaGusts: {} // v0.3: 痕跡とうちわの風
+            aiTargetLane: null, traces: [], uchiwaGusts: {} 
         }
     };
 }
@@ -322,7 +322,6 @@ function finishEndRound() {
         } else { state.endSplashText = "DRAW"; state.endSplashColor = "#aaa"; }
         state.endSplashTimer = 55; state.gameEndWaitTimer = 55; return;
     }
-    // v0.3: ラウンド終了時に1秒(60フレーム)盤面を見せる余韻
     state.roundEndPauseTimer = 60; 
 }
 
@@ -419,7 +418,6 @@ function brightenColor(hex, ratio) {
     b = Math.min(255, Math.floor(b + (255 - b) * ratio));
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
-// 簡易カラーミックス関数(v0.3)
 function mixColor(color1, color2, weight) {
     let c1 = color1.replace(/^#/, ''); let c2 = color2.replace(/^#/, '');
     if (c1.length === 3) c1 = c1.split('').map(c => c+c).join('');
@@ -499,14 +497,11 @@ function tryHarvestNode(node) {
     if (status === "perfect") { 
         spawnPerfectHarvestEffect(state.lanes.indexOf(node)); 
         state.hitStopTimer = 8;
-        // v0.3: Perfectの痕跡(熱)
         state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "perfect", time: performance.now() });
     } else if (status === "burnt") {
         spawnSmokeEffect(state.lanes.indexOf(node), 2, "burnt");
-        // v0.3: 焦げの痕跡(苦味)
         state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "burnt", time: performance.now() });
     } else if (status === "okay") {
-        // v0.3: Okayの痕跡(薄い)
         state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "okay", time: performance.now() });
     }
     
@@ -518,7 +513,6 @@ function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1;
         state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now() }); 
-        // v0.3: うちわを使用したレーンに風と揺れのトリガーを記録
         state.visuals.uchiwaGusts[node.id] = performance.now();
         consumeWorker();
     }
@@ -752,16 +746,15 @@ function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false)
     ctx.fillStyle = "#f4e6d0"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
 }
 
-// v0.3: isPreBurnt と isPrePerfect を引数に追加
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay = false, status = "RAW", laneType = "medium", now = 0, isPreBurnt = false, isPrePerfect = false) {
     let finalBaseColor = baseColor;
     
-    // v0.3: 焦げ直前は最も美味しそう(明るく、少し赤みを帯びる)
+    // v0.3: 焦げ直前は「脂が乗っている湿度」を重視。発光ではなく、くすんだ赤みのシズル感。
     if (isPreBurnt) {
-        finalBaseColor = brightenColor(finalBaseColor, 0.25);
-        finalBaseColor = mixColor(finalBaseColor, "#ff4422", 0.15); // 強い火の照り
+        finalBaseColor = brightenColor(finalBaseColor, 0.05); // ほんの僅かに明るく
+        finalBaseColor = mixColor(finalBaseColor, "#aa5533", 0.08); // 焼けた脂の赤茶色を薄く混ぜる
     } else if (isPrePerfect) {
-        finalBaseColor = brightenColor(finalBaseColor, 0.1); // Perfect直前も微かに明るく
+        finalBaseColor = brightenColor(finalBaseColor, 0.05); 
     }
 
     ctx.fillStyle = finalBaseColor;
@@ -773,7 +766,7 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
         ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
         ctx.fillRect(nx, y + h - 6, nw, 6); ctx.fillRect(nx + nw - 4, y, 4, h);
         if (status === "PERFECT" || isPreBurnt) {
-            ctx.fillStyle = isPreBurnt ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.15)";
+            ctx.fillStyle = isPreBurnt ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.15)";
             ctx.fillRect(nx + 2, y + h/2, 2, 2);
         }
     } else { 
@@ -787,8 +780,8 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
             let shineAlpha = 0;
             const flicker = Math.sin(now / 150 + x) * 0.5 + 0.5;
             if (isPreBurnt) {
-                // v0.3: 焦げ直前のテカり最大(油が弾けるようなシズル感)
-                shineAlpha = 0.6 + flicker * 0.4;
+                // 発光(アーケード的)ではなく、脂のテカり(湿度)
+                shineAlpha = 0.25 + flicker * 0.1; 
             } else if (status === "OKAY") {
                 shineAlpha = 0.2 + flicker * 0.2;
             } else if (status === "PERFECT") {
@@ -803,7 +796,6 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
         }
     }
     if (dangerOverlay && !isPreBurnt) { 
-        // プレビュー等での純粋な危険警告
         ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
         ctx.fillRect(x + 4, y + h - 6, w - 8, 6);
         ctx.fillRect(x + w - 8, y + 4, 4, h - 8);
@@ -873,8 +865,8 @@ function render(ctx) {
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { return now - m.startTime < (m.isSteal ? 2100 : 1900); });
     
-    // v0.3: トレース(痕跡)の寿命管理
-    state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 3500);
+    // v0.3: トレース(痕跡)の寿命管理(極薄化のため表示時間を短縮)
+    state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
     
     ctx.fillStyle = LAYOUT.COLORS.BG; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
@@ -892,7 +884,6 @@ function render(ctx) {
     } else if (state.screen === "game") { 
         drawGameScreen(ctx); drawEndSplash(ctx);
     } else if (state.screen === "clear") {
-        // ... 省略せずに既存のクリア画面描画 ...
         state.resultScreenTimer++; const timer = state.resultScreenTimer;
         const alphaOverlay = Math.min(0.85, timer / 90);
         ctx.fillStyle = `rgba(30, 15, 10, ${alphaOverlay})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -1018,35 +1009,39 @@ function drawGameScreen(ctx) {
     if (state.gameMode === "ai") { ctx.font = getPixelFont(10);
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); }
 
-    // v0.3: 盤面に残る履歴(トレース)の描画
+    // v0.3: 盤面に残る履歴(トレース)の描画。UI感を消し、気配だけを残す。
     state.lanes.forEach((lane, i) => {
         const b = getLaneBounds(i), laneCx = b.x + b.w / 2;
         const tracesForLane = state.visuals.traces.filter(t => t.laneIndex === i);
         tracesForLane.forEach(trace => {
-            if (lane.built) return; // 串が置かれている時は薄めるか隠す
+            if (lane.built) return; 
             const elapsed = now - trace.time;
-            const alpha = Math.max(0, 1 - (elapsed / 3500));
-            ctx.globalAlpha = alpha * 0.4;
+            let traceAlpha = 0;
             
             if (trace.type === "perfect") {
-                // 熱と微かな黄金の残り香
-                const grad = ctx.createRadialGradient(laneCx, b.y + b.h*0.4, 0, laneCx, b.y + b.h*0.4, 40);
-                grad.addColorStop(0, "rgba(255, 180, 50, 0.8)");
-                grad.addColorStop(1, "rgba(255, 180, 50, 0)");
-                ctx.fillStyle = grad;
-                ctx.fillRect(laneCx - 40, b.y + b.h*0.1, 80, 100);
+                traceAlpha = Math.max(0, 1 - (elapsed / 1200)) * 0.15; // 薄く、すぐ消える
+                if (traceAlpha > 0) {
+                    const grad = ctx.createRadialGradient(laneCx, b.y + b.h*0.4, 0, laneCx, b.y + b.h*0.4, 30);
+                    grad.addColorStop(0, `rgba(255, 100, 30, ${traceAlpha})`);
+                    grad.addColorStop(1, "rgba(255, 100, 30, 0)");
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(laneCx - 30, b.y + b.h*0.1, 60, 100);
+                }
             } else if (trace.type === "burnt") {
-                // 焦げの黒いシミ
-                ctx.fillStyle = "#0a0a0a";
-                ctx.beginPath();
-                ctx.ellipse(laneCx, b.y + b.h*0.4, 18, 45, 0, 0, Math.PI * 2);
-                ctx.fill();
+                traceAlpha = Math.max(0, 1 - (elapsed / 2000)) * 0.2; // 少し長く、黒く淀む
+                if (traceAlpha > 0) {
+                    ctx.fillStyle = `rgba(10, 10, 10, ${traceAlpha})`;
+                    ctx.beginPath();
+                    ctx.ellipse(laneCx, b.y + b.h*0.4, 15, 35, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             } else if (trace.type === "okay") {
-                // 薄い熱
-                ctx.fillStyle = "rgba(255, 100, 50, 0.2)";
-                ctx.fillRect(laneCx - 15, b.y + b.h*0.2, 30, 80);
+                traceAlpha = Math.max(0, 1 - (elapsed / 800)) * 0.05; // ほぼ見えない
+                if (traceAlpha > 0) {
+                    ctx.fillStyle = `rgba(200, 100, 50, ${traceAlpha})`;
+                    ctx.fillRect(laneCx - 10, b.y + b.h*0.2, 20, 60);
+                }
             }
-            ctx.globalAlpha = 1.0;
         });
     });
 
@@ -1089,8 +1084,6 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
 
         const currentStatus = getCookLabel(lane.type, effectiveCookState);
-        
-        // v0.3: Perfect 1ターン前と焦げ 1ターン前の判定
         const isPrePerfect = (currentStatus !== "perfect" && currentStatus !== "burnt" && baseEndStatus === "perfect");
         const isPreBurnt = (currentStatus !== "burnt" && baseEndStatus === "burnt");
 
@@ -1103,9 +1096,7 @@ function drawGameScreen(ctx) {
         
         let isDanger = false;
         if (lane.built && !lane.justPlaced) {
-            // v0.3: dangerOverlay(暗くなる演出)を「美味しそうに見せるため」isPreBurntの時は無効化する
             if (currentStatus !== "burnt" && !isPreBurnt) {
-                // 通常の警告(うちわプレビュー等)
                 if (state.buildMode === "uchiwa" && isFlashable && uchiwaTargetStatus === "burnt") isDanger = true;
             }
         }
@@ -1119,13 +1110,15 @@ function drawGameScreen(ctx) {
         
         let fireIntensity = lane.fire * 0.15; 
         
-        // v0.3: うちわ使用時の火の荒ぶり(突風)
+        // v0.3: うちわの微かな空気変化(風ではなく、温度と気圧のゆらぎ)
         const uchiwaTime = state.visuals.uchiwaGusts[lane.id];
         let gustWobble = 0;
-        if (uchiwaTime && now - uchiwaTime < 500) {
-            const gustP = 1 - ((now - uchiwaTime) / 500);
-            fireIntensity += 0.4 * gustP; // 炎がブワッと強くなる
-            gustWobble = Math.sin(now / 15) * 2 * gustP; // 串が揺れる
+        let fireSwayX = 0;
+        if (uchiwaTime && now - uchiwaTime < 800) {
+            const gustP = 1 - ((now - uchiwaTime) / 800);
+            fireIntensity += 0.15 * gustP; // わずかな温度上昇
+            gustWobble = Math.sin(now / 30) * 0.5 * gustP; // 串は最大0.5px揺れるか揺れないか
+            fireSwayX = Math.sin(now / 40) * 2 * gustP; // 火は左右に1~2px揺れる
         }
 
         let currentFireIntensity = fireIntensity;
@@ -1191,27 +1184,19 @@ function drawGameScreen(ctx) {
                 breatheY = Math.sin(now / 260) * 1.5;
             }
             
-            // v0.3: Perfect直前の「そろそろか?」という微細な脈動
+            // Perfect直前の「そろそろか?」という微細な脈動
             if (isPrePerfect && !lane.justPlaced) {
                 breatheY = Math.sin(now / 150) * 0.5;
             }
-            
-            // v0.3: 焦げ直前の「ジュッ感」(激しい微細な揺れ)
-            if (isPreBurnt && !lane.justPlaced) {
-                gustWobble += Math.sin(now / 40) * 0.8;
-            }
 
             const stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + fallYOffset + breatheY;
-            
-            // x軸の揺れ(風の影響)
-            const shakenLaneCx = laneCx + gustWobble;
+            const shakenLaneCx = laneCx + gustWobble; // 空気圧の変化による極微細なズレ
 
             ctx.globalAlpha = currentAlpha; ctx.fillStyle = "#111"; ctx.fillRect(shakenLaneCx - 1, stickTop, 4, stickH); 
             ctx.fillStyle = LAYOUT.COLORS.STICK;
             ctx.fillRect(shakenLaneCx - 2, stickTop, 4, stickH);
             const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = shakenLaneCx - meatW / 2;
             
-            // v0.3: drawDeliciousYakitori に isPreBurnt と isPrePerfect を渡す
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
@@ -1300,7 +1285,8 @@ function drawGameScreen(ctx) {
         }
 
         const fireScale = 2.5, fireSize = 8 * fireScale, totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1)), startFireX = laneCx - totalFireW / 2 + fireSize / 2;
-        for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4), b.y + b.h + 40, "#fa3", fireScale);
+        // 火の描画に fireSwayX (空気のゆらぎ) を適用
+        for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, b.y + b.h + 40, "#fa3", fireScale);
         if (lane.uchiwaBoost > 0) { ctx.globalAlpha = 0.6; drawDotIcon(ctx, "fire", b.x + b.w - 18, b.y + b.h - 18, "#f85", 2); ctx.globalAlpha = 1.0; }
         
         if (state.buildMode && isFlashable) {
@@ -1341,7 +1327,6 @@ function drawGameScreen(ctx) {
 
     renderParticlesAndOverlay(ctx, now, activePlayer);
     
-    // ラウンド終了待ちの暗転(v0.3: タイマーが変わったため連動)
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 55));
         ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -1479,6 +1464,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         function easeOutCubic(t) { t = Math.max(0, Math.min(1, t)); return 1 - Math.pow(1 - t, 3); }
         function easeInOutCubic(t) { t = Math.max(0, Math.min(1, t)); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 
+        // v0.3修正: マイナス(肉消費、焦げペナルティなど)は沈み込むように変更
+        const isNegative = typeof msg.amount === 'number' && msg.amount < 0;
+
         if (isHint) {
             const p = Math.min(1, elapsed / 1000); alpha = 1 - p; yAnimOffset = -15 * easeOutCubic(p);
         } else {
@@ -1486,8 +1474,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const appearP = Math.min(1, elapsed / fadeInDuration);
             const riseP = easeInOutCubic(life);
 
-            if (msg.isPerfect) { yAnimOffset = 12 * (1 - easeOutCubic(appearP)) - 34 * riseP;
-            } else { yAnimOffset = 8 * (1 - easeOutCubic(appearP)) - 22 * riseP; }
+            if (msg.isPerfect) { 
+                yAnimOffset = 12 * (1 - easeOutCubic(appearP)) - 34 * riseP;
+            } else if (isNegative) {
+                // 沈み込みの「削られる」感覚。上から発生して下へ落ちる。
+                yAnimOffset = -6 * (1 - easeOutCubic(appearP)) + 18 * riseP;
+            } else { 
+                yAnimOffset = 8 * (1 - easeOutCubic(appearP)) - 22 * riseP; 
+            }
 
             if (elapsed < fadeInDuration) { alpha = easeOutCubic(appearP); }
             if (elapsed > totalDuration - fadeOutDuration) {
@@ -1576,7 +1570,7 @@ window.addEventListener("DOMContentLoaded", () => {
             if (state && state.hitStopTimer > 0) { state.hitStopTimer--; }
             else { 
                 updateTransition(); updateRoulette(); updateIntroSequence(); updateCookPreview(); 
-                updateRoundEndPause(); // v0.3: ラウンド終了時の余韻
+                updateRoundEndPause();
                 resolvePendingTurnFlow(); updateGameEndWait(); render(ctx); playAITurn(); 
             }
         } catch (e) { console.error("GAME LOOP ERROR:", e); }
