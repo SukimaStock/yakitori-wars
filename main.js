@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.7 屋台の夜アップデート)
+// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.7 UI仕上げ調整)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -62,7 +62,7 @@ function getPixelFont(size) { return `${size}px 'Press Start 2P', monospace`; }
 let LAYOUT = {
     CANVAS_WIDTH: window.innerWidth, CANVAS_HEIGHT: window.innerHeight,
     COLORS: {
-        BG: "#1e1410", TEXT_MAIN: "#fff", TEXT_DIM: "#aaa", // 屋台の夜アップデート
+        BG: "#1e1410", TEXT_MAIN: "#fff", TEXT_DIM: "#aaa", 
         P1: "#3c96ff", P2: "#ff5078", NEUTRAL: "#333", PANEL_BG: "#2c1e16", OVERLAY_BG: "rgba(0, 0, 0, 0.7)",
         STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334", HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
@@ -1024,7 +1024,7 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
 function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, claimed = false, winner = null) {
     const paddingX = 16 * scale;
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
-    const textFontSize = isIntro ? 12 * scale : 8 * scale; // フォントサイズも統一気味に
+    const textFontSize = isIntro ? 12 * scale : 8 * scale;
     
     ctx.font = getPixelFont(textFontSize);
     const textW = ctx.measureText(text).width;
@@ -1038,20 +1038,16 @@ function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, clai
     const cardX = cx - cardW / 2;
     const cardY = y;
     
-    // 紙の色を統一(くすんだ生成り)
     drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#e0d6c8");
     
-    // 枠の色(焦げ茶)
     ctx.fillStyle = "#5a4a3a";
     ctx.fillRect(cardX, cardY, cardW, 3 * scale);
     
     ctx.textAlign = "center";
-    
     ctx.fillStyle = "#4a4a4a";
     ctx.font = getPixelFont(titleFontSize);
     ctx.fillText(title, cx, cardY + (isIntro ? 15 * scale : 12 * scale));
     
-    // 赤茶色のテキスト
     ctx.fillStyle = "#c85a4a";
     ctx.font = getPixelFont(textFontSize);
     ctx.fillText(text, cx, cardY + (isIntro ? 28 * scale : 24 * scale), cardW - 8 * scale);
@@ -1062,10 +1058,13 @@ function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, clai
         const stampY = cardY + cardH / 2;
         ctx.translate(stampX, stampY);
         ctx.rotate(-0.15); 
-        ctx.strokeStyle = "#c85a4a";
+        
+        // 達成後のスタンプの主張を抑えるため透明度を下げる
+        ctx.globalAlpha = 0.75; 
+        ctx.strokeStyle = "#b04030"; // 少し暗めの赤茶に
         ctx.lineWidth = 1.5 * scale;
         ctx.strokeRect(-16 * scale, -8 * scale, 32 * scale, 16 * scale);
-        ctx.fillStyle = "#c85a4a";
+        ctx.fillStyle = "#b04030";
         ctx.font = getPixelFont(8 * scale);
         ctx.fillText("DONE", 0, 3 * scale);
         if (winner) {
@@ -1081,18 +1080,17 @@ function drawOrderSlip(ctx, cx, y, title, text, scale = 1, isIntro = false, clai
 }
 // ----------------------------------------
 
-// 新規追加:卓上(背景)を描画する関数
+// 卓上(背景)を描画する関数
 function drawTableBackground(ctx) {
     ctx.fillStyle = LAYOUT.COLORS.BG;
     ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     
-    // スーファミ風のシンプルな木目パターン
-    ctx.fillStyle = "#150d0a";
+    // 背景の木目線を少し弱めて主張を抑える
+    ctx.fillStyle = "rgba(10, 5, 2, 0.15)";
     for (let y = 0; y < LAYOUT.CANVAS_HEIGHT; y += 32) {
         ctx.fillRect(0, y, LAYOUT.CANVAS_WIDTH, 2);
     }
     
-    // 上部にぼんやりとした提灯の赤い光(視認性を邪魔しない程度)
     ctx.globalAlpha = 0.15;
     const grad = ctx.createRadialGradient(LAYOUT.CANVAS_WIDTH / 2, 0, 0, LAYOUT.CANVAS_WIDTH / 2, 0, 300);
     grad.addColorStop(0, "#ff4400");
@@ -1257,28 +1255,37 @@ function drawGameScreen(ctx) {
     drawPlayerPanel(ctx, state.players[0], 10, safeTop, panelW, panelH, 1, activePlayer);
     drawPlayerPanel(ctx, state.players[1], LAYOUT.CANVAS_WIDTH - panelW - 10, safeTop, panelW, panelH, 2, activePlayer);
     
-    // ラウンド表示を「勝負札」風に
+    // ラウンド表示:P1/P2パネルに被らないように中央HUD領域に収める
+    const p1Right = 10 + panelW;
+    const p2Left = LAYOUT.CANVAS_WIDTH - panelW - 10;
+    const centerSpace = p2Left - p1Right;
+    
     ctx.font = getPixelFont(14);
     const roundText = `ROUND ${state.round}/${state.maxRounds}`;
     const tw = ctx.measureText(roundText).width;
-    drawBevelRect(ctx, cx - tw / 2 - 15, safeTop + 5, tw + 30, 28, "#2c1e16"); // 木の札
-    ctx.fillStyle = "#e0d6c8"; // 生成り色の文字
+    const hudW = Math.min(tw + 40, centerSpace - 20, 340);
+    
+    // 背景を控えめな焦げ茶色に
+    ctx.fillStyle = "rgba(26, 16, 12, 0.75)";
+    ctx.fillRect(cx - hudW / 2, safeTop + 2, hudW, 36);
+    
+    ctx.fillStyle = "#e0d6c8"; 
     ctx.textAlign = "center"; 
-    ctx.fillText(roundText, cx, safeTop + 25);
+    ctx.fillText(roundText, cx, safeTop + 22);
     
     if (state.gameMode === "ai") { 
         ctx.font = getPixelFont(10);
-        ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); 
+        ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 40); 
     }
 
-    let orderYOffset = safeTop + 60;
-    // 今日の客 (Today's Customer)
+    // ORDER / EXTRA の配置間隔を広げ、密集を緩和する
+    let orderYOffset = safeTop + 65; 
+    
     if (state.todaysOrder && state.orderIntroDone) {
         drawOrderSlip(ctx, cx, orderYOffset, "ORDER", state.todaysOrder.effectText, 1, false);
-        orderYOffset += 32; 
+        orderYOffset += 36; 
     }
 
-    // 追加注文の常時表示
     if (state.extraOrderActive && !state.extraOrderIntroActive) {
         let shortText = state.extraOrder.label.replace("FIRST ", "");
         drawOrderSlip(ctx, cx, orderYOffset, "EXTRA", shortText, 1, false, state.extraOrderClaimed, state.extraOrderWinner);
@@ -1686,10 +1693,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
         ctx.textBaseline = "alphabetic";
     } else if (state.extraOrderIntroActive) {
-        ctx.fillStyle = "rgba(30, 20, 15, 0.85)"; // 暗い茶色のオーバーレイ
+        ctx.fillStyle = "rgba(30, 20, 15, 0.85)"; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
         
-        // カクッとした伝票の差し込み演出
         let scale = 1.0;
         if (state.extraOrderIntroTimer > 60) scale = 2.0; 
         else if (state.extraOrderIntroTimer > 30) scale = 1.6; 
@@ -1782,12 +1788,20 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
                 let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.type === 'fire' ? "#fa3" : (msg.amount > 0 ? "#ff4" : "#f33")));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
-                const txtW = ctx.measureText(text).width + (icon ? 50 : 30);
-                const bgH = msg.isBonus ? 40 : 30; 
-                ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-                ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, bgH + (msg.isPerfect?4:0));
+                
+                // 黒背景の削除:影文字で表現
                 if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
                 
+                // 影の描画
+                ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+                if (icon) {
+                    drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0) + 1, fy - 8 + 1, "#000", 2.5);
+                    ctx.fillText(text, fx + 15 + 1, fy + 1);
+                } else {
+                    ctx.fillText(text, fx + 1, fy + 1);
+                }
+
+                // 本体の描画
                 ctx.fillStyle = color;
                 if (icon) { 
                     drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5);
@@ -1796,8 +1810,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                     ctx.fillText(text, fx, fy);
                 }
                 
+                // ボーナステキストの影と本体
                 if (msg.isBonus && msg.bonusText) {
                     ctx.font = getPixelFont(8);
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+                    ctx.fillText(msg.bonusText, fx + (icon ? 15 : 0) + 1, fy + 12 + 1);
                     ctx.fillStyle = "#ffeb3b";
                     ctx.fillText(msg.bonusText, fx + (icon ? 15 : 0), fy + 12);
                 }
