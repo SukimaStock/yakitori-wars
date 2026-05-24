@@ -1378,36 +1378,41 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
         if (alpha <= 0) return;
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha)); let fx = msg.x || cx; let fy = isHint ? (msg.y + yAnimOffset) : (130 + (idx * 32) + yAnimOffset);
+        
         if (msg.targetPlayerPanel) {
             const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
             fx = msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
             let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++; fy = 140 + (offsetIdx * 32) + yAnimOffset;
-        }
-        ctx.textAlign = "center";
-        if (isHint) {
-            ctx.font = getPixelFont(10);
-            const txtW = ctx.measureText(msg.text).width + 16;
-            ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(fx - txtW/2, fy - 12, txtW, 18);
-            ctx.fillStyle = "#ff5555"; ctx.fillText(msg.text, fx, fy);
+            
+            ctx.textAlign = "center";
+            ctx.font = getPixelFont(14);
+            const text1 = `P${msg.targetPlayerPanel}`; const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
+            const w1 = ctx.measureText(text1).width;
+            const w2 = ctx.measureText(text2).width; const iconW = 16; const gap = 8;
+            const totalW = w1 + gap + iconW + gap + w2;
+            
+            // 修正: 黒背景 (ctx.fillRect) を削除しました
+
+            let currentX = fx - totalW/2;
+            ctx.textAlign = "left"; ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.fillText(text1, currentX, fy); currentX += w1 + gap;
+            drawDotIcon(ctx, 'meat', currentX + iconW/2 - 4, fy - 8, "#fff", 2); currentX += iconW + gap;
+            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.fillText(text2, currentX, fy);
         } else {
-            let isResult = msg.type === "result";
-            let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : (msg.type === 'fire' ? 'fire' : 'diamond'));
-            if (msg.targetPlayerPanel) {
-                ctx.font = getPixelFont(14);
-                const text1 = `P${msg.targetPlayerPanel}`; const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
-                const w1 = ctx.measureText(text1).width;
-                const w2 = ctx.measureText(text2).width; const iconW = 16; const gap = 8;
-                const totalW = w1 + gap + iconW + gap + w2;
-                ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-                ctx.fillRect(fx - totalW/2 - 10, fy - 22, totalW + 20, 30);
-                let currentX = fx - totalW/2;
-                ctx.textAlign = "left"; ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.fillText(text1, currentX, fy); currentX += w1 + gap;
-                drawDotIcon(ctx, 'meat', currentX + iconW/2 - 4, fy - 8, "#fff", 2); currentX += iconW + gap;
-                ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.fillText(text2, currentX, fy);
+            ctx.textAlign = "center";
+            if (isHint) {
+                ctx.font = getPixelFont(10);
+                const txtW = ctx.measureText(msg.text).width + 16;
+                ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; ctx.fillRect(fx - txtW/2, fy - 12, txtW, 18);
+                ctx.fillStyle = "#ff5555"; ctx.fillText(msg.text, fx, fy);
             } else {
+                let isResult = msg.type === "result";
+                let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : (msg.type === 'fire' ? 'fire' : 'diamond'));
                 let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.type === 'fire' ? "#fa3" : (msg.amount > 0 ? "#ff4" : "#f33")));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); const txtW = ctx.measureText(text).width + (icon ? 50 : 30);
+                
+                // こちら(中央に表示されるスコアなど)の背景は、網などの背景と重なるため残してあります
                 ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(fx - txtW/2, fy - 22 - (msg.isPerfect?4:0), txtW, 30 + (msg.isPerfect?4:0));
+                
                 if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
                 ctx.fillStyle = color;
                 if (icon) { drawDotIcon(ctx, icon, fx - 25 - (msg.isPerfect?2:0), fy - 8, "#fff", 2.5); ctx.fillText(text, fx + 15, fy);
