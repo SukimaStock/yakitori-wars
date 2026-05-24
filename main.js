@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Today's Order Update (完全版 - 客の来店対応)
+// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版)
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -16,7 +16,7 @@ function initGameState() {
         isBusy: false, isAIThinking: false, transition: currentTransition,
         introSequenceActive: false, introSequenceDone: false, introPhase: null, 
         introVsTimer: 0, fightSplashTimer: 0, introOrderTimer: 0, introPauseTimer: 0, 
-        todaysOrder: null, // 今日の注文(お客さん)
+        todaysOrder: null, // 今日の客
         gameEndWaitTimer: 0, endSplashTimer: 0, endSplashText: "", endSplashColor: "#fff",
         resultScreenTimer: 0, resultPause: 0, resultPauseDone: false, hitStopTimer: 0,
         cookPreviewActive: false, cookPreviewEvents: [], cookPreviewIndex: 0,
@@ -135,13 +135,17 @@ function updateIntroSequence() {
         if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25; }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
-        if (state.fightSplashTimer <= 0) { state.introPhase = "order"; state.introOrderTimer = 75; } // 客の注文表示
+        if (state.fightSplashTimer <= 0) { state.introPhase = "order"; state.introOrderTimer = 80; } // 客の声を表示
     } else if (state.introPhase === "order") {
         state.introOrderTimer--;
-        if (state.introOrderTimer <= 0) { state.introPhase = "pause"; state.introPauseTimer = 20; }
+        if (state.introOrderTimer <= 0) { state.introPhase = "pause"; state.introPauseTimer = 15; }
     } else if (state.introPhase === "pause") {
         state.introPauseTimer--;
-        if (state.introPauseTimer <= 0) { state.introSequenceActive = false; state.introSequenceDone = true; state.pendingTurnSplash = true; }
+        if (state.introPauseTimer <= 0) { 
+            state.introSequenceActive = false; 
+            state.introSequenceDone = true; 
+            state.pendingTurnSplash = true; // 注文後に必ず「誰のターンか」を表示
+        }
     }
 }
 
@@ -423,12 +427,12 @@ function resolvePendingTurnFlow() {
 // 4. game/rules.js - 調理ルールとアクション
 // ==========================================
 const TODAYS_ORDERS = [
-    { id: "strong", title: "TODAY'S CUSTOMER", quote: "I like it hot!", effectText: "STRONG FIRE +2" },
-    { id: "okay", title: "TODAY'S CUSTOMER", quote: "I'm in a hurry!", effectText: "OKAY +3" },
-    { id: "burnt", title: "TODAY'S CUSTOMER", quote: "I like it smoky.", effectText: "BURNT +1" },
-    { id: "weak_vip", title: "TODAY'S CUSTOMER", quote: "Slow and perfect.", effectText: "WEAK PERFECT +5" },
-    { id: "steal", title: "TODAY'S CUSTOMER", quote: "I want the best one!", effectText: "STEAL +3" },
-    { id: "meat_save", title: "TODAY'S CUSTOMER", quote: "Save some meat.", effectText: "LEFT MEAT +2" }
+    { id: "strong", title: "TODAY'S CUSTOMER", quote: "Make it hot.", effectText: "STRONG FIRE +2", shortText: "ORDER: STRONG +2" },
+    { id: "okay", title: "TODAY'S CUSTOMER", quote: "I'm in a hurry!", effectText: "OKAY +3", shortText: "ORDER: OKAY +3" },
+    { id: "burnt", title: "TODAY'S CUSTOMER", quote: "I like it smoky.", effectText: "BURNT +1", shortText: "ORDER: BURNT +1" },
+    { id: "weak_vip", title: "TODAY'S CUSTOMER", quote: "Slow and perfect.", effectText: "WEAK PERFECT +5", shortText: "ORDER: WEAK PERFECT +5" },
+    { id: "steal", title: "TODAY'S CUSTOMER", quote: "I want the best one!", effectText: "STEAL +3", shortText: "ORDER: STEAL +3" },
+    { id: "meat_save", title: "TODAY'S CUSTOMER", quote: "Save some meat.", effectText: "LEFT MEAT +2", shortText: "ORDER: LEFT MEAT +2" }
 ];
 
 function getRandomOrder() {
@@ -721,7 +725,7 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
         else if (p.resources === 1) score -= 1; else score -= 15;
         
         // meat_save 注文: 終盤に肉を保持する価値を上げる
-        if (order === "meat_save" && roundsLeft <= 4) score += 15;
+        if (order === "meat_save" && roundsLeft <= 3) score += 15;
     }
     else if (action.type === "put") { 
         score += 10;
@@ -1114,23 +1118,13 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 45); 
     }
 
-// 今日の客 (Today's Customer) - 画面上部に控えめに残す
+    // 今日の客 (Today's Customer) - 画面上部に小さく効果のみを残す
     if (state.todaysOrder) {
-        const orderY = safeTop + 65; // 2行になるため、開始位置を少し上に調整
+        const orderY = safeTop + 65; 
         ctx.textAlign = "center";
         ctx.font = getPixelFont(9);
-        
-        // 1行目:客のアイコンとセリフ
-        const quoteText = `"${state.todaysOrder.quote}"`;
-        const qw = ctx.measureText(quoteText).width;
-        ctx.fillStyle = "#bbb";
-        ctx.fillText(quoteText, cx + 8, orderY);
-        drawDotIcon(ctx, "customer", cx - qw / 2 - 8, orderY - 4, "#fff", 1.5);
-        
-        // 2行目:注文の効果(改行して少し下に表示)
-        const effectText = state.todaysOrder.effectText;
-        ctx.fillStyle = "#fa3"; // 効果テキストは色を変えて視認性をアップ
-        ctx.fillText(effectText, cx, orderY + 15);
+        ctx.fillStyle = "#fa3";
+        ctx.fillText(state.todaysOrder.shortText, cx, orderY);
     }
 
     state.lanes.forEach((lane, i) => {
@@ -1537,19 +1531,19 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
-            const cardW = 280, cardH = 100;
+            // 客の来店カード表示(アイコン無し、シンプルな文字のみ)
+            const cardW = 280, cardH = 80;
             const cardX = cx - cardW / 2, cardY = cy - cardH / 2;
             drawBevelRect(ctx, cardX, cardY, cardW, cardH, LAYOUT.COLORS.PANEL_BG);
             
             ctx.fillStyle = "#ffeb3b"; ctx.font = getPixelFont(12); ctx.textAlign = "center";
             ctx.fillText(state.todaysOrder.title, cx, cardY + 25);
-            drawDotIcon(ctx, "customer", cx, cardY + 45, "#fff", 2.5);
             
             ctx.fillStyle = "#fff"; ctx.font = getPixelFont(10);
-            ctx.fillText(`"${state.todaysOrder.quote}"`, cx, cardY + 70);
+            ctx.fillText(`"${state.todaysOrder.quote}"`, cx, cardY + 50);
             
             ctx.fillStyle = "#fa3"; ctx.font = getPixelFont(10);
-            ctx.fillText(state.todaysOrder.effectText, cx, cardY + 88);
+            ctx.fillText(state.todaysOrder.effectText, cx, cardY + 70);
         }
         ctx.textBaseline = "alphabetic";
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
