@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Restore Slip UI & Perfect Layer Fix
+// # main.js - YAKITORI WARS: Release Polish Update
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -82,13 +82,14 @@ const VISUAL_STATES = {
     PERFECT: { meat: "#9f5524", negi: "#7cb342", dot: "#ff4" },
     BURNT: { meat: "#3c2a23", negi: "#303d32", dot: "#f33" }
 };
-const ICON_PALETTE = { 1:"#ffffff", 2:"#d95763", 3:"#8c3f5d", 4:"#df7126", 5:"#fbf236", 6:"#5fcde4", 7:"#8f563b", 8:"#ac3232", 9:"#e8ede7", 10:"#99e550", 11:"#ffcc66" };
+const ICON_PALETTE = { 1:"#ffffff", 2:"#d95763", 3:"#8c3f5d", 4:"#df7126", 5:"#fbf236", 6:"#5fcde4", 7:"#8f563b", 8:"#ac3232", 9:"#e8ede7", 10:"#99e550", 11:"#ffcc66", 12:"#3c2a23" };
 const ICON_DATA = {
     meat:[0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,2,3,2,2,2,2,0,1,3,3,3,2,2,2,1,1,3,3,3,2,2,2,1,0,2,3,2,2,2,2,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0],
     uchiwa:[0,8,8,8,8,8,0,6,8,8,8,8,8,8,8,0,8,8,8,8,8,8,8,6,8,8,9,9,9,8,8,0,0,8,9,7,9,8,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0],
     diamond:[0,0,0,1,6,0,0,0,0,0,1,6,6,6,0,0,0,1,6,6,6,6,6,0,1,6,6,6,6,6,6,6,0,6,6,6,6,6,6,0,0,0,6,6,6,6,0,0,0,0,0,6,6,0,0,0,0,0,0,0,0,0,0,0],
     fire:[0,0,0,4,0,0,0,0,0,0,4,5,4,0,0,0,0,4,4,5,4,4,0,0,0,4,5,5,5,4,0,0,4,5,5,5,5,5,4,0,4,4,5,5,5,4,4,0,0,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0],
     put_skewer:[0,0,11,0,0,0,0,0,0,2,2,2,0,0,0,0,0,2,2,2,0,0,0,0,0,0,11,0,0,0,0,0,0,2,2,2,0,0,0,0,0,2,2,2,0,0,0,0,0,0,11,0,0,0,0,0,0,0,11,0,0,0,0,0],
+    burnt_skewer:[0,0,11,0,0,0,0,0,0,12,12,12,0,0,0,0,0,12,12,12,0,0,0,0,0,0,11,0,0,0,0,0,0,12,12,12,0,0,0,0,0,12,12,12,0,0,0,0,0,0,11,0,0,0,0,0,0,0,11,0,0,0,0,0],
     serve_plate:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,7,10,7,7,0,0,11,7,7,10,7,7,11,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0],
     clock:[0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,1,0,1,0,0,1,0,0,1,0,1,1,0,1,0,0,1,0,0,0,0,1,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     warning:[0,0,0,8,8,0,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,8,11,11,8,0,0,0,0,0,8,8,0,0,0,0,0,8,11,11,8,0,0,0,0,0,8,8,0,0,0],
@@ -126,27 +127,26 @@ const STAGE_CONFIG = {
     3: { profile: "reader", level: 3, enemyName: "TETSUYA" }, 4: { profile: "master", level: 4, enemyName: "MAKOTO" },
     5: { profile: "master", level: 5, enemyName: "BOSS" }
 };
+const TODAYS_ORDERS = [
+    { id: "strong", label: "HOT", icon: "fire", bonus: "+2", color: "#fa3" },
+    { id: "burnt", label: "BURNT OK", icon: "burnt_skewer", bonus: "+1", color: "#3c2a23" },
+    { id: "steal", label: "STEAL OK", icon: "meat", bonus: "+3", color: "#f33" }
+];
+
 function isTutorialStage() {
-    // チュートリアル判定による注文票スキップを回避するため false を返す
     return false;
 }
-
 function canUseExtraOrder() {
-    // Stage 4以降で追加注文を解放
     return state.gameMode === "ai" && state.currentStage >= 4;
 }
+function getRandomOrder() { return TODAYS_ORDERS[Math.floor(Math.random() * TODAYS_ORDERS.length)]; }
 
 function assignOrderForCurrentStage() {
     if (state.gameMode === "ai") {
-        if (state.currentStage === 1) {
-            state.todaysOrder = { id: "burnt", label: "BURNT OK" }; // Stage 1
-        } else if (state.currentStage === 2) {
-            state.todaysOrder = { id: "strong", label: "HOT" }; // Stage 2
-        } else if (state.currentStage === 3) {
-            state.todaysOrder = { id: "steal", label: "STEAL OK" }; // Stage 3
-        } else {
-            state.todaysOrder = getRandomOrder(); // Stage 4以降
-        }
+        if (state.currentStage === 1) state.todaysOrder = TODAYS_ORDERS.find(o => o.id === "burnt");
+        else if (state.currentStage === 2) state.todaysOrder = TODAYS_ORDERS.find(o => o.id === "strong");
+        else if (state.currentStage === 3) state.todaysOrder = TODAYS_ORDERS.find(o => o.id === "steal");
+        else state.todaysOrder = getRandomOrder();
     } else {
         state.todaysOrder = getRandomOrder();
     }
@@ -166,8 +166,7 @@ function updateIntroSequence() {
     if (!state.introSequenceActive) return;
     if (state.introPhase === "vs") {
         state.introVsTimer--;
-        if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25;
-        }
+        if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25; }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
         if (state.fightSplashTimer <= 0) { 
@@ -213,14 +212,11 @@ function updateGameEndWait() {
                 } else { state.screen = "gameover";
                     state.winnerText = "P1 WIN"; }
             } else if (p2 > p1) { 
-                const winnerName = state.gameMode === "ai" ?
-                    state.enemyName : "P2";
+                const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
                 state.screen = "gameover"; state.winnerText = `${winnerName} WIN`;
             } else { 
-                if (state.gameMode === "ai") { retryStage();
-                    return; } 
-                else { state.screen = "gameover";
-                    state.winnerText = "DRAW"; }
+                if (state.gameMode === "ai") { retryStage(); return; } 
+                else { state.screen = "gameover"; state.winnerText = "DRAW"; }
             }
         }
     }
@@ -252,7 +248,6 @@ function retryStage() {
     setupAIForStage(stg);
     
     assignOrderForCurrentStage();
-    
     state.startRouletteActive = true; state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4; state.startRouletteCount = 0; state.startRouletteIndex = 1;
     state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); state.startRouletteBlinkActive = false;
@@ -266,7 +261,6 @@ function nextStage() {
     state.gameMode = prevMode; state.screen = "game"; setupAIForStage(nextStg);
     
     assignOrderForCurrentStage();
-    
     state.startRouletteActive = true;
     state.startRouletteInterval = 4;
     state.startRouletteTickTimer = 4; state.startRouletteCount = 0; state.startRouletteIndex = 1;
@@ -276,8 +270,7 @@ function nextStage() {
 }
 
 function updateAllScores() { state.players.forEach(p => p.score = p.servedScore || 0); }
-function getBaseHeat(type) { if (type === "weak") return 1; if (type === "medium") return 2;
-    if (type === "strong") return 3; return 1; }
+function getBaseHeat(type) { if (type === "weak") return 1; if (type === "medium") return 2; if (type === "strong") return 3; return 1; }
 
 function spawnSmokeEffect(laneIndex, amount, status) {
     const b = getLaneBounds(laneIndex);
@@ -300,9 +293,7 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     } else {
         numParticles = 3 + amount;
         if (isAlmostBurnt) {
-            color = "#a0a0a0"; 
-            speedMult = 1.4;
-            numParticles += (lane.type === "strong" ? 2 : 0);
+            color = "#a0a0a0"; speedMult = 1.4; numParticles += (lane.type === "strong" ? 2 : 0);
         } else {
             color = "#cccccc";
         }
@@ -332,7 +323,6 @@ function spawnPerfectHarvestEffect(laneIndex) {
             color: colors[Math.floor(Math.random() * colors.length)], isSparkle: true 
         });
     }
-    // テキスト粒子によるPERFECTの二重表示を防ぐため削除しました
 }
 
 function advanceAllSkewersAtRoundEnd() {
@@ -348,7 +338,6 @@ function advanceAllSkewersAtRoundEnd() {
                 const newStatus = getCookLabel(n.type, n.cookState);
                 if (n.cookState > prevCookState) {
                     state.cookPreviewEvents.push({ laneIndex: index, prevCookState: prevCookState, newCookState: n.cookState, prevStatus: prevStatus, newStatus: newStatus });
-        
                     if (newStatus === "burnt" && prevStatus !== "burnt" && n.owner) state.players[n.owner - 1].stats.burnt++;
                 }
             }
@@ -376,10 +365,8 @@ function updateCookPreview() {
     state.cookPreviewPhaseTimer--;
     if (state.cookPreviewPhaseTimer <= 0) {
         state.cookPreviewIndex++;
-        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound();
-        } 
-        else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR;
-        }
+        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound(); } 
+        else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; }
     }
 }
 
@@ -400,18 +387,13 @@ function finishEndRound() {
         const p1 = state.players[0].finalScore, p2 = state.players[1].finalScore;
         if (p1 > p2) {
             if (state.gameMode === "ai") {
-                if (state.currentStage >= 5) { state.endSplashText = "SURVIVAL CLEAR";
-                    state.endSplashColor = "#ffeb3b"; } 
-                else { state.endSplashText = "STAGE CLEAR";
-                    state.endSplashColor = "#ffeb3b"; }
-            } else { state.endSplashText = "P1 WIN";
-                state.endSplashColor = LAYOUT.COLORS.P1; }
+                if (state.currentStage >= 5) { state.endSplashText = "SURVIVAL CLEAR"; state.endSplashColor = "#ffeb3b"; } 
+                else { state.endSplashText = "STAGE CLEAR"; state.endSplashColor = "#ffeb3b"; }
+            } else { state.endSplashText = "P1 WIN"; state.endSplashColor = LAYOUT.COLORS.P1; }
         } else if (p2 > p1) {
-            const winnerName = state.gameMode === "ai" ?
-                state.enemyName : "P2";
+            const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
             state.endSplashText = `${winnerName} WIN`; state.endSplashColor = LAYOUT.COLORS.P2;
-        } else { state.endSplashText = "DRAW"; state.endSplashColor = "#aaa";
-        }
+        } else { state.endSplashText = "DRAW"; state.endSplashColor = "#aaa"; }
         state.endSplashTimer = 55; state.gameEndWaitTimer = 55; return;
     }
     state.roundEndPauseTimer = 60; 
@@ -476,10 +458,10 @@ function updateRoulette() {
     }
 }
 
-function hasActiveScoreMessage() {
+function hasActiveImportantMessage() {
     const now = performance.now();
     return state.visuals.statusMessages.some(m =>
-        m.type === "score" && (now - m.startTime < (m.duration || 1000) - 200)
+        (m.type === "score" || m.isPerfect || m.isBonus || m.type === "result") && (now - m.startTime < (m.duration || 1000) - 200)
     );
 }
 
@@ -487,15 +469,12 @@ function resolvePendingTurnFlow() {
     if (state.cookPreviewActive || state.introSequenceActive || state.roundEndPauseTimer > 0) return;
     if (state.extraOrderIntroActive) {
         state.extraOrderIntroTimer--;
-        if (state.extraOrderIntroTimer <= 0) {
-            state.extraOrderIntroActive = false;
-        }
+        if (state.extraOrderIntroTimer <= 0) { state.extraOrderIntroActive = false; }
         return; 
     }
 
     if (state.pendingTurnSplash) { 
-        if (hasActiveScoreMessage()) return;
-        // Wait for scores to settle
+        if (hasActiveImportantMessage()) return;
         state.turnSplashTimer = 45; 
         state.pendingTurnSplash = false;
     }
@@ -513,13 +492,6 @@ function resolvePendingTurnFlow() {
 // ==========================================
 // 4. game/rules.js - 調理ルールとアクション
 // ==========================================
-const TODAYS_ORDERS = [
-    { id: "strong", label: "HOT" },
-    { id: "burnt", label: "BURNT OK" },
-    { id: "steal", label: "STEAL OK" }
-];
-function getRandomOrder() { return TODAYS_ORDERS[Math.floor(Math.random() * TODAYS_ORDERS.length)]; }
-
 function getCookLabel(laneType, cv) {
     if (laneType === "weak") { if (cv >= 8) return "burnt";
         if (cv >= 6) return "perfect"; if (cv === 5) return "okay";
@@ -770,8 +742,7 @@ const AI_LEVEL_CONFIG = {
     1: { rand: 0.40, mistake: 0.30, futWt: 0.10, allowUchiwa: false, topCandRange: 3, scoreNoise: 10, closeThresh: 8, closeRate: 0.35 },
     2: { rand: 0.20, mistake: 0.15, futWt: 0.20, allowUchiwa: true,  topCandRange: 3, scoreNoise: 6,  closeThresh: 6, closeRate: 0.25 },
     3: { rand: 0.10, mistake: 0.05, futWt: 0.30, allowUchiwa: true,  topCandRange: 2, scoreNoise: 3,  closeThresh: 5, closeRate: 0.20 },
-    4: { rand: 0.03, mistake: 0.01, futWt: 0.50, allowUchiwa: true,  topCandRange: 2, 
-        scoreNoise: 1.5, closeThresh: 4, closeRate: 0.10 },
+    4: { rand: 0.03, mistake: 0.01, futWt: 0.50, allowUchiwa: true,  topCandRange: 2, scoreNoise: 1.5, closeThresh: 4, closeRate: 0.10 },
     5: { rand: 0.15, mistake: 0.20, futWt: 0.40, allowUchiwa: true,  topCandRange: 3, scoreNoise: 4,  closeThresh: 6, closeRate: 0.25 }
 };
 function buildActionCandidates(currentState, playerIndex) {
@@ -994,7 +965,7 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
 function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
     const data = ICON_DATA[iconId]; if (!data) return;
     const isDisabled = (color === "#888"); let offsetX = 0;
-    if (iconId === "put_skewer" || iconId === "serve_plate") offsetX = 3;
+    if (iconId === "put_skewer" || iconId === "serve_plate" || iconId === "burnt_skewer") offsetX = 3;
     for (let i = 0; i < 64; i++) {
         const val = data[i];
         if (val !== 0) { ctx.fillStyle = isDisabled ? "#888" : (ICON_PALETTE[val] || color);
@@ -1044,22 +1015,14 @@ function drawEndSplash(ctx) {
         "#fff"; ctx.fillText(state.endSplashText, cx, cy);
     ctx.font = getPixelFont(10); ctx.fillStyle = "#aaa"; ctx.fillText("MATCH END", cx, cy + 35); ctx.restore();
 }
-function drawScoreBreakdown(ctx, served, resources, endX, y) {
-    ctx.font = getPixelFont(10); const text3 = `${resources})`;
-    const w3 = ctx.measureText(text3).width; const text2 = ` + `; const w2 = ctx.measureText(text2).width;
-    const text1 = `(${served}`; const w1 = ctx.measureText(text1).width; const iconW = 14; 
-    const totalW = w1 + w2 + iconW + w3; let currentX = endX - totalW;
-    ctx.textAlign = "left"; ctx.fillStyle = "#666"; ctx.fillText(text1, currentX, y); currentX += w1; ctx.fillText(text2, currentX, y); currentX += w2;
-    drawDotIcon(ctx, "meat", currentX + 2, y - 6, "#666", 1.5); currentX += iconW; ctx.fillText(text3, currentX, y);
-}
 
 function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) {
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
-  
     const textFontSize = isIntro ? 14 * scale : 12 * scale;
+    const iconScale = isIntro ? 2 * scale : 1.5 * scale;
     
     const cardW = Math.round((isIntro ? 260 : 160) * scale);
-    const cardH = Math.round((isIntro ? 45 : 36) * scale);
+    const cardH = Math.round((isIntro ? 55 : 44) * scale);
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
     
@@ -1067,6 +1030,7 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     
     ctx.fillStyle = "#5a4a3a";
     ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
+    
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
@@ -1077,8 +1041,23 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     
     ctx.fillStyle = "#c85a4a";
     ctx.font = getPixelFont(textFontSize);
-    const textY = Math.round(cardY + (isIntro ? 34 * scale : 28 * scale));
+    const textY = Math.round(cardY + (isIntro ? 32 * scale : 26 * scale));
     ctx.fillText(orderObj.label, Math.round(cx), textY);
+    
+    if (orderObj.icon && orderObj.bonus) {
+        const bonusY = Math.round(cardY + (isIntro ? 48 * scale : 38 * scale));
+        const textW = ctx.measureText(orderObj.bonus).width;
+        const iconW = 8 * iconScale;
+        const totalW = iconW + 4 * scale + textW;
+        const startX = Math.round(cx - totalW / 2);
+        
+        drawDotIcon(ctx, orderObj.icon, startX + iconW / 2, bonusY - 4 * scale, orderObj.color || "#4a4a4a", iconScale);
+        ctx.fillStyle = "#4a4a4a";
+        ctx.font = getPixelFont(titleFontSize);
+        ctx.textAlign = "left";
+        ctx.fillText(orderObj.bonus, startX + iconW + 4 * scale, bonusY);
+    }
+    
     ctx.restore();
 }
 
@@ -1188,49 +1167,46 @@ function render(ctx) {
                 state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
-            } 
-            else if (p2Score > p1Score) { p1Color = "#555";
-                p1Alpha = 0.5; } 
-            else { p1Color = "#aaa";
-                p2Color = "#aaa"; }
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
+            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
             
             ctx.globalAlpha = alpha * p1Alpha;
             ctx.textAlign = "left";
-            ctx.fillStyle = p1Color; ctx.font = getPixelFont(16); ctx.fillText("P1", cx - 80, cy - 35);
-            ctx.textAlign = "right";
-            ctx.fillText(`${p1Score}`, cx + 60, cy - 35); drawDotIcon(ctx, "diamond", cx + 75, cy - 43, p1Color, 2.5);
-            drawScoreBreakdown(ctx, state.players[0].servedScore, state.players[0].resources, cx + 60, cy - 20);
+            ctx.fillStyle = p1Color; ctx.font = getPixelFont(16); ctx.fillText("P1", cx - 80, cy - 25);
+            ctx.textAlign = "right"; ctx.fillText(`${p1Score}`, cx + 80, cy - 25);
             
             ctx.globalAlpha = alpha * p2Alpha; ctx.textAlign = "left"; ctx.fillStyle = p2Color;
-            ctx.font = getPixelFont(16); ctx.fillText(p2Name, cx - 80, cy + 10);
-            ctx.textAlign = "right"; ctx.fillText(`${p2Score}`, cx + 60, cy + 10);
-            drawDotIcon(ctx, "diamond", cx + 75, cy + 2, p2Color, 2.5); drawScoreBreakdown(ctx, state.players[1].servedScore, state.players[1].resources, cx + 60, cy + 25);
-            ctx.globalAlpha = 1.0;
+            ctx.fillText(p2Name, cx - 80, cy + 5);
+            ctx.textAlign = "right"; ctx.fillText(`${p2Score}`, cx + 80, cy + 5);
         }
         if (timer >= 55) {
             const alpha = Math.min(1, (timer - 55) / 10), p1Score = state.players[0].finalScore ||
                 state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
-            } 
-            else if (p2Score > p1Score) { p1Color = "#555";
-                p1Alpha = 0.5; } 
-            else { p1Color = "#aaa";
-                p2Color = "#aaa"; }
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
+            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
             
             ctx.font = getPixelFont(10);
             const statsLabels = ["PERFECT", "BURNT", "STEAL"];
-            ctx.globalAlpha = alpha; ctx.textAlign = "center"; ctx.fillStyle = "#888";
-            statsLabels.forEach((label, i) => { ctx.fillText(label, cx, cy + 60 + i * 18); });
-            statsLabels.forEach((_, i) => {
-                const statKey = statsLabels[i].toLowerCase();
-                ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right"; ctx.fillText(state.players[0].stats[statKey], cx - 60, cy + 60 + i * 18);
-                ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left"; ctx.fillText(state.players[1].stats[statKey], cx + 60, cy + 60 + i * 18);
-    
+            statsLabels.forEach((label, i) => {
+                const statKey = label.toLowerCase();
+                const y = cy + 45 + i * 18;
+                
+                ctx.globalAlpha = alpha; ctx.textAlign = "left"; ctx.fillStyle = "#888";
+                ctx.fillText(label, cx - 80, y);
+                
+                ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right";
+                ctx.fillText(state.players[0].stats[statKey], cx + 15, y);
+                
+                ctx.globalAlpha = alpha; ctx.fillStyle = "#555"; ctx.textAlign = "center";
+                ctx.fillText("-", cx + 35, y);
+                
+                ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left";
+                ctx.fillText(state.players[1].stats[statKey], cx + 55, y);
             });
+            
             const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500);
-            ctx.globalAlpha = alpha; const btnY = cy + 135; ctx.save();
+            ctx.globalAlpha = alpha; const btnY = cy + 120; ctx.save();
             ctx.translate(cx, btnY);
             if (state.screen === "stage_clear") {
                 ctx.globalAlpha = alpha * pulse;
@@ -1240,10 +1216,8 @@ function render(ctx) {
             } else {
                 ctx.globalAlpha = alpha * pulse;
                 ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center";
-                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0);
-                } 
-                else { ctx.fillText("▶ REMATCH", 0, 0);
-                }
+                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0); } 
+                else { ctx.fillText("▶ REMATCH", 0, 0); }
             }
             ctx.restore();
             ctx.globalAlpha = 1.0;
@@ -1292,7 +1266,7 @@ function drawGameScreen(ctx) {
 
     let orderYOffset = safeTop + 60;
     if (state.todaysOrder && state.orderIntroDone) {
-        drawOrderSlip(ctx, cx, orderYOffset, "TODAY'S CUSTOMER", state.todaysOrder, 1, false);
+        drawOrderSlip(ctx, cx, orderYOffset, "TODAY'S ORDER", state.todaysOrder, 1, false);
     }
 
     state.lanes.forEach((lane, i) => {
@@ -1301,7 +1275,6 @@ function drawGameScreen(ctx) {
         tracesForLane.forEach(trace => {
             if (lane.built) return; 
             const elapsed = now - trace.time;
-         
          
             let traceAlpha = 0;
             if (trace.type === "perfect") {
@@ -1345,7 +1318,6 @@ function drawGameScreen(ctx) {
             if (activeEvent && activeEvent.laneIndex === i) {
                 isCurrentPreviewLane = true; previewProg = 1.0 - (state.cookPreviewPhaseTimer / COOK_PREVIEW_DUR);
                 if (previewProg < 0.35) { displayCookState = activeEvent.prevCookState; gaugeCookState = activeEvent.prevCookState; } 
-              
                 else { displayCookState = activeEvent.newCookState; gaugeCookState = activeEvent.newCookState; }
                 effectiveCookState = displayCookState;
             } else if (previewEventForThisLane) {
@@ -1731,7 +1703,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
-            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S CUSTOMER", state.todaysOrder, 1.5, true);
+            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S ORDER", state.todaysOrder, 1.5, true);
         }
         ctx.textBaseline = "alphabetic";
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
@@ -1779,10 +1751,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const p = Math.min(1, Math.max(0, elapsed / duration));
             
             if (msg.type === 'meat' && msg.amount < 0) {
-                // 肉マイナスの場合は下方向に移動させる
                 yAnimOffset = 30 * Math.pow(p, 0.5);
             } else {
-                // 通常は上方向に移動させる
                 yAnimOffset = -30 * Math.pow(p, 0.5);
             }
 
