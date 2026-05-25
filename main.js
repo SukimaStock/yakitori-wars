@@ -1019,19 +1019,34 @@ function drawEndSplash(ctx) {
 function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) {
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
     const textFontSize = isIntro ? 14 * scale : 12 * scale;
-    const iconScale = isIntro ? 2 * scale : 1.5 * scale;
+    const iconScale = isIntro ? 3 * scale : 2.5 * scale; // アイコンを少し大きく
     
-    // 注文票のサイズを調整(左右に情報を整理するため少し横長にする)
-    const cardW = Math.round((isIntro ? 280 : 180) * scale);
+    // 横幅を絞り、よりコンパクトな札形状に
+    const cardW = Math.round((isIntro ? 240 : 150) * scale); 
     const cardH = Math.round((isIntro ? 55 : 44) * scale);
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
     
-    // 注文票本体
     drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#e0d6c8");
     
-    // 区切り線(左右を薄く分ける)
-    const splitX = cardX + Math.round(cardW * 0.65);
+    ctx.fillStyle = "#5a4a3a";
+    ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
+    
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#4a4a4a";
+    
+    // 左側:注文名エリア(横幅を絞った分、少しフォントも調整)
+    const splitX = cardX + Math.round(cardW * 0.62); // 分割比率を調整
+    ctx.font = getPixelFont(titleFontSize);
+    ctx.fillText(title, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 16 * scale : 13 * scale));
+    
+    ctx.fillStyle = "#c85a4a";
+    ctx.font = getPixelFont(textFontSize);
+    ctx.fillText(orderObj.label, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 38 * scale : 30 * scale));
+    
+    // 境界線
     ctx.strokeStyle = "rgba(90, 74, 58, 0.2)";
     ctx.lineWidth = 1 * scale;
     ctx.beginPath();
@@ -1039,29 +1054,17 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     ctx.lineTo(splitX, cardY + cardH - 5 * scale);
     ctx.stroke();
     
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#4a4a4a";
-    
-    // 左側:注文名エリア
-    ctx.font = getPixelFont(titleFontSize);
-    ctx.fillText(title, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 16 * scale : 14 * scale));
-    
-    ctx.fillStyle = "#c85a4a";
-    ctx.font = getPixelFont(textFontSize);
-    ctx.fillText(orderObj.label, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 38 * scale : 32 * scale));
-    
-    // 右側:ボーナス報酬エリア
+    // 右側:記号エリア
     if (orderObj.icon && orderObj.bonus) {
         const rewardX = splitX + (cardX + cardW - splitX) / 2;
         const iconY = cardY + (isIntro ? 28 * scale : 22 * scale);
-        const bonusY = cardY + (isIntro ? 48 * scale : 38 * scale);
+        const bonusY = cardY + (isIntro ? 48 * scale : 39 * scale);
 
-        // アイコンを描画
+        // アイコンを大きく表示
         drawDotIcon(ctx, orderObj.icon, rewardX, iconY, orderObj.color || "#4a4a4a", iconScale);
         
-        // 数字を描画
-        ctx.fillStyle = "#5a4a3a";
+        // ボーナス値
+        ctx.fillStyle = "#4a4a4a";
         ctx.font = getPixelFont(titleFontSize);
         ctx.textAlign = "center";
         ctx.fillText(orderObj.bonus, rewardX, bonusY);
