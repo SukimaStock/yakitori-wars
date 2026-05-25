@@ -1019,10 +1019,10 @@ function drawEndSplash(ctx) {
 function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) {
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
     const textFontSize = isIntro ? 14 * scale : 12 * scale;
-    const iconScale = isIntro ? 3 * scale : 2.5 * scale; // アイコンを少し大きく
+    const iconScale = isIntro ? 2.5 * scale : 2 * scale; // アイコンのサイズを少し落ち着かせる
     
-    // 横幅を絞り、よりコンパクトな札形状に
-    const cardW = Math.round((isIntro ? 240 : 150) * scale); 
+    // 横幅を調整(前回より少し広げ、バランスを取り直しました)
+    const cardW = Math.round((isIntro ? 300 : 200) * scale); 
     const cardH = Math.round((isIntro ? 55 : 44) * scale);
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
@@ -1037,14 +1037,14 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#4a4a4a";
     
-    // 左側:注文名エリア(横幅を絞った分、少しフォントも調整)
-    const splitX = cardX + Math.round(cardW * 0.62); // 分割比率を調整
+    // 左側:注文名エリアの比率を調整
+    const splitX = cardX + Math.round(cardW * 0.6); 
     ctx.font = getPixelFont(titleFontSize);
-    ctx.fillText(title, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 16 * scale : 13 * scale));
+    ctx.fillText(title, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 16 * scale : 14 * scale));
     
     ctx.fillStyle = "#c85a4a";
     ctx.font = getPixelFont(textFontSize);
-    ctx.fillText(orderObj.label, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 38 * scale : 30 * scale));
+    ctx.fillText(orderObj.label, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 36 * scale : 30 * scale));
     
     // 境界線
     ctx.strokeStyle = "rgba(90, 74, 58, 0.2)";
@@ -1058,12 +1058,10 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     if (orderObj.icon && orderObj.bonus) {
         const rewardX = splitX + (cardX + cardW - splitX) / 2;
         const iconY = cardY + (isIntro ? 28 * scale : 22 * scale);
-        const bonusY = cardY + (isIntro ? 48 * scale : 39 * scale);
+        const bonusY = cardY + (isIntro ? 50 * scale : 39 * scale);
 
-        // アイコンを大きく表示
         drawDotIcon(ctx, orderObj.icon, rewardX, iconY, orderObj.color || "#4a4a4a", iconScale);
         
-        // ボーナス値
         ctx.fillStyle = "#4a4a4a";
         ctx.font = getPixelFont(titleFontSize);
         ctx.textAlign = "center";
