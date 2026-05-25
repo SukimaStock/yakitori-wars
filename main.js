@@ -1678,9 +1678,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         });
     }
 
-    // イントロやターンスプラッシュのオーバーレイ処理
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
-        // (中略のため既存ロジックはそのまま維持)
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
         let isVisible = state.startRouletteBlinkActive ?
@@ -1737,12 +1735,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     });
 
-    // ----------------------------------------------------
-    // ステータスメッセージの描画処理(ここで統一を行います)
-    // ----------------------------------------------------
     let p1MsgCount = 0; let p2MsgCount = 0;
     
-    // ベースラインを明示的に設定して、常に文字の中心・基準が揃うようにします
     ctx.textBaseline = "alphabetic";
     
     state.visuals.statusMessages.forEach((msg, idx) => {
@@ -1760,8 +1754,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         } else {
             const p = Math.min(1, Math.max(0, elapsed / duration));
             
-            // 【修正箇所】 +1 も -1 も同じ軌道(上向き)に完全に統一
-            yAnimOffset = -30 * Math.pow(p, 0.5);
+            if (msg.type === "meat" && msg.targetPlayerPanel) {
+                const ease = Math.pow(p, 0.55);
+                const moveDist = 18;
+                const dir = msg.amount >= 0 ? -1 : 1;
+                yAnimOffset = dir * moveDist * ease;
+            } else {
+                yAnimOffset = -30 * Math.pow(p, 0.5);
+            }
 
             if (elapsed < fadeInDuration) {
                 alpha = elapsed / fadeInDuration;
@@ -1782,8 +1782,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             fx = Math.round(msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2);
             let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++;
             
-            // Y座標の基準(fy)も完全に同じになります
-            fy = Math.round(140 + (offsetIdx * 32) + yAnimOffset);
+            fy = Math.round(136 + (offsetIdx * 28) + yAnimOffset);
             
             ctx.globalAlpha = alpha;
             ctx.textAlign = "center";
@@ -1801,7 +1800,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillText(text1, currentX, fy); 
             currentX += w1 + gap;
             
-            // アイコンの描画(fy-8 でベースラインと中心が揃う)
             drawDotIcon(ctx, 'meat', Math.round(currentX + iconW/2 - 4), Math.round(fy - 8), "#fff", 2); 
             currentX += iconW + gap;
             
