@@ -1019,11 +1019,11 @@ function drawEndSplash(ctx) {
 function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) {
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
     const textFontSize = isIntro ? 14 * scale : 12 * scale;
-    const iconScale = isIntro ? 2.5 * scale : 2 * scale; // アイコンのサイズを少し落ち着かせる
+    const iconScale = isIntro ? 2.5 * scale : 2 * scale;
     
-    // 横幅を調整(前回より少し広げ、バランスを取り直しました)
-    const cardW = Math.round((isIntro ? 300 : 200) * scale); 
-    const cardH = Math.round((isIntro ? 55 : 44) * scale);
+    // 注文票の幅(ここだけ変えれば全体が追従します)
+    const cardW = Math.round((isIntro ? 260 : 170) * scale);
+    const cardH = Math.round((isIntro ? 50 : 40) * scale);
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
     
@@ -1032,42 +1032,44 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     ctx.fillStyle = "#5a4a3a";
     ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
     
+    // 左右の分割線位置
+    const splitX = cardX + Math.round(cardW * 0.65);
+
     ctx.save();
     ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
+    ctx.textBaseline = "middle"; // 縦中央揃えに設定
     ctx.fillStyle = "#4a4a4a";
     
-    // 左側:注文名エリアの比率を調整
-    const splitX = cardX + Math.round(cardW * 0.6); 
+    // 左側:注文情報エリア
+    const leftCenterX = cardX + (splitX - cardX) / 2;
     ctx.font = getPixelFont(titleFontSize);
-    ctx.fillText(title, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 16 * scale : 14 * scale));
+    ctx.fillText(title, leftCenterX, cardY + (isIntro ? 16 * scale : 13 * scale));
     
     ctx.fillStyle = "#c85a4a";
     ctx.font = getPixelFont(textFontSize);
-    ctx.fillText(orderObj.label, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 36 * scale : 30 * scale));
+    ctx.fillText(orderObj.label, leftCenterX, cardY + (isIntro ? 38 * scale : 28 * scale));
     
     // 境界線
     ctx.strokeStyle = "rgba(90, 74, 58, 0.2)";
-    ctx.lineWidth = 1 * scale;
     ctx.beginPath();
     ctx.moveTo(splitX, cardY + 5 * scale);
     ctx.lineTo(splitX, cardY + cardH - 5 * scale);
     ctx.stroke();
     
-    // 右側:記号エリア
+    // 右側:記号エリア(アイコンと数値を中央に配置)
     if (orderObj.icon && orderObj.bonus) {
         const rewardX = splitX + (cardX + cardW - splitX) / 2;
-        const iconY = cardY + (isIntro ? 28 * scale : 22 * scale);
-        const bonusY = cardY + (isIntro ? 50 * scale : 39 * scale);
-
-        drawDotIcon(ctx, orderObj.icon, rewardX, iconY, orderObj.color || "#4a4a4a", iconScale);
+        const centerY = cardY + cardH / 2;
+        
+        // アイコンとテキストを横並びにするためのオフセット
+        const offset = 6 * scale;
+        drawDotIcon(ctx, orderObj.icon, rewardX - offset, centerY, orderObj.color || "#4a4a4a", iconScale);
         
         ctx.fillStyle = "#4a4a4a";
         ctx.font = getPixelFont(titleFontSize);
-        ctx.textAlign = "center";
-        ctx.fillText(orderObj.bonus, rewardX, bonusY);
+        ctx.textAlign = "left";
+        ctx.fillText(orderObj.bonus, rewardX + offset, centerY);
     }
-    
     ctx.restore();
 }
 
