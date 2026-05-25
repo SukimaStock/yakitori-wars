@@ -63,7 +63,11 @@ function getPixelFont(size) { return `${size}px 'Press Start 2P', monospace`; }
 // 1.5. game/audio.js - 音声システム
 // ==========================================
 const audioSys = {
-    ctx: null, masterGain: null, unlocked: false, lastPlayed: {}, masterVolume: 0.25 
+    ctx: null, 
+    masterGain: null, 
+    unlocked: false, 
+    lastPlayed: {}, 
+    masterVolume: 0.6 // テスト用に音量を一時的にアップ
 };
 
 function initAudio() {
@@ -75,20 +79,53 @@ function initAudio() {
         audioSys.masterGain = audioSys.ctx.createGain();
         audioSys.masterGain.gain.value = audioSys.masterVolume;
         audioSys.masterGain.connect(audioSys.ctx.destination);
-    } catch (e) { console.warn("Web Audio API がサポートされていません", e); }
+    } catch (e) { 
+        console.warn("Web Audio API がサポートされていません", e); 
+    }
 }
 
-function unlockAudio() {
+async function unlockAudio() {
     if (audioSys.unlocked) return;
+    
     initAudio();
     if (!audioSys.ctx) return;
-    if (audioSys.ctx.state === 'suspended') { audioSys.ctx.resume(); }
-    const osc = audioSys.ctx.createOscillator();
-    osc.connect(audioSys.ctx.destination);
-    osc.start(); osc.stop(audioSys.ctx.currentTime + 0.001);
-    audioSys.unlocked = true;
+
+    try {
+        // iOS対応: resumeは非同期なので完了を待つ
+        if (audioSys.ctx.state === "suspended") {
+            await audioSys.ctx.resume();
+        }
+
+        const t = audioSys.ctx.currentTime;
+        const osc = audioSys.ctx.createOscillator();
+        const gain = audioSys.ctx.createGain();
+
+        // ほぼ無音のダミー音を生成
+        gain.gain.setValueAtTime(0.001, t);
+        osc.frequency.setValueAtTime(440, t);
+
+        // 必ずmasterGainを経由させる
+        osc.connect(gain);
+        gain.connect(audioSys.masterGain);
+
+        osc.start(t);
+        osc.stop(t + 0.03);
+
+        // resumeとダミー音の再生が成功したらロック解除判定とする
+        audioSys.unlocked = true;
+        console.log("audio unlocked", audioSys.ctx.state);
+
+        // 【テスト用】アンロック成功確認の音(確認後にここを削除してください)
+        setTimeout(() => {
+            playTone(880, 0.2, "sine", 0.8);
+        }, 100);
+
+    } catch (e) {
+        console.warn("audio unlock failed", e);
+    }
 }
 
+// playTone, playNoise, playSound はそのまま変更なし
 function playTone(freq, duration, type = 'sine', vol = 1.0, freqSlide = 0) {
     if (!audioSys.ctx || audioSys.ctx.state !== 'running') return;
     const t = audioSys.ctx.currentTime, osc = audioSys.ctx.createOscillator(), gain = audioSys.ctx.createGain();
