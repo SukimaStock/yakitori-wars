@@ -1021,41 +1021,50 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     const textFontSize = isIntro ? 14 * scale : 12 * scale;
     const iconScale = isIntro ? 2 * scale : 1.5 * scale;
     
-    const cardW = Math.round((isIntro ? 260 : 160) * scale);
+    // 注文票のサイズを調整(左右に情報を整理するため少し横長にする)
+    const cardW = Math.round((isIntro ? 280 : 180) * scale);
     const cardH = Math.round((isIntro ? 55 : 44) * scale);
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
     
+    // 注文票本体
     drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#e0d6c8");
     
-    ctx.fillStyle = "#5a4a3a";
-    ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
+    // 区切り線(左右を薄く分ける)
+    const splitX = cardX + Math.round(cardW * 0.65);
+    ctx.strokeStyle = "rgba(90, 74, 58, 0.2)";
+    ctx.lineWidth = 1 * scale;
+    ctx.beginPath();
+    ctx.moveTo(splitX, cardY + 5 * scale);
+    ctx.lineTo(splitX, cardY + cardH - 5 * scale);
+    ctx.stroke();
     
     ctx.save();
     ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#4a4a4a";
+    
+    // 左側:注文名エリア
     ctx.font = getPixelFont(titleFontSize);
-    const titleY = Math.round(cardY + (isIntro ? 16 * scale : 14 * scale));
-    ctx.fillText(title, Math.round(cx), titleY);
+    ctx.fillText(title, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 16 * scale : 14 * scale));
     
     ctx.fillStyle = "#c85a4a";
     ctx.font = getPixelFont(textFontSize);
-    const textY = Math.round(cardY + (isIntro ? 32 * scale : 26 * scale));
-    ctx.fillText(orderObj.label, Math.round(cx), textY);
+    ctx.fillText(orderObj.label, cardX + (splitX - cardX) / 2, cardY + (isIntro ? 38 * scale : 32 * scale));
     
+    // 右側:ボーナス報酬エリア
     if (orderObj.icon && orderObj.bonus) {
-        const bonusY = Math.round(cardY + (isIntro ? 48 * scale : 38 * scale));
-        const textW = ctx.measureText(orderObj.bonus).width;
-        const iconW = 8 * iconScale;
-        const totalW = iconW + 4 * scale + textW;
-        const startX = Math.round(cx - totalW / 2);
+        const rewardX = splitX + (cardX + cardW - splitX) / 2;
+        const iconY = cardY + (isIntro ? 28 * scale : 22 * scale);
+        const bonusY = cardY + (isIntro ? 48 * scale : 38 * scale);
+
+        // アイコンを描画
+        drawDotIcon(ctx, orderObj.icon, rewardX, iconY, orderObj.color || "#4a4a4a", iconScale);
         
-        drawDotIcon(ctx, orderObj.icon, startX + iconW / 2, bonusY - 4 * scale, orderObj.color || "#4a4a4a", iconScale);
-        ctx.fillStyle = "#4a4a4a";
+        // 数字を描画
+        ctx.fillStyle = "#5a4a3a";
         ctx.font = getPixelFont(titleFontSize);
-        ctx.textAlign = "left";
-        ctx.fillText(orderObj.bonus, startX + iconW + 4 * scale, bonusY);
+        ctx.textAlign = "center";
+        ctx.fillText(orderObj.bonus, rewardX, bonusY);
     }
     
     ctx.restore();
