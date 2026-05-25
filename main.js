@@ -84,7 +84,7 @@ const VISUAL_STATES = {
     PERFECT: { meat: "#9f5524", negi: "#7cb342", dot: "#ff4" },
     BURNT: { meat: "#3c2a23", negi: "#303d32", dot: "#f33" }
 };
-const ICON_PALETTE = { 1:"#ffffff", 2:"#d95763", 3:"#8c3f5d", 4:"#df7126", 5:"#fbf236", 6:"#5fcde4", 7:"#8f563b", 8:"#ac3232", 9:"#e8ede7", 10:"#99e550", 11:"#ffcc66", 12:"#3c2a23" };
+const ICON_PALETTE = { 1:"#ffffff", 2:"#d95763", 3:"#8c3f5d", 4:"#df7126", 5:"#fbf236", 6:"#5fcde4", 7:"#8f563b", 8:"#ac3232", 9:"#e8ede7", 10:"#99e550", 11:"#ffcc66", 12:"#1a100c" };
 const ICON_DATA = {
     meat:[0,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,0,2,3,2,2,2,2,0,1,3,3,3,2,2,2,1,1,3,3,3,2,2,2,1,0,2,3,2,2,2,2,0,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,0],
     uchiwa:[0,8,8,8,8,8,0,6,8,8,8,8,8,8,8,0,8,8,8,8,8,8,8,6,8,8,9,9,9,8,8,0,0,8,9,7,9,8,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0,0,0,0,7,0,0,0,0],
@@ -1098,28 +1098,38 @@ function drawCompactOrderCard(ctx, cx, y, orderObj) {
     const cardX = cx - cardW / 2;
     const cardY = y;
     
-    drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#2c1e16");
+    // 背景:木札・くすんだ紙に馴染む暗めの茶色
+    drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#4a3c31");
     
     ctx.save();
     ctx.textBaseline = "middle";
     
+    // 左側:注文名
     ctx.textAlign = "left";
-    ctx.fillStyle = "#aaa";
+    // 背景に合わせて文字色を少し明るく、かつ馴染む色に
+    ctx.fillStyle = "#d4c8b8"; 
     ctx.font = getPixelFont(9);
     ctx.fillText(orderObj.label, cardX + 10, cardY + cardH / 2);
     
+    // 中央:背景に溶け込む薄い区切り線(溝のような表現)
     const splitX = cardX + cardW * 0.55;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
     ctx.fillRect(splitX, cardY + 4, 1, cardH - 8);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.fillRect(splitX + 1, cardY + 4, 1, cardH - 8);
     
+    // 右側:アイコンとボーナス値
     if (orderObj.icon && orderObj.bonus) {
-        const iconScale = 1.8;
-        drawDotIcon(ctx, orderObj.icon, splitX + 20, cardY + cardH / 2, orderObj.color || "#fff", iconScale);
+        // アイコンを少し大きくして視認性を上げる (1.8 -> 2.2)
+        const iconScale = 2.2;
+        drawDotIcon(ctx, orderObj.icon, splitX + 18, cardY + cardH / 2, orderObj.color || "#fff", iconScale);
         
         ctx.textAlign = "left";
-        ctx.fillStyle = "#ffeb3b";
+        // +1 は黄色寄りで読みやすさを維持
+        ctx.fillStyle = "#ffeb3b"; 
         ctx.font = getPixelFont(12);
-        ctx.fillText(orderObj.bonus, splitX + 35, cardY + cardH / 2);
+        // アイコンとの間隔を維持
+        ctx.fillText(orderObj.bonus, splitX + 38, cardY + cardH / 2);
     }
     ctx.restore();
 }
