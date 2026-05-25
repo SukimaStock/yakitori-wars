@@ -1678,7 +1678,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         });
     }
 
+    // イントロやターンスプラッシュのオーバーレイ処理
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
+        // (中略のため既存ロジックはそのまま維持)
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
         let isVisible = state.startRouletteBlinkActive ?
@@ -1712,6 +1714,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(22); ctx.textAlign = "center";
         ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
     }
+    
     ctx.globalAlpha = 1.0;
     state.visuals.ghosts.forEach(g => {
         const elapsed = now - g.startTime, progress = Math.min(1, elapsed / 800);
@@ -1734,7 +1737,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     });
 
+    // ----------------------------------------------------
+    // ステータスメッセージの描画処理(ここで統一を行います)
+    // ----------------------------------------------------
     let p1MsgCount = 0; let p2MsgCount = 0;
+    
+    // ベースラインを明示的に設定して、常に文字の中心・基準が揃うようにします
+    ctx.textBaseline = "alphabetic";
+    
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime;
         const duration = msg.duration || 1000;
@@ -1750,11 +1760,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         } else {
             const p = Math.min(1, Math.max(0, elapsed / duration));
             
-            if (msg.type === 'meat' && msg.amount < 0) {
-                yAnimOffset = 30 * Math.pow(p, 0.5);
-            } else {
-                yAnimOffset = -30 * Math.pow(p, 0.5);
-            }
+            // 【修正箇所】 +1 も -1 も同じ軌道(上向き)に完全に統一
+            yAnimOffset = -30 * Math.pow(p, 0.5);
 
             if (elapsed < fadeInDuration) {
                 alpha = elapsed / fadeInDuration;
@@ -1774,19 +1781,30 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
             fx = Math.round(msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2);
             let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++;
+            
+            // Y座標の基準(fy)も完全に同じになります
             fy = Math.round(140 + (offsetIdx * 32) + yAnimOffset);
+            
             ctx.globalAlpha = alpha;
             ctx.textAlign = "center";
             ctx.font = getPixelFont(14);
-            const text1 = `P${msg.targetPlayerPanel}`; const text2 = msg.amount > 0 ?
-                `+${msg.amount}` : `${msg.amount}`;
+            const text1 = `P${msg.targetPlayerPanel}`; 
+            const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
+            
             const w1 = ctx.measureText(text1).width;
-            const w2 = ctx.measureText(text2).width; const iconW = 16; const gap = 8;
+            const w2 = ctx.measureText(text2).width; 
+            const iconW = 16; const gap = 8;
             let currentX = Math.round(fx - (w1 + gap + iconW + gap + w2)/2);
+            
             ctx.textAlign = "left";
             ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
-            ctx.fillText(text1, currentX, fy); currentX += w1 + gap;
-            drawDotIcon(ctx, 'meat', Math.round(currentX + iconW/2 - 4), Math.round(fy - 8), "#fff", 2); currentX += iconW + gap;
+            ctx.fillText(text1, currentX, fy); 
+            currentX += w1 + gap;
+            
+            // アイコンの描画(fy-8 でベースラインと中心が揃う)
+            drawDotIcon(ctx, 'meat', Math.round(currentX + iconW/2 - 4), Math.round(fy - 8), "#fff", 2); 
+            currentX += iconW + gap;
+            
             ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
             ctx.fillText(text2, currentX, fy);
         } else {
@@ -1814,8 +1832,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 let color = isResult ?
                     "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
-                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha;
-                }
+                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
                 
                 ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
                 if (icon) {
