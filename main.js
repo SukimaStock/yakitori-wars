@@ -32,6 +32,7 @@ function initGameState() {
         startRouletteFinalPlayer: null, startRouletteBlinkActive: false,
         startRouletteBlinkTimer: 0, startRouletteBlinkCount: 0,
         turnSplashTimer: 0, pendingTurnSplash: false, pendingAiBreath: false,
+    
         pendingPlayer: null, aiBreathTimer: 0, 
         buildMode: null,
         buildModeStartTime: 0, pendingBox: null, uiHint: "tap",
@@ -50,6 +51,7 @@ function initGameState() {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
             peakFlashes: {}, ghosts: [], floaters: [], statusMessages: [], particles: [], 
             cancelClick: 0, titleClick: null, perfectFlash: { timer: 0 }, resultComment: null,
+    
             aiTargetLane: null, traces: [], uchiwaGusts: {} 
         }
     };
@@ -70,7 +72,7 @@ let LAYOUT = {
         STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334", HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
     BUTTONS: [
-        { id: "meat", color: "#5a7a5a", icon: "meat" },       
+        { id: "meat", color: "#5a7a5a", icon: "meat" }, 
         { id: "put", color: "#4a6fa5", icon: "put_skewer" },     
         { id: "harvest", color: "#a57a4a", icon: "serve_plate" },  
         { id: "uchiwa", color: "#8a4a6f", icon: "uchiwa" }    
@@ -132,7 +134,6 @@ const TODAYS_ORDERS = [
     { id: "burnt", label: "BURNT OK", icon: "burnt_skewer", bonus: "+1", color: "#3c2a23" },
     { id: "steal", label: "STEAL OK", icon: "meat", bonus: "+3", color: "#f33" }
 ];
-
 function isTutorialStage() {
     return false;
 }
@@ -166,7 +167,8 @@ function updateIntroSequence() {
     if (!state.introSequenceActive) return;
     if (state.introPhase === "vs") {
         state.introVsTimer--;
-        if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25; }
+        if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25;
+        }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
         if (state.fightSplashTimer <= 0) { 
@@ -212,11 +214,14 @@ function updateGameEndWait() {
                 } else { state.screen = "gameover";
                     state.winnerText = "P1 WIN"; }
             } else if (p2 > p1) { 
-                const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
+                const winnerName = state.gameMode === "ai" ?
+                    state.enemyName : "P2";
                 state.screen = "gameover"; state.winnerText = `${winnerName} WIN`;
             } else { 
-                if (state.gameMode === "ai") { retryStage(); return; } 
-                else { state.screen = "gameover"; state.winnerText = "DRAW"; }
+                if (state.gameMode === "ai") { retryStage();
+                    return; } 
+                else { state.screen = "gameover";
+                    state.winnerText = "DRAW"; }
             }
         }
     }
@@ -269,8 +274,10 @@ function nextStage() {
     state.startRouletteFinalPlayer = null;
 }
 
-function updateAllScores() { state.players.forEach(p => p.score = p.servedScore || 0); }
-function getBaseHeat(type) { if (type === "weak") return 1; if (type === "medium") return 2; if (type === "strong") return 3; return 1; }
+function updateAllScores() { state.players.forEach(p => p.score = p.servedScore || 0);
+}
+function getBaseHeat(type) { if (type === "weak") return 1; if (type === "medium") return 2;
+    if (type === "strong") return 3; return 1; }
 
 function spawnSmokeEffect(laneIndex, amount, status) {
     const b = getLaneBounds(laneIndex);
@@ -293,7 +300,8 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     } else {
         numParticles = 3 + amount;
         if (isAlmostBurnt) {
-            color = "#a0a0a0"; speedMult = 1.4; numParticles += (lane.type === "strong" ? 2 : 0);
+            color = "#a0a0a0"; speedMult = 1.4;
+            numParticles += (lane.type === "strong" ? 2 : 0);
         } else {
             color = "#cccccc";
         }
@@ -320,6 +328,7 @@ function spawnPerfectHarvestEffect(laneIndex) {
             x: laneCx + (Math.random() - 0.5) * 50, y: meatY + (Math.random() - 0.5) * 30,  
             vx: (Math.random() - 0.5) * 2.5, vy: -1.5 - Math.random() * 3.5, 
             life: 0, maxLife: 30 + Math.random() * 30, size: 4 + Math.random() * 6,
+     
             color: colors[Math.floor(Math.random() * colors.length)], isSparkle: true 
         });
     }
@@ -338,6 +347,7 @@ function advanceAllSkewersAtRoundEnd() {
                 const newStatus = getCookLabel(n.type, n.cookState);
                 if (n.cookState > prevCookState) {
                     state.cookPreviewEvents.push({ laneIndex: index, prevCookState: prevCookState, newCookState: n.cookState, prevStatus: prevStatus, newStatus: newStatus });
+      
                     if (newStatus === "burnt" && prevStatus !== "burnt" && n.owner) state.players[n.owner - 1].stats.burnt++;
                 }
             }
@@ -348,7 +358,8 @@ function advanceAllSkewersAtRoundEnd() {
 
 function updateCookPreview() {
     if (!state.cookPreviewActive) return;
-    if (!state.cookPreviewEvents || state.cookPreviewEvents.length === 0) { finishEndRound(); return; }
+    if (!state.cookPreviewEvents || state.cookPreviewEvents.length === 0) { finishEndRound(); return;
+    }
     if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound(); return; }
     const CHANGE_TIME = 36;
     if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === CHANGE_TIME) {
@@ -365,8 +376,10 @@ function updateCookPreview() {
     state.cookPreviewPhaseTimer--;
     if (state.cookPreviewPhaseTimer <= 0) {
         state.cookPreviewIndex++;
-        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound(); } 
-        else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; }
+        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound();
+        } 
+        else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR;
+        }
     }
 }
 
@@ -387,13 +400,18 @@ function finishEndRound() {
         const p1 = state.players[0].finalScore, p2 = state.players[1].finalScore;
         if (p1 > p2) {
             if (state.gameMode === "ai") {
-                if (state.currentStage >= 5) { state.endSplashText = "SURVIVAL CLEAR"; state.endSplashColor = "#ffeb3b"; } 
-                else { state.endSplashText = "STAGE CLEAR"; state.endSplashColor = "#ffeb3b"; }
-            } else { state.endSplashText = "P1 WIN"; state.endSplashColor = LAYOUT.COLORS.P1; }
+                if (state.currentStage >= 5) { state.endSplashText = "SURVIVAL CLEAR";
+                    state.endSplashColor = "#ffeb3b"; } 
+                else { state.endSplashText = "STAGE CLEAR";
+                    state.endSplashColor = "#ffeb3b"; }
+            } else { state.endSplashText = "P1 WIN";
+                state.endSplashColor = LAYOUT.COLORS.P1; }
         } else if (p2 > p1) {
-            const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
+            const winnerName = state.gameMode === "ai" ?
+                state.enemyName : "P2";
             state.endSplashText = `${winnerName} WIN`; state.endSplashColor = LAYOUT.COLORS.P2;
-        } else { state.endSplashText = "DRAW"; state.endSplashColor = "#aaa"; }
+        } else { state.endSplashText = "DRAW"; state.endSplashColor = "#aaa";
+        }
         state.endSplashTimer = 55; state.gameEndWaitTimer = 55; return;
     }
     state.roundEndPauseTimer = 60; 
@@ -406,7 +424,8 @@ function updateRoundEndPause() {
     }
 }
 
-function isAIPlayer(playerIndex) { return state.gameMode === "ai" && playerIndex === 2; }
+function isAIPlayer(playerIndex) { return state.gameMode === "ai" && playerIndex === 2;
+}
 function consumeWorker() {
     const p = state.players[state.currentPlayer - 1]; p.workersRemaining -= 1;
     state.buildMode = null;
@@ -469,7 +488,8 @@ function resolvePendingTurnFlow() {
     if (state.cookPreviewActive || state.introSequenceActive || state.roundEndPauseTimer > 0) return;
     if (state.extraOrderIntroActive) {
         state.extraOrderIntroTimer--;
-        if (state.extraOrderIntroTimer <= 0) { state.extraOrderIntroActive = false; }
+        if (state.extraOrderIntroTimer <= 0) { state.extraOrderIntroActive = false;
+        }
         return; 
     }
 
@@ -536,7 +556,8 @@ function getHarvestScore(node, isSteal, status) {
         score = isSteal ? 0 : -2;
         if (order === "burnt") score = 1;
     } else {
-        if (heat === 1) score = (status === "perfect") ? 12 : 3;
+        if (heat === 1) score = (status === "perfect") ?
+            12 : 3;
         else if (heat === 3) score = (status === "perfect") ? 6 : 2;
         else score = (status === "perfect") ? 8 : 2;
     }
@@ -546,8 +567,10 @@ function getHarvestScore(node, isSteal, status) {
 
     return score;
 }
-function canUseMeat(playerIndex) { return true; }
-function canUseSkewer(playerIndex) { return state.players[playerIndex - 1].resources >= 1 && state.lanes.some(l => !l.built); }
+function canUseMeat(playerIndex) { return true;
+}
+function canUseSkewer(playerIndex) { return state.players[playerIndex - 1].resources >= 1 && state.lanes.some(l => !l.built);
+}
 function canUseServe(playerIndex) {
     const p = state.players[playerIndex - 1];
     for (let n of state.lanes) {
@@ -557,7 +580,8 @@ function canUseServe(playerIndex) {
     }
     return false;
 }
-function canUseUchiwa(playerIndex) { return state.lanes.some(l => l.built); }
+function canUseUchiwa(playerIndex) { return state.lanes.some(l => l.built);
+}
 
 function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
@@ -570,7 +594,8 @@ function placeWorker(boxId) {
             if (boxId === 2 && p.resources >= 1) { state.buildMode = "sapling"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
             else if (boxId === 3) { state.buildMode = "harvest"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
             else if (boxId === 4) { state.buildMode = "uchiwa"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
-            state.isBusy = false;
+            state.isBusy = 
+                false;
         }, 150);
     }
 }
@@ -742,7 +767,8 @@ const AI_LEVEL_CONFIG = {
     1: { rand: 0.40, mistake: 0.30, futWt: 0.10, allowUchiwa: false, topCandRange: 3, scoreNoise: 10, closeThresh: 8, closeRate: 0.35 },
     2: { rand: 0.20, mistake: 0.15, futWt: 0.20, allowUchiwa: true,  topCandRange: 3, scoreNoise: 6,  closeThresh: 6, closeRate: 0.25 },
     3: { rand: 0.10, mistake: 0.05, futWt: 0.30, allowUchiwa: true,  topCandRange: 2, scoreNoise: 3,  closeThresh: 5, closeRate: 0.20 },
-    4: { rand: 0.03, mistake: 0.01, futWt: 0.50, allowUchiwa: true,  topCandRange: 2, scoreNoise: 1.5, closeThresh: 4, closeRate: 0.10 },
+    4: { rand: 0.03, mistake: 0.01, futWt: 0.50, allowUchiwa: true,  topCandRange: 2, 
+        scoreNoise: 1.5, closeThresh: 4, closeRate: 0.10 },
     5: { rand: 0.15, mistake: 0.20, futWt: 0.40, allowUchiwa: true,  topCandRange: 3, scoreNoise: 4,  closeThresh: 6, closeRate: 0.25 }
 };
 function buildActionCandidates(currentState, playerIndex) {
@@ -1016,14 +1042,14 @@ function drawEndSplash(ctx) {
     ctx.font = getPixelFont(10); ctx.fillStyle = "#aaa"; ctx.fillText("MATCH END", cx, cy + 35); ctx.restore();
 }
 
-function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) {
-    const titleFontSize = isIntro ? 10 * scale : 8 * scale;
-    const textFontSize = isIntro ? 14 * scale : 12 * scale;
-    const iconScale = isIntro ? 2.5 * scale : 2 * scale;
+function drawIntroOrderSlip(ctx, cx, y, orderObj) {
+    const scale = 1.5;
+    const titleFontSize = 10 * scale;
+    const textFontSize = 14 * scale;
+    const iconScale = 2.5 * scale;
     
-    // 注文票の幅(ここだけ変えれば全体が追従します)
-    const cardW = Math.round((isIntro ? 235 : 170) * scale);
-    const cardH = Math.round((isIntro ? 50 : 40) * scale);
+    const cardW = Math.round(235 * scale);
+    const cardH = Math.round(50 * scale);
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
     
@@ -1031,37 +1057,30 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     
     ctx.fillStyle = "#5a4a3a";
     ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
-    
-    // 左右の分割線位置
     const splitX = cardX + Math.round(cardW * 0.65);
 
     ctx.save();
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle"; // 縦中央揃えに設定
+    ctx.textBaseline = "middle";
     ctx.fillStyle = "#4a4a4a";
     
-    // 左側:注文情報エリア
     const leftCenterX = cardX + (splitX - cardX) / 2;
     ctx.font = getPixelFont(titleFontSize);
-    ctx.fillText(title, leftCenterX, cardY + (isIntro ? 16 * scale : 13 * scale));
+    ctx.fillText("TODAY'S ORDER", leftCenterX, cardY + 16 * scale);
     
     ctx.fillStyle = "#c85a4a";
     ctx.font = getPixelFont(textFontSize);
-    ctx.fillText(orderObj.label, leftCenterX, cardY + (isIntro ? 38 * scale : 28 * scale));
-    
-    // 境界線
+    ctx.fillText(orderObj.label, leftCenterX, cardY + 38 * scale);
+
     ctx.strokeStyle = "rgba(90, 74, 58, 0.2)";
     ctx.beginPath();
     ctx.moveTo(splitX, cardY + 5 * scale);
     ctx.lineTo(splitX, cardY + cardH - 5 * scale);
     ctx.stroke();
     
-    // 右側:記号エリア(アイコンと数値を中央に配置)
     if (orderObj.icon && orderObj.bonus) {
         const rewardX = splitX + (cardX + cardW - splitX) / 2;
         const centerY = cardY + cardH / 2;
-        
-        // アイコンとテキストを横並びにするためのオフセット
         const offset = 6 * scale;
         drawDotIcon(ctx, orderObj.icon, rewardX - offset, centerY, orderObj.color || "#4a4a4a", iconScale);
         
@@ -1069,6 +1088,38 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
         ctx.font = getPixelFont(titleFontSize);
         ctx.textAlign = "left";
         ctx.fillText(orderObj.bonus, rewardX + offset, centerY);
+    }
+    ctx.restore();
+}
+
+function drawCompactOrderCard(ctx, cx, y, orderObj) {
+    const cardW = 150;
+    const cardH = 30;
+    const cardX = cx - cardW / 2;
+    const cardY = y;
+    
+    drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#2c1e16");
+    
+    ctx.save();
+    ctx.textBaseline = "middle";
+    
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#aaa";
+    ctx.font = getPixelFont(9);
+    ctx.fillText(orderObj.label, cardX + 10, cardY + cardH / 2);
+    
+    const splitX = cardX + cardW * 0.55;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.fillRect(splitX, cardY + 4, 1, cardH - 8);
+    
+    if (orderObj.icon && orderObj.bonus) {
+        const iconScale = 1.8;
+        drawDotIcon(ctx, orderObj.icon, splitX + 20, cardY + cardH / 2, orderObj.color || "#fff", iconScale);
+        
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#ffeb3b";
+        ctx.font = getPixelFont(12);
+        ctx.fillText(orderObj.bonus, splitX + 35, cardY + cardH / 2);
     }
     ctx.restore();
 }
@@ -1179,13 +1230,16 @@ function render(ctx) {
                 state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
             const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
-            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
+            } 
+            else if (p2Score > p1Score) { p1Color = "#555";
+                p1Alpha = 0.5; } 
             
             ctx.globalAlpha = alpha * p1Alpha;
             ctx.textAlign = "left";
             ctx.fillStyle = p1Color; ctx.font = getPixelFont(16); ctx.fillText("P1", cx - 80, cy - 25);
-            ctx.textAlign = "right"; ctx.fillText(`${p1Score}`, cx + 80, cy - 25);
+            ctx.textAlign = "right";
+            ctx.fillText(`${p1Score}`, cx + 80, cy - 25);
             
             ctx.globalAlpha = alpha * p2Alpha; ctx.textAlign = "left"; ctx.fillStyle = p2Color;
             ctx.fillText(p2Name, cx - 80, cy + 5);
@@ -1195,8 +1249,10 @@ function render(ctx) {
             const alpha = Math.min(1, (timer - 55) / 10), p1Score = state.players[0].finalScore ||
                 state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
-            else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
+            } 
+            else if (p2Score > p1Score) { p1Color = "#555";
+                p1Alpha = 0.5; } 
             
             ctx.font = getPixelFont(10);
             const statsLabels = ["PERFECT", "BURNT", "STEAL"];
@@ -1205,17 +1261,20 @@ function render(ctx) {
                 const y = cy + 45 + i * 18;
                 
                 ctx.globalAlpha = alpha; ctx.textAlign = "left"; ctx.fillStyle = "#888";
-                ctx.fillText(label, cx - 80, y);
+       
+                 ctx.fillText(label, cx - 80, y);
                 
                 ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right";
                 ctx.fillText(state.players[0].stats[statKey], cx + 15, y);
                 
-                ctx.globalAlpha = alpha; ctx.fillStyle = "#555"; ctx.textAlign = "center";
+         
+               ctx.globalAlpha = alpha; ctx.fillStyle = "#555"; ctx.textAlign = "center";
                 ctx.fillText("-", cx + 35, y);
                 
                 ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left";
                 ctx.fillText(state.players[1].stats[statKey], cx + 55, y);
-            });
+   
+             });
             
             const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500);
             ctx.globalAlpha = alpha; const btnY = cy + 120; ctx.save();
@@ -1228,8 +1287,10 @@ function render(ctx) {
             } else {
                 ctx.globalAlpha = alpha * pulse;
                 ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center";
-                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0); } 
-                else { ctx.fillText("▶ REMATCH", 0, 0); }
+                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0);
+                } 
+                else { ctx.fillText("▶ REMATCH", 0, 0);
+                }
             }
             ctx.restore();
             ctx.globalAlpha = 1.0;
@@ -1278,7 +1339,7 @@ function drawGameScreen(ctx) {
 
     let orderYOffset = safeTop + 60;
     if (state.todaysOrder && state.orderIntroDone) {
-        drawOrderSlip(ctx, cx, orderYOffset, "TODAY'S ORDER", state.todaysOrder, 1, false);
+        drawCompactOrderCard(ctx, cx, orderYOffset, state.todaysOrder);
     }
 
     state.lanes.forEach((lane, i) => {
@@ -1287,6 +1348,7 @@ function drawGameScreen(ctx) {
         tracesForLane.forEach(trace => {
             if (lane.built) return; 
             const elapsed = now - trace.time;
+         
          
             let traceAlpha = 0;
             if (trace.type === "perfect") {
@@ -1298,8 +1360,8 @@ function drawGameScreen(ctx) {
                     grad.addColorStop(1, "rgba(255, 100, 30, 0)");
                     ctx.fillStyle = grad;
                     ctx.fillRect(laneCx - 30, b.y + b.h*0.1, 60, 100);
-    
-                }
+   
+                 }
             } else if (trace.type === "burnt") {
                 traceAlpha = Math.max(0, 1 - (elapsed / 2000)) * 0.2;
                 if (traceAlpha > 0) {
@@ -1330,6 +1392,7 @@ function drawGameScreen(ctx) {
             if (activeEvent && activeEvent.laneIndex === i) {
                 isCurrentPreviewLane = true; previewProg = 1.0 - (state.cookPreviewPhaseTimer / COOK_PREVIEW_DUR);
                 if (previewProg < 0.35) { displayCookState = activeEvent.prevCookState; gaugeCookState = activeEvent.prevCookState; } 
+              
                 else { displayCookState = activeEvent.newCookState; gaugeCookState = activeEvent.newCookState; }
                 effectiveCookState = displayCookState;
             } else if (previewEventForThisLane) {
@@ -1650,12 +1713,15 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             let baseColor = (canUse && !isLocked) ? btn.color : "#445"; let btnAlpha = 0.9; 
             const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); if (isError) baseColor = "#6a3a3a"; 
             
+         
             let harvestBreatheAlpha = 0;
             if (boxId === 3 && canUse && !isLocked && state.buildMode === null) { 
                 const isPerfect = hasPerfectHarvestTarget(state.currentPlayer); 
-                baseColor = brightenColor(btn.color, isPerfect ? 0.3 : 0.0); 
+                baseColor = brightenColor(btn.color, isPerfect ?
+                    0.3 : 0.0); 
                 if (isPerfect) btnAlpha = 1.0;
-                harvestBreatheAlpha = isPerfect ? 0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
+                harvestBreatheAlpha = isPerfect ?
+                    0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
             }
             
             ctx.globalAlpha = btnAlpha;
@@ -1715,7 +1781,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
-            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S ORDER", state.todaysOrder, 1.5, true);
+            drawIntroOrderSlip(ctx, cx, cy - 30, state.todaysOrder);
         }
         ctx.textBaseline = "alphabetic";
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
@@ -1738,7 +1804,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (g.cookState !== undefined) {
             ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; 
             ctx.fillRect(laneCx-2, stickTop, 4, stickH);
-            const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW/2;
+            const meatW = 
+                b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW/2;
             const ghostStatusUpper = g.status.toUpperCase();
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, false, ghostStatusUpper, "medium", now);
@@ -1750,7 +1817,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     let p1MsgCount = 0; let p2MsgCount = 0;
     
     ctx.textBaseline = "alphabetic";
-    
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime;
         const duration = msg.duration || 1000;
@@ -1760,17 +1826,20 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         const fadeInDuration = 100;
 
         if (isHint) {
+        
             const p = Math.min(1, elapsed / duration);
             alpha = 1 - p;
             yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
         } else {
             const p = Math.min(1, Math.max(0, elapsed / duration));
             
+            
             if (msg.type === "meat" && msg.targetPlayerPanel) {
                 const ease = Math.pow(p, 0.55);
                 const moveDist = 18;
                 const dir = msg.amount >= 0 ? -1 : 1;
                 yAnimOffset = dir * moveDist * ease;
+        
             } else {
                 yAnimOffset = -30 * Math.pow(p, 0.5);
             }
@@ -1785,22 +1854,20 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
 
         if (alpha <= 0) return;
-        
         let fx = Math.round(msg.x || cx);
         let fy = 0;
-        
         if (msg.targetPlayerPanel) {
             const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
             fx = Math.round(msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2);
             let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++;
             
             fy = Math.round(136 + (offsetIdx * 28) + yAnimOffset);
-            
             ctx.globalAlpha = alpha;
             ctx.textAlign = "center";
             ctx.font = getPixelFont(14);
             const text1 = `P${msg.targetPlayerPanel}`; 
-            const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
+            const text2 = msg.amount > 0 ?
+                `+${msg.amount}` : `${msg.amount}`;
             
             const w1 = ctx.measureText(text1).width;
             const w2 = ctx.measureText(text2).width; 
@@ -1811,10 +1878,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
             ctx.fillText(text1, currentX, fy); 
             currentX += w1 + gap;
-            
             drawDotIcon(ctx, 'meat', Math.round(currentX + iconW/2 - 4), Math.round(fy - 8), "#fff", 2); 
             currentX += iconW + gap;
-            
             ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
             ctx.fillText(text2, currentX, fy);
         } else {
@@ -1838,11 +1903,13 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             } else {
                 let isResult = msg.type === "result";
                 let icon = isResult ? null : (msg.isBonus ? 'diamond' : null);
-                let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
+                let text = msg.text ||
+                    (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
                 let color = isResult ?
                     "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
-                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
+                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha;
+                }
                 
                 ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
                 if (icon) {
