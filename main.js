@@ -23,7 +23,8 @@ function initGameState() {
 
         gameEndWaitTimer: 0, endSplashTimer: 0, endSplashText: "", endSplashColor: "#fff",
         resultScreenTimer: 0, resultPause: 0, resultPauseDone: false, hitStopTimer: 0,
-        cookPreviewActive: false, cookPreviewEvents: [], cookPreviewIndex: 0,
+        cookPreviewActive: false, 
+        cookPreviewEvents: [], cookPreviewIndex: 0,
         cookPreviewPhase: null, cookPreviewPhaseTimer: 0,
         roundEndPauseTimer: 0,
         startRouletteActive: false, startRouletteInterval: 4, startRouletteTickTimer: 4,    
@@ -31,17 +32,20 @@ function initGameState() {
         startRouletteFinalPlayer: null, startRouletteBlinkActive: false,
         startRouletteBlinkTimer: 0, startRouletteBlinkCount: 0,
         turnSplashTimer: 0, pendingTurnSplash: false, pendingAiBreath: false,
-        pendingPlayer: null, aiBreathTimer: 0, buildMode: null,
+        pendingPlayer: null, aiBreathTimer: 0, 
+        buildMode: null,
         buildModeStartTime: 0, pendingBox: null, uiHint: "tap",
         players: [
             { id: 1, score: 0, servedScore: 0, resources: 0, workersRemaining: 1, stats: { perfect: 0, burnt: 0, steal: 0 } },
             { id: 2, score: 0, servedScore: 0, resources: 0, workersRemaining: 1, stats: { perfect: 0, burnt: 0, steal: 0 } }
         ],
+     
         lanes: [
             { id: "s1", fire: 1, type: "weak", owner: null, cookState: 0, uchiwaBoost: 0, justPlaced: false, built: false },
             { id: "s2", fire: 2, type: "medium", owner: null, cookState: 0, uchiwaBoost: 0, justPlaced: false, built: false },
             { id: "s3", fire: 3, type: "strong", owner: null, cookState: 0, uchiwaBoost: 0, justPlaced: false, built: false }
         ],
+ 
         visuals: {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
             peakFlashes: {}, ghosts: [], floaters: [], statusMessages: [], particles: [], 
@@ -122,30 +126,26 @@ const STAGE_CONFIG = {
     3: { profile: "reader", level: 3, enemyName: "TETSUYA" }, 4: { profile: "master", level: 4, enemyName: "MAKOTO" },
     5: { profile: "master", level: 5, enemyName: "BOSS" }
 };
-
 function isTutorialStage() {
-    return state.gameMode === "ai" && state.currentStage === 1;
+    // チュートリアル判定による注文票スキップを回避するため false を返す
+    return false;
 }
 
 function canUseExtraOrder() {
-    return false; // 今回はEXTRA無効
+    // Stage 4以降で追加注文を解放
+    return state.gameMode === "ai" && state.currentStage >= 4;
 }
 
 function assignOrderForCurrentStage() {
-    if (isTutorialStage()) {
-        state.todaysOrder = null;
-        return;
-    }
-
     if (state.gameMode === "ai") {
-        if (state.currentStage === 2) {
-            state.todaysOrder = { id: "burnt", label: "BURNT OK" };
+        if (state.currentStage === 1) {
+            state.todaysOrder = { id: "burnt", label: "BURNT OK" }; // Stage 1
+        } else if (state.currentStage === 2) {
+            state.todaysOrder = { id: "strong", label: "HOT" }; // Stage 2
         } else if (state.currentStage === 3) {
-            state.todaysOrder = { id: "strong", label: "HOT" };
-        } else if (state.currentStage === 4) {
-            state.todaysOrder = { id: "steal", label: "STEAL OK" };
+            state.todaysOrder = { id: "steal", label: "STEAL OK" }; // Stage 3
         } else {
-            state.todaysOrder = getRandomOrder();
+            state.todaysOrder = getRandomOrder(); // Stage 4以降
         }
     } else {
         state.todaysOrder = getRandomOrder();
@@ -166,16 +166,17 @@ function updateIntroSequence() {
     if (!state.introSequenceActive) return;
     if (state.introPhase === "vs") {
         state.introVsTimer--;
-        if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25; }
+        if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25;
+        }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
         if (state.fightSplashTimer <= 0) { 
-            if (isTutorialStage() || !state.todaysOrder) {
+            if (!state.todaysOrder) {
                 state.orderIntroDone = true;
                 state.introPhase = "pause"; 
                 state.introPauseTimer = 15;
             } else {
-                state.introPhase = "order"; 
+                state.introPhase = "order";
                 state.introOrderTimer = 120;
             }
         }
@@ -205,15 +206,21 @@ function updateGameEndWait() {
             const p1 = state.players[0].finalScore || state.players[0].score, p2 = state.players[1].finalScore || state.players[1].score;
             if (p1 > p2) {
                 if (state.gameMode === "ai") {
-                    if (state.currentStage >= 5) { state.screen = "clear"; state.winnerText = "SURVIVAL CLEAR"; }
-                    else { state.screen = "stage_clear"; state.winnerText = "STAGE CLEAR"; }
-                } else { state.screen = "gameover"; state.winnerText = "P1 WIN"; }
+                    if (state.currentStage >= 5) { state.screen = "clear";
+                        state.winnerText = "SURVIVAL CLEAR"; }
+                    else { state.screen = "stage_clear";
+                        state.winnerText = "STAGE CLEAR"; }
+                } else { state.screen = "gameover";
+                    state.winnerText = "P1 WIN"; }
             } else if (p2 > p1) { 
-                const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
+                const winnerName = state.gameMode === "ai" ?
+                    state.enemyName : "P2";
                 state.screen = "gameover"; state.winnerText = `${winnerName} WIN`;
             } else { 
-                if (state.gameMode === "ai") { retryStage(); return; } 
-                else { state.screen = "gameover"; state.winnerText = "DRAW"; }
+                if (state.gameMode === "ai") { retryStage();
+                    return; } 
+                else { state.screen = "gameover";
+                    state.winnerText = "DRAW"; }
             }
         }
     }
@@ -232,7 +239,6 @@ function startGame(mode) {
     if (mode === "ai") setupAIForStage(1);
     
     assignOrderForCurrentStage();
-    
     state.startRouletteActive = true; state.startRouletteInterval = 4; state.startRouletteTickTimer = 4; state.startRouletteCount = 0;
     state.startRouletteIndex = 1;
     state.startRouletteMaxCount = 15 + Math.floor(Math.random() * 2); state.startRouletteBlinkActive = false; state.startRouletteFinalPlayer = null;
@@ -270,7 +276,8 @@ function nextStage() {
 }
 
 function updateAllScores() { state.players.forEach(p => p.score = p.servedScore || 0); }
-function getBaseHeat(type) { if (type === "weak") return 1; if (type === "medium") return 2; if (type === "strong") return 3; return 1; }
+function getBaseHeat(type) { if (type === "weak") return 1; if (type === "medium") return 2;
+    if (type === "strong") return 3; return 1; }
 
 function spawnSmokeEffect(laneIndex, amount, status) {
     const b = getLaneBounds(laneIndex);
@@ -283,7 +290,6 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     let speedMult = 1.0;
     const nextStatus = getCookLabel(lane.type, lane.cookState + getBaseHeat(lane.type));
     const isAlmostBurnt = (status !== "burnt" && nextStatus === "burnt");
-    
     if (status === "burnt") {
         numParticles = 10 + amount * 2;
         color = "#333333";              
@@ -326,10 +332,7 @@ function spawnPerfectHarvestEffect(laneIndex) {
             color: colors[Math.floor(Math.random() * colors.length)], isSparkle: true 
         });
     }
-    state.visuals.particles.push({
-        x: laneCx, y: b.y - 15, vx: 0, vy: -0.6, life: 0, maxLife: 50, size: 18, 
-        color: "#ffdf6b", isText: true, text: "PERFECT!"
-    });
+    // テキスト粒子によるPERFECTの二重表示を防ぐため削除しました
 }
 
 function advanceAllSkewersAtRoundEnd() {
@@ -340,10 +343,12 @@ function advanceAllSkewersAtRoundEnd() {
             else {
                 const baseHeat = getBaseHeat(n.type), boost = n.uchiwaBoost || 0;
                 const prevCookState = n.cookState, prevStatus = getCookLabel(n.type, prevCookState);
+  
                 n.cookState = Math.min(8, n.cookState + baseHeat + boost);
                 const newStatus = getCookLabel(n.type, n.cookState);
                 if (n.cookState > prevCookState) {
                     state.cookPreviewEvents.push({ laneIndex: index, prevCookState: prevCookState, newCookState: n.cookState, prevStatus: prevStatus, newStatus: newStatus });
+        
                     if (newStatus === "burnt" && prevStatus !== "burnt" && n.owner) state.players[n.owner - 1].stats.burnt++;
                 }
             }
@@ -371,8 +376,10 @@ function updateCookPreview() {
     state.cookPreviewPhaseTimer--;
     if (state.cookPreviewPhaseTimer <= 0) {
         state.cookPreviewIndex++;
-        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound(); } 
-        else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; }
+        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound();
+        } 
+        else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR;
+        }
     }
 }
 
@@ -393,13 +400,18 @@ function finishEndRound() {
         const p1 = state.players[0].finalScore, p2 = state.players[1].finalScore;
         if (p1 > p2) {
             if (state.gameMode === "ai") {
-                if (state.currentStage >= 5) { state.endSplashText = "SURVIVAL CLEAR"; state.endSplashColor = "#ffeb3b"; } 
-                else { state.endSplashText = "STAGE CLEAR"; state.endSplashColor = "#ffeb3b"; }
-            } else { state.endSplashText = "P1 WIN"; state.endSplashColor = LAYOUT.COLORS.P1; }
+                if (state.currentStage >= 5) { state.endSplashText = "SURVIVAL CLEAR";
+                    state.endSplashColor = "#ffeb3b"; } 
+                else { state.endSplashText = "STAGE CLEAR";
+                    state.endSplashColor = "#ffeb3b"; }
+            } else { state.endSplashText = "P1 WIN";
+                state.endSplashColor = LAYOUT.COLORS.P1; }
         } else if (p2 > p1) {
-            const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
+            const winnerName = state.gameMode === "ai" ?
+                state.enemyName : "P2";
             state.endSplashText = `${winnerName} WIN`; state.endSplashColor = LAYOUT.COLORS.P2;
-        } else { state.endSplashText = "DRAW"; state.endSplashColor = "#aaa"; }
+        } else { state.endSplashText = "DRAW"; state.endSplashColor = "#aaa";
+        }
         state.endSplashTimer = 55; state.gameEndWaitTimer = 55; return;
     }
     state.roundEndPauseTimer = 60; 
@@ -415,7 +427,8 @@ function updateRoundEndPause() {
 function isAIPlayer(playerIndex) { return state.gameMode === "ai" && playerIndex === 2; }
 function consumeWorker() {
     const p = state.players[state.currentPlayer - 1]; p.workersRemaining -= 1;
-    state.buildMode = null; state.pendingBox = null; updateAllScores(); switchTurn();
+    state.buildMode = null;
+    state.pendingBox = null; updateAllScores(); switchTurn();
 }
 function switchTurn() {
     state.isBusy = true;
@@ -481,15 +494,18 @@ function resolvePendingTurnFlow() {
     }
 
     if (state.pendingTurnSplash) { 
-        if (hasActiveScoreMessage()) return; // Wait for scores to settle
+        if (hasActiveScoreMessage()) return;
+        // Wait for scores to settle
         state.turnSplashTimer = 45; 
-        state.pendingTurnSplash = false; 
+        state.pendingTurnSplash = false;
     }
     
     if (state.turnSplashTimer > 0) state.turnSplashTimer--;
     else if (state.pendingPlayer !== null) {
-        if (state.pendingAiBreath) { state.aiBreathTimer = 15; state.pendingAiBreath = false; }
-        else if (state.aiBreathTimer <= 0) { state.currentPlayer = state.pendingPlayer; state.pendingPlayer = null; }
+        if (state.pendingAiBreath) { state.aiBreathTimer = 15;
+            state.pendingAiBreath = false; }
+        else if (state.aiBreathTimer <= 0) { state.currentPlayer = state.pendingPlayer;
+            state.pendingPlayer = null; }
     }
     if (state.aiBreathTimer > 0) state.aiBreathTimer--;
 }
@@ -505,8 +521,11 @@ const TODAYS_ORDERS = [
 function getRandomOrder() { return TODAYS_ORDERS[Math.floor(Math.random() * TODAYS_ORDERS.length)]; }
 
 function getCookLabel(laneType, cv) {
-    if (laneType === "weak") { if (cv >= 8) return "burnt"; if (cv >= 6) return "perfect"; if (cv === 5) return "okay"; } 
-    else { if (cv >= 7) return "burnt"; if (cv === 6) return "perfect"; if (cv === 5) return "okay"; }
+    if (laneType === "weak") { if (cv >= 8) return "burnt";
+        if (cv >= 6) return "perfect"; if (cv === 5) return "okay";
+    } 
+    else { if (cv >= 7) return "burnt"; if (cv === 6) return "perfect";
+        if (cv === 5) return "okay"; }
     return "early";
 }
 function hasPerfectHarvestTarget(playerIndex) {
@@ -611,23 +630,23 @@ function tryHarvestNode(node) {
     }
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
     if (status === "perfect") p.stats.perfect++; if (status === "burnt") p.stats.burnt++; if (isSteal && scoreGained > 0) p.stats.steal++;
-    
     let isBonus = false; let bonusText = "";
     const order = state.todaysOrder ? state.todaysOrder.id : null;
-    if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true; bonusText = "ORDER!"; }
-    if (order === "steal" && isSteal && scoreGained > 0) { isBonus = true; bonusText = "ORDER!"; }
-    if (order === "burnt" && status === "burnt") { isBonus = true; bonusText = "ORDER!"; }
+    if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true;
+        bonusText = "ORDER!"; }
+    if (order === "steal" && isSteal && scoreGained > 0) { isBonus = true;
+        bonusText = "ORDER!"; }
+    if (order === "burnt" && status === "burnt") { isBonus = true;
+        bonusText = "ORDER!"; }
 
     const laneIndex = state.lanes.indexOf(node);
     const b = getLaneBounds(laneIndex);
     const msgX = b.x + b.w / 2;
-    const msgY = b.y + b.h * 0.2; 
-
+    const msgY = b.y + b.h * 0.2;
     if (scoreGained !== 0) { 
         let duration = 1000;
         if (status === "perfect") duration = 1500;
         else if (isBonus) duration = 1300;
-
         state.visuals.statusMessages.push({ 
             type: 'score', amount: scoreGained, player: state.currentPlayer, 
             startTime: performance.now(), duration: duration, isPerfect: status === "perfect",
@@ -654,14 +673,17 @@ function tryUchiwaNode(node) {
         node.uchiwaBoost += 1;
         const laneIndex = state.lanes.indexOf(node);
         const b = getLaneBounds(laneIndex);
-        state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now(), duration: 800, x: b.x + b.w/2, y: b.y + b.h*0.2 }); 
+        state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now(), duration: 800, x: b.x + b.w/2, y: b.y + b.h*0.2 });
         state.visuals.uchiwaGusts[node.id] = performance.now();
         consumeWorker();
     }
 }
 function isNodeValidForMode(node, mode) {
-    if (!node) return false; if (mode === "sapling") return !node.built;
-    if (mode === "harvest") { if (!node.built) return false; if (node.owner === state.currentPlayer) return true; return getCookLabel(node.type, node.cookState) !== "early"; }
+    if (!node) return false;
+    if (mode === "sapling") return !node.built;
+    if (mode === "harvest") { if (!node.built) return false;
+        if (node.owner === state.currentPlayer) return true; return getCookLabel(node.type, node.cookState) !== "early";
+    }
     if (mode === "uchiwa") return node.built; return false;
 }
 
@@ -672,7 +694,7 @@ function isInputLocked() {
     if (state.startRouletteActive || state.startRouletteBlinkActive || state.introSequenceActive || state.cookPreviewActive || state.roundEndPauseTimer > 0 || state.extraOrderIntroActive) return true;
     const cp = state.currentPlayer;
     return state.screen !== "game" || state.isBusy || state.isAIThinking || state.pendingPlayer !== null ||
-           state.turnSplashTimer > 0 || state.aiBreathTimer > 0 || state.gameOver || state.players[cp - 1].workersRemaining <= 0 || isAIPlayer(cp);
+        state.turnSplashTimer > 0 || state.aiBreathTimer > 0 || state.gameOver || state.players[cp - 1].workersRemaining <= 0 || isAIPlayer(cp);
 }
 function handleCanvasClick(event, canvas) {
     const rect = canvas.getBoundingClientRect(), x = event.clientX - rect.left, y = event.clientY - rect.top;
@@ -748,13 +770,15 @@ const AI_LEVEL_CONFIG = {
     1: { rand: 0.40, mistake: 0.30, futWt: 0.10, allowUchiwa: false, topCandRange: 3, scoreNoise: 10, closeThresh: 8, closeRate: 0.35 },
     2: { rand: 0.20, mistake: 0.15, futWt: 0.20, allowUchiwa: true,  topCandRange: 3, scoreNoise: 6,  closeThresh: 6, closeRate: 0.25 },
     3: { rand: 0.10, mistake: 0.05, futWt: 0.30, allowUchiwa: true,  topCandRange: 2, scoreNoise: 3,  closeThresh: 5, closeRate: 0.20 },
-    4: { rand: 0.03, mistake: 0.01, futWt: 0.50, allowUchiwa: true,  topCandRange: 2, scoreNoise: 1.5, closeThresh: 4, closeRate: 0.10 },
+    4: { rand: 0.03, mistake: 0.01, futWt: 0.50, allowUchiwa: true,  topCandRange: 2, 
+        scoreNoise: 1.5, closeThresh: 4, closeRate: 0.10 },
     5: { rand: 0.15, mistake: 0.20, futWt: 0.40, allowUchiwa: true,  topCandRange: 3, scoreNoise: 4,  closeThresh: 6, closeRate: 0.25 }
 };
 function buildActionCandidates(currentState, playerIndex) {
     const actions = []; const p = currentState.players[playerIndex - 1];
     actions.push({ type: "meat" });
-    if (p.resources >= 1) { currentState.lanes.forEach(n => { if (!n.built) actions.push({ type: "put", nodeId: n.id }); }); }
+    if (p.resources >= 1) { currentState.lanes.forEach(n => { if (!n.built) actions.push({ type: "put", nodeId: n.id }); });
+    }
     currentState.lanes.forEach(n => { if (n.built) { actions.push({ type: "serve", nodeId: n.id }); actions.push({ type: "uchiwa", nodeId: n.id }); } });
     return actions;
 }
@@ -766,8 +790,10 @@ function isActionValidForAI(currentState, action, playerIndex, profileName, leve
     if (action.type === "serve") {
         if (!node) return false;
         const isOwn = node.owner === playerIndex, lbl = getCookLabel(node.type, node.cookState);
-        if (isOwn) { if (lbl === "early") return false; } 
-        else { if (lbl === "early") return false; if (lbl !== "burnt" && p.resources < 1) return false; }
+        if (isOwn) { if (lbl === "early") return false;
+        } 
+        else { if (lbl === "early") return false;
+            if (lbl !== "burnt" && p.resources < 1) return false; }
         return true;
     }
     if (action.type === "uchiwa") {
@@ -787,7 +813,6 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
     let score = 0; const p = currentState.players[playerIndex - 1];
     const node = currentState.lanes.find(l => l.id === action.nodeId);
     const order = currentState.todaysOrder ? currentState.todaysOrder.id : null;
-
     if (action.type === "meat") { 
         if (p.resources === 0) score += 15;
         else if (p.resources === 1) score -= 1; else score -= 15;
@@ -873,6 +898,7 @@ function playAITurn() {
             else if (best.type === "put") { state.buildMode="sapling"; state.buildModeStartTime=performance.now(); tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
             else if (best.type === "serve") { state.buildMode="harvest"; state.buildModeStartTime=performance.now(); tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
             else if (best.type === "uchiwa") { state.buildMode="uchiwa"; state.buildModeStartTime=performance.now(); tryUchiwaNode(state.lanes.find(l=>l.id===best.nodeId)); }
+      
         } finally { state.isAIThinking = false; }
     }, delay);
 }
@@ -901,9 +927,11 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     }
 }
 function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false) {
-    ctx.fillStyle = isPressed ? "#151212" : "#201818"; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = isPressed ?
+        "#151212" : "#201818"; ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = accentColor; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
-    if (isPressed) { ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h); }
+    if (isPressed) { ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h);
+    }
     else { ctx.fillStyle = "rgba(255, 255, 255, 0.05)"; ctx.fillRect(x, y, w, 3); ctx.fillRect(x, y, 3, h);
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y + h - 4, w, 4);
         ctx.fillRect(x + w - 3, y, 3, h); }
@@ -929,7 +957,8 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
         ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
         ctx.fillRect(nx, y + h - 6, nw, 6); ctx.fillRect(nx + nw - 4, y, 4, h);
         if (status === "PERFECT" || isPreBurnt) {
-            ctx.fillStyle = isPreBurnt ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.15)";
+            ctx.fillStyle = isPreBurnt ?
+                "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.15)";
             ctx.fillRect(nx + 2, y + h/2, 2, 2);
         }
     } else { 
@@ -941,8 +970,10 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
         if (status === "OKAY" || status === "PERFECT" || isPreBurnt) {
             let shineAlpha = 0;
             const flicker = Math.sin(now / 150 + x) * 0.5 + 0.5;
-            if (isPreBurnt) { shineAlpha = 0.25 + flicker * 0.1; } 
-            else if (status === "OKAY") { shineAlpha = 0.2 + flicker * 0.2; } 
+            if (isPreBurnt) { shineAlpha = 0.25 + flicker * 0.1;
+            } 
+            else if (status === "OKAY") { shineAlpha = 0.2 + flicker * 0.2;
+            } 
             else if (status === "PERFECT") { shineAlpha = 0.5 + flicker * 0.4;
                 if (laneType === "medium") shineAlpha += 0.2; 
             }
@@ -979,7 +1010,8 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     const status = getCookLabel(lane.type, lane.cookState), isOwn = lane.owner === activePlayer;
     const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
     if (mode === "harvest") {
-        if (status === "early") { drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6); } 
+        if (status === "early") { drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6);
+        } 
         else if (status === "burnt") { if (isOwn) drawDotIcon(ctx, "cross", laneCx, hintY, "#555", 2);
             else drawDotIcon(ctx, "trash", laneCx, hintY, "#ccc", 2); } 
         else if (isOwn) { if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
@@ -990,7 +1022,8 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     }
 }
 function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scale = 1) {
-    const baseAlpha = isPreview ? 0.3 : (isHarvestMode ? 0.8 : 0.65);
+    const baseAlpha = isPreview ?
+        0.3 : (isHarvestMode ? 0.8 : 0.65);
     ctx.globalAlpha = Math.min(1.0, baseAlpha + extraAlpha); ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
     const positions = [{ dx: -32, dy: 15 }, { dx: 32, dy: 40 }, { dx: -28, dy: 70 }, { dx: 26, dy: 85 }];
     const w1 = 3 * scale, h1 = 10 * scale, w2 = 10 * scale, h2 = 3 * scale;
@@ -1003,10 +1036,12 @@ function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scal
 function drawEndSplash(ctx) {
     if (!state.endSplashTimer || state.endSplashTimer <= 0) return;
     const cx = LAYOUT.CANVAS_WIDTH / 2;
-    const cy = LAYOUT.CANVAS_HEIGHT / 2; const t = state.endSplashTimer; const alpha = t > 40 ? (55 - t) / 15 : Math.min(1, t / 12);
+    const cy = LAYOUT.CANVAS_HEIGHT / 2; const t = state.endSplashTimer; const alpha = t > 40 ?
+        (55 - t) / 15 : Math.min(1, t / 12);
     ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     ctx.fillStyle = "rgba(0, 0, 0, 0.45)"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-    ctx.font = getPixelFont(24); ctx.textAlign = "center"; ctx.fillStyle = state.endSplashColor || "#fff"; ctx.fillText(state.endSplashText, cx, cy);
+    ctx.font = getPixelFont(24); ctx.textAlign = "center"; ctx.fillStyle = state.endSplashColor ||
+        "#fff"; ctx.fillText(state.endSplashText, cx, cy);
     ctx.font = getPixelFont(10); ctx.fillStyle = "#aaa"; ctx.fillText("MATCH END", cx, cy + 35); ctx.restore();
 }
 function drawScoreBreakdown(ctx, served, resources, endX, y) {
@@ -1020,6 +1055,7 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
 
 function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) {
     const titleFontSize = isIntro ? 10 * scale : 8 * scale;
+  
     const textFontSize = isIntro ? 14 * scale : 12 * scale;
     
     const cardW = Math.round((isIntro ? 260 : 160) * scale);
@@ -1031,7 +1067,6 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     
     ctx.fillStyle = "#5a4a3a";
     ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
-    
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
@@ -1073,7 +1108,6 @@ function render(ctx) {
         const life = m.duration || 1000;
         return now - m.startTime < life; 
     });
-    
     state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
     
     if (state.screen === "game") {
@@ -1196,7 +1230,8 @@ function render(ctx) {
     
             });
             const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500);
-            ctx.globalAlpha = alpha; const btnY = cy + 135; ctx.save(); ctx.translate(cx, btnY);
+            ctx.globalAlpha = alpha; const btnY = cy + 135; ctx.save();
+            ctx.translate(cx, btnY);
             if (state.screen === "stage_clear") {
                 ctx.globalAlpha = alpha * pulse;
                 ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText("▶ NEXT STAGE", 0, 0);
@@ -1256,7 +1291,6 @@ function drawGameScreen(ctx) {
     }
 
     let orderYOffset = safeTop + 60;
-    
     if (state.todaysOrder && state.orderIntroDone) {
         drawOrderSlip(ctx, cx, orderYOffset, "TODAY'S CUSTOMER", state.todaysOrder, 1, false);
     }
@@ -1268,15 +1302,18 @@ function drawGameScreen(ctx) {
             if (lane.built) return; 
             const elapsed = now - trace.time;
          
+         
             let traceAlpha = 0;
             if (trace.type === "perfect") {
                 traceAlpha = Math.max(0, 1 - (elapsed / 1200)) * 0.15;
                 if (traceAlpha > 0) {
                     const grad = ctx.createRadialGradient(laneCx, b.y + b.h*0.4, 0, laneCx, b.y + b.h*0.4, 30);
+ 
                     grad.addColorStop(0, `rgba(255, 100, 30, ${traceAlpha})`);
                     grad.addColorStop(1, "rgba(255, 100, 30, 0)");
                     ctx.fillStyle = grad;
                     ctx.fillRect(laneCx - 30, b.y + b.h*0.1, 60, 100);
+    
                 }
             } else if (trace.type === "burnt") {
                 traceAlpha = Math.max(0, 1 - (elapsed / 2000)) * 0.2;
@@ -1308,6 +1345,7 @@ function drawGameScreen(ctx) {
             if (activeEvent && activeEvent.laneIndex === i) {
                 isCurrentPreviewLane = true; previewProg = 1.0 - (state.cookPreviewPhaseTimer / COOK_PREVIEW_DUR);
                 if (previewProg < 0.35) { displayCookState = activeEvent.prevCookState; gaugeCookState = activeEvent.prevCookState; } 
+              
                 else { displayCookState = activeEvent.newCookState; gaugeCookState = activeEvent.newCookState; }
                 effectiveCookState = displayCookState;
             } else if (previewEventForThisLane) {
@@ -1319,7 +1357,8 @@ function drawGameScreen(ctx) {
             }
         }
 
-        const heat = getBaseHeat(lane.type), boost = lane.uchiwaBoost || 0, baseEndState = effectiveCookState + heat + boost, baseEndStatus = getCookLabel(lane.type, baseEndState);
+        const heat = getBaseHeat(lane.type), boost = lane.uchiwaBoost ||
+            0, baseEndState = effectiveCookState + heat + boost, baseEndStatus = getCookLabel(lane.type, baseEndState);
         let isFlashable = false, isPerfectTarget = false;
         let uchiwaTargetState = baseEndState; let uchiwaTargetStatus = baseEndStatus;
         if (state.buildMode) {
@@ -1549,7 +1588,8 @@ function drawGameScreen(ctx) {
                 const isSteal = (lane.owner !== null && lane.owner !== activePlayer);
                 const status = getCookLabel(lane.type, effectiveCookState);
                 const score = getHarvestScore(lane, isSteal, status);
-                let scoreText = score > 0 ? `+${score}` : `${score}`; let color = score > 0 ? "#ffeb3b" : (score < 0 ? "#ff5555" : "#aaaaaa");
+                let scoreText = score > 0 ?
+                    `+${score}` : `${score}`; let color = score > 0 ? "#ffeb3b" : (score < 0 ? "#ff5555" : "#aaaaaa");
                 if (score === 0) color = "#aaaaaa";
                 ctx.globalAlpha = modeAlpha; ctx.font = getPixelFont(12); ctx.fillStyle = "rgba(0,0,0,0.6)";
                 ctx.fillText(scoreText, laneCx + 1, floatY + 1); ctx.fillStyle = color; ctx.fillText(scoreText, laneCx, floatY);
@@ -1603,7 +1643,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const size = p.size * (1 - ratio * 0.5); ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else {
-            ctx.fillStyle = p.color || "#e0e0e0"; ctx.beginPath(); ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = p.color ||
+                "#e0e0e0"; ctx.beginPath(); ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
         }
     }
     ctx.globalAlpha = 1.0;
@@ -1645,11 +1686,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = btnAlpha;
             const offset = isPressed ? 3 : 0;
             drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 5 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
-            
             let textAlpha = isPressed ? 1.0 : 0.8; let textYOffset = isPressed ? -2 : 0; ctx.globalAlpha = textAlpha;
             ctx.fillStyle = (canUse && !isLocked) ? "#fff" : "#aaa"; ctx.font = getPixelFont(9); ctx.textAlign = "center";
             const textY = b.y + b.h - 8 + textYOffset; const textX = b.x + b.w/2 + offset;
-            
             if (boxId === 1) { 
                 drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
                 ctx.fillText("+1", textX + 10, textY); 
@@ -1670,7 +1709,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
-        let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
+        let isVisible = state.startRouletteBlinkActive ?
+            state.startRouletteBlinkCount % 2 === 0 : true;
         if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex;
             ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(36); ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15);
         }
@@ -1686,7 +1726,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (state.gameMode === "ai") { ctx.fillStyle = "#aaa"; ctx.font = getPixelFont(11); ctx.fillText(`STAGE ${state.currentStage}`, cx, cy + 120);
             }
         } else if (state.introPhase === "fight") {
-            const p_fight = state.fightSplashTimer / 25, elapsedP = 1 - p_fight, scale = 1.0 + elapsedP * 0.08, alpha = p_fight < 0.2 ? p_fight * 5 : 1.0;
+            const p_fight = state.fightSplashTimer / 25, elapsedP = 1 - p_fight, scale = 1.0 + elapsedP * 0.08, alpha = p_fight < 0.2 ?
+                p_fight * 5 : 1.0;
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
@@ -1736,7 +1777,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
         } else {
             const p = Math.min(1, Math.max(0, elapsed / duration));
-            yAnimOffset = -30 * Math.pow(p, 0.5);
+            
+            if (msg.type === 'meat' && msg.amount < 0) {
+                // 肉マイナスの場合は下方向に移動させる
+                yAnimOffset = 30 * Math.pow(p, 0.5);
+            } else {
+                // 通常は上方向に移動させる
+                yAnimOffset = -30 * Math.pow(p, 0.5);
+            }
 
             if (elapsed < fadeInDuration) {
                 alpha = elapsed / fadeInDuration;
@@ -1760,7 +1808,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = alpha;
             ctx.textAlign = "center";
             ctx.font = getPixelFont(14);
-            const text1 = `P${msg.targetPlayerPanel}`; const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
+            const text1 = `P${msg.targetPlayerPanel}`; const text2 = msg.amount > 0 ?
+                `+${msg.amount}` : `${msg.amount}`;
             const w1 = ctx.measureText(text1).width;
             const w2 = ctx.measureText(text2).width; const iconW = 16; const gap = 8;
             let currentX = Math.round(fx - (w1 + gap + iconW + gap + w2)/2);
@@ -1792,10 +1841,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 let isResult = msg.type === "result";
                 let icon = isResult ? null : (msg.isBonus ? 'diamond' : null);
                 let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
-                let color = isResult ? "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
-                ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
-                
-                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
+                let color = isResult ?
+                    "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
+                ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
+                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha;
+                }
                 
                 ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
                 if (icon) {
@@ -1835,7 +1885,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
 }
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
-    const active = activePlayer === idx, baseColor = active ? (idx === 1 ? "#2a4a6a" : "#6a2a3a") : LAYOUT.COLORS.PANEL_BG;
+    const active = activePlayer === idx, baseColor = active ?
+        (idx === 1 ? "#2a4a6a" : "#6a2a3a") : LAYOUT.COLORS.PANEL_BG;
     drawBevelRect(ctx, x, y, w, h, baseColor);
     if (active) { ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.lineWidth = 2;
         ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
@@ -1845,7 +1896,8 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     ctx.fillStyle = "#ccc"; ctx.font = getPixelFont(10);
     if (idx === 1) { ctx.fillText("PLAYER", x + 10, y + 42);
     } 
-    else if (idx === 2) { const p2Text = state.gameMode === "ai" ? state.enemyName : "PLAYER";
+    else if (idx === 2) { const p2Text = state.gameMode === "ai" ?
+        state.enemyName : "PLAYER";
         ctx.fillText(p2Text, x + 10, y + 42); }
     const offsetY = 20;
     drawDotIcon(ctx, "diamond", x + 20, y + 45 + offsetY, "#6cf", 2); ctx.fillStyle = "#fff"; ctx.font = getPixelFont(10);
@@ -1862,7 +1914,8 @@ window.addEventListener("DOMContentLoaded", () => {
     document.body.style.margin = "0"; document.body.style.backgroundColor = "#111"; document.body.style.height = "100vh"; document.body.style.overflow = "hidden"; document.body.style.touchAction = "none";
     function resize() {
         const dpr = window.devicePixelRatio || 1, vw = window.visualViewport ? window.visualViewport.width : window.innerWidth, vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-        LAYOUT.CANVAS_WIDTH = vw; LAYOUT.CANVAS_HEIGHT = vh; canvas.width = vw * dpr; canvas.height = vh * dpr; canvas.style.width = vw + "px"; canvas.style.height = vh + "px"; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        LAYOUT.CANVAS_WIDTH = vw; LAYOUT.CANVAS_HEIGHT = vh; canvas.width = vw * dpr; canvas.height = vh * dpr; canvas.style.width = 
+            vw + "px"; canvas.style.height = vh + "px"; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     window.addEventListener("resize", resize);
     resize();
