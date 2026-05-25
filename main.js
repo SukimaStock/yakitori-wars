@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Simple Orders & Clean UI Update
+// # main.js - YAKITORI WARS: Restore Slip UI & Perfect Layer Fix
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -66,10 +66,10 @@ let LAYOUT = {
         STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334", HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
     BUTTONS: [
-        { id: "meat", color: "#5a7a5a", icon: "meat", label: "MEAT" },       
-        { id: "put", color: "#4a6fa5", icon: "put_skewer", label: "PUT" },     
-        { id: "harvest", color: "#a57a4a", icon: "serve_plate", label: "TAKE" },  
-        { id: "uchiwa", color: "#8a4a6f", icon: "uchiwa", label: "FAN" }    
+        { id: "meat", color: "#5a7a5a", icon: "meat" },       
+        { id: "put", color: "#4a6fa5", icon: "put_skewer" },     
+        { id: "harvest", color: "#a57a4a", icon: "serve_plate" },  
+        { id: "uchiwa", color: "#8a4a6f", icon: "uchiwa" }    
     ]
 };
 const VISUAL_STATES = {
@@ -123,17 +123,14 @@ const STAGE_CONFIG = {
     5: { profile: "master", level: 5, enemyName: "BOSS" }
 };
 
-// チュートリアル(Stage 1)判定
 function isTutorialStage() {
     return state.gameMode === "ai" && state.currentStage === 1;
 }
 
-// EXTRA ORDER の無効化
 function canUseExtraOrder() {
-    return false;
+    return false; // 今回はEXTRA無効
 }
 
-// ステージごとの注文設定
 function assignOrderForCurrentStage() {
     if (isTutorialStage()) {
         state.todaysOrder = null;
@@ -437,10 +434,6 @@ function startNewRound() {
     state.buildMode = null; state.pendingBox = null;
     state.currentPlayer = state.firstPlayer;
     state.pendingPlayer = state.firstPlayer; state.pendingTurnSplash = true; state.pendingAiBreath = false;
-    
-    if (state.round === state.extraOrderSpawnRound && !isTutorialStage() && canUseExtraOrder()) {
-        // Disabled for now
-    }
 }
 
 function updateRoulette() {
@@ -470,6 +463,13 @@ function updateRoulette() {
     }
 }
 
+function hasActiveScoreMessage() {
+    const now = performance.now();
+    return state.visuals.statusMessages.some(m =>
+        m.type === "score" && (now - m.startTime < (m.duration || 1000) - 200)
+    );
+}
+
 function resolvePendingTurnFlow() {
     if (state.cookPreviewActive || state.introSequenceActive || state.roundEndPauseTimer > 0) return;
     if (state.extraOrderIntroActive) {
@@ -480,7 +480,12 @@ function resolvePendingTurnFlow() {
         return; 
     }
 
-    if (state.pendingTurnSplash) { state.turnSplashTimer = 45; state.pendingTurnSplash = false; }
+    if (state.pendingTurnSplash) { 
+        if (hasActiveScoreMessage()) return; // Wait for scores to settle
+        state.turnSplashTimer = 45; 
+        state.pendingTurnSplash = false; 
+    }
+    
     if (state.turnSplashTimer > 0) state.turnSplashTimer--;
     else if (state.pendingPlayer !== null) {
         if (state.pendingAiBreath) { state.aiBreathTimer = 15; state.pendingAiBreath = false; }
@@ -492,7 +497,6 @@ function resolvePendingTurnFlow() {
 // ==========================================
 // 4. game/rules.js - 調理ルールとアクション
 // ==========================================
-// シンプル化された注文リスト
 const TODAYS_ORDERS = [
     { id: "strong", label: "HOT" },
     { id: "burnt", label: "BURNT OK" },
@@ -610,9 +614,14 @@ function tryHarvestNode(node) {
     
     let isBonus = false; let bonusText = "";
     const order = state.todaysOrder ? state.todaysOrder.id : null;
-    if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true; bonusText = "BONUS!"; }
-    if (order === "steal" && isSteal && scoreGained > 0) { isBonus = true; bonusText = "BONUS!"; }
-    if (order === "burnt" && status === "burnt") { isBonus = true; bonusText = "BONUS!"; }
+    if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true; bonusText = "ORDER!"; }
+    if (order === "steal" && isSteal && scoreGained > 0) { isBonus = true; bonusText = "ORDER!"; }
+    if (order === "burnt" && status === "burnt") { isBonus = true; bonusText = "ORDER!"; }
+
+    const laneIndex = state.lanes.indexOf(node);
+    const b = getLaneBounds(laneIndex);
+    const msgX = b.x + b.w / 2;
+    const msgY = b.y + b.h * 0.2; 
 
     if (scoreGained !== 0) { 
         let duration = 1000;
@@ -622,28 +631,30 @@ function tryHarvestNode(node) {
         state.visuals.statusMessages.push({ 
             type: 'score', amount: scoreGained, player: state.currentPlayer, 
             startTime: performance.now(), duration: duration, isPerfect: status === "perfect",
-            isBonus: isBonus, bonusText: bonusText
+            isBonus: isBonus, bonusText: bonusText, x: msgX, y: msgY
         });
     }
 
     if (status === "perfect") { 
-        spawnPerfectHarvestEffect(state.lanes.indexOf(node));
+        spawnPerfectHarvestEffect(laneIndex);
         state.hitStopTimer = 8;
-        state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "perfect", time: performance.now() });
+        state.visuals.traces.push({ laneIndex: laneIndex, type: "perfect", time: performance.now() });
     } else if (status === "burnt") {
-        spawnSmokeEffect(state.lanes.indexOf(node), 2, "burnt");
-        state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "burnt", time: performance.now() });
+        spawnSmokeEffect(laneIndex, 2, "burnt");
+        state.visuals.traces.push({ laneIndex: laneIndex, type: "burnt", time: performance.now() });
     } else if (status === "okay") {
-        state.visuals.traces.push({ laneIndex: state.lanes.indexOf(node), type: "okay", time: performance.now() });
+        state.visuals.traces.push({ laneIndex: laneIndex, type: "okay", time: performance.now() });
     }
     
-    state.visuals.ghosts.push({ laneIndex: state.lanes.indexOf(node), status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
+    state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
 function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1;
-        state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now(), duration: 800 }); 
+        const laneIndex = state.lanes.indexOf(node);
+        const b = getLaneBounds(laneIndex);
+        state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now(), duration: 800, x: b.x + b.w/2, y: b.y + b.h*0.2 }); 
         state.visuals.uchiwaGusts[node.id] = performance.now();
         consumeWorker();
     }
@@ -776,7 +787,6 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
     let score = 0; const p = currentState.players[playerIndex - 1];
     const node = currentState.lanes.find(l => l.id === action.nodeId);
     const order = currentState.todaysOrder ? currentState.todaysOrder.id : null;
-    const roundsLeft = currentState.maxRounds - currentState.round;
 
     if (action.type === "meat") { 
         if (p.resources === 0) score += 15;
@@ -1008,6 +1018,35 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
     drawDotIcon(ctx, "meat", currentX + 2, y - 6, "#666", 1.5); currentX += iconW; ctx.fillText(text3, currentX, y);
 }
 
+function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) {
+    const titleFontSize = isIntro ? 10 * scale : 8 * scale;
+    const textFontSize = isIntro ? 14 * scale : 12 * scale;
+    
+    const cardW = Math.round((isIntro ? 260 : 160) * scale);
+    const cardH = Math.round((isIntro ? 45 : 36) * scale);
+    const cardX = Math.round(cx - cardW / 2);
+    const cardY = Math.round(y);
+    
+    drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#e0d6c8");
+    
+    ctx.fillStyle = "#5a4a3a";
+    ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
+    
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#4a4a4a";
+    ctx.font = getPixelFont(titleFontSize);
+    const titleY = Math.round(cardY + (isIntro ? 16 * scale : 14 * scale));
+    ctx.fillText(title, Math.round(cx), titleY);
+    
+    ctx.fillStyle = "#c85a4a";
+    ctx.font = getPixelFont(textFontSize);
+    const textY = Math.round(cardY + (isIntro ? 34 * scale : 28 * scale));
+    ctx.fillText(orderObj.label, Math.round(cx), textY);
+    ctx.restore();
+}
+
 function drawTableBackground(ctx) {
     ctx.fillStyle = LAYOUT.COLORS.BG;
     ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -1030,7 +1069,6 @@ function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
     
-    // Status messages duration adjusted individually, remove old messages
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { 
         const life = m.duration || 1000;
         return now - m.startTime < life; 
@@ -1217,24 +1255,10 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 40); 
     }
 
-    let orderYOffset = safeTop + 55;
+    let orderYOffset = safeTop + 60;
     
-    // シンプルな1段の注文表示
     if (state.todaysOrder && state.orderIntroDone) {
-        const badgeW = Math.min(180, LAYOUT.CANVAS_WIDTH * 0.45);
-        const badgeH = 24;
-        
-        ctx.fillStyle = "rgba(30, 20, 15, 0.8)";
-        ctx.fillRect(cx - badgeW / 2, orderYOffset, badgeW, badgeH);
-        
-        ctx.font = getPixelFont(10);
-        ctx.textAlign = "right";
-        ctx.fillStyle = "#888";
-        ctx.fillText("TODAY: ", cx, orderYOffset + 16);
-        
-        ctx.textAlign = "left";
-        ctx.fillStyle = "#ffeb3b";
-        ctx.fillText(state.todaysOrder.label, cx, orderYOffset + 16);
+        drawOrderSlip(ctx, cx, orderYOffset, "TODAY'S CUSTOMER", state.todaysOrder, 1, false);
     }
 
     state.lanes.forEach((lane, i) => {
@@ -1620,11 +1644,25 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             
             ctx.globalAlpha = btnAlpha;
             const offset = isPressed ? 3 : 0;
-            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 10 + offset, (canUse && !isLocked) ? "#fff" : "#888", 3);
+            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 5 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
+            
             let textAlpha = isPressed ? 1.0 : 0.8; let textYOffset = isPressed ? -2 : 0; ctx.globalAlpha = textAlpha;
-            ctx.fillStyle = (canUse && !isLocked) ? "#fff" : "#aaa"; ctx.font = getPixelFont(12); ctx.textAlign = "center";
-            const textY = b.y + b.h - 15 + textYOffset; const textX = b.x + b.w/2 + offset;
-            ctx.fillText(btn.label, textX, textY);
+            ctx.fillStyle = (canUse && !isLocked) ? "#fff" : "#aaa"; ctx.font = getPixelFont(9); ctx.textAlign = "center";
+            const textY = b.y + b.h - 8 + textYOffset; const textX = b.x + b.w/2 + offset;
+            
+            if (boxId === 1) { 
+                drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                ctx.fillText("+1", textX + 10, textY); 
+            } else if (boxId === 2) { 
+                drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                ctx.fillText("-1", textX + 10, textY); 
+            } else if (boxId === 3) { 
+                drawDotIcon(ctx, "put_skewer", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                ctx.fillText("↑", textX + 10, textY); 
+            } else if (boxId === 4) { 
+                drawDotIcon(ctx, "fire", textX - 10, textY - 4, (canUse && !isLocked) ? "#fa3" : "#aaa", 1.5);
+                ctx.fillText("+1", textX + 10, textY); 
+            }
             ctx.globalAlpha = 1.0;
         });
     }
@@ -1652,10 +1690,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
-            ctx.fillStyle = "rgba(30, 20, 15, 0.9)";
-            ctx.fillRect(cx - 120, cy - 20, 240, 40);
-            ctx.fillStyle = "#aaa"; ctx.font = getPixelFont(12); ctx.textAlign = "right"; ctx.fillText("TODAY:", cx - 10, cy + 5);
-            ctx.fillStyle = "#ffeb3b"; ctx.textAlign = "left"; ctx.fillText(state.todaysOrder.label, cx, cy + 5);
+            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S CUSTOMER", state.todaysOrder, 1.5, true);
         }
         ctx.textBaseline = "alphabetic";
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
@@ -1692,7 +1727,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         const duration = msg.duration || 1000;
         let alpha = 1; let yAnimOffset = 0; let isHint = msg.type === "hint";
         
-        // 最後の30%でゆっくりフェードアウトさせる
         const fadeOutStart = duration * 0.7;
         const fadeInDuration = 100;
 
@@ -1701,8 +1735,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             alpha = 1 - p;
             yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
         } else {
-            // ゆっくり上に浮き続ける
-            const p = Math.min(1, elapsed / duration);
+            const p = Math.min(1, Math.max(0, elapsed / duration));
             yAnimOffset = -30 * Math.pow(p, 0.5);
 
             if (elapsed < fadeInDuration) {
@@ -1715,8 +1748,10 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
 
         if (alpha <= 0) return;
+        
         let fx = Math.round(msg.x || cx);
-        let fy = isHint ? Math.round(msg.y + yAnimOffset) : Math.round(170 + (idx * 32) + yAnimOffset);
+        let fy = 0;
+        
         if (msg.targetPlayerPanel) {
             const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
             fx = Math.round(msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2);
@@ -1736,6 +1771,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
             ctx.fillText(text2, currentX, fy);
         } else {
+            if (isHint) {
+                fy = Math.round(msg.y + yAnimOffset);
+            } else if (msg.x !== undefined && msg.y !== undefined) {
+                fy = Math.round(msg.y + yAnimOffset);
+            } else {
+                fy = Math.round(170 + (idx * 32) + yAnimOffset);
+            }
+
             ctx.globalAlpha = alpha;
             ctx.textAlign = "center";
             if (isHint) {
@@ -1747,7 +1790,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.fillText(msg.text, fx, fy);
             } else {
                 let isResult = msg.type === "result";
-                // ボーナスがある場合はダイヤを出し、それ以外はスコアのみにする
                 let icon = isResult ? null : (msg.isBonus ? 'diamond' : null);
                 let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
                 let color = isResult ? "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
