@@ -1134,22 +1134,120 @@ function drawCompactOrderCard(ctx, cx, y, orderObj) {
     ctx.restore();
 }
 
-function drawTableBackground(ctx) {
-    ctx.fillStyle = LAYOUT.COLORS.BG;
-    ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+// ----------------------------------------------------
+// 小物(端のシルエット)を描画する関数
+// ----------------------------------------------------
+function drawBackgroundProps(ctx, w, h) {
+    ctx.save();
+    // 3. 端にだけ小物の気配(主張しないシルエット)
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)"; 
     
-    ctx.fillStyle = "rgba(10, 5, 2, 0.15)";
-    for (let y = 0; y < LAYOUT.CANVAS_HEIGHT; y += 32) {
-        ctx.fillRect(0, y, LAYOUT.CANVAS_WIDTH, 2);
+    // 左端:木箱や調味料の小瓶のような気配
+    ctx.fillRect(-10, h * 0.4, 40, 70); 
+    ctx.fillRect(15, h * 0.35, 12, 25); 
+    ctx.beginPath();
+    ctx.arc(21, h * 0.35 - 3, 4, 0, Math.PI * 2); 
+    ctx.fill();
+
+    // 右端:ざるや炭箱のような気配
+    ctx.beginPath();
+    ctx.ellipse(w + 10, h * 0.5, 45, 15, 0, 0, Math.PI * 2); 
+    ctx.fill();
+    ctx.fillRect(w - 25, h * 0.65, 35, 60); 
+
+    // 上部:提灯の弱い光の気配(左右)
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = "#ffaa55";
+    ctx.beginPath();
+    ctx.ellipse(w * 0.1, -10, 50, 70, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(w * 0.9, -10, 50, 70, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+// ----------------------------------------------------
+// うっすらとした煙を描画する関数
+// ----------------------------------------------------
+function drawAmbientSmoke(ctx, w, h) {
+    // 2. 薄い煙の演出
+    const now = getTime();
+    ctx.save();
+    ctx.globalAlpha = 0.02; // かなり薄くして視認性を保つ
+    ctx.fillStyle = "#d0d0d5"; // 白ではなく少し灰色寄り
+
+    // 画面中央下部(焼き台付近)からゆっくり立ち昇る気配
+    for(let i = 0; i < 3; i++) {
+        const cx = w * 0.35 + (w * 0.15 * i);
+        const cy = h * 0.6;
+        
+        // サイン波を使ってゆっくり揺らしながら上に移動させます
+        const offsetX = Math.sin(now / 2500 + i) * 40;
+        const offsetY = ((now / 40) + i * 400) % (h * 0.6);
+        const size = 70 + Math.sin(now / 2000 + i) * 20;
+
+        ctx.beginPath();
+        ctx.ellipse(cx + offsetX, cy - offsetY, size * 1.8, size, 0, 0, Math.PI * 2);
+        ctx.fill();
     }
-    
+    ctx.restore();
+}
+
+// ----------------------------------------------------
+// 新しい背景描画関数 (既存の関数と置き換えます)
+// ----------------------------------------------------
+function drawTableBackground(ctx) {
+    const w = LAYOUT.CANVAS_WIDTH;
+    const h = LAYOUT.CANVAS_HEIGHT;
+    const cx = w / 2;
+
+    // 1. 背景の木目・暗がりの気配(上を暗く、下を少し暖かく)
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, "#130a08"); 
+    bgGrad.addColorStop(0.5, LAYOUT.COLORS.BG); 
+    bgGrad.addColorStop(1, "#221510"); 
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // 木板の境界線とわずかな木目の気配
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.05)";
+    ctx.lineWidth = 1.5;
+    for (let y = 0; y < h; y += 45) {
+        ctx.fillRect(0, y, w, 2);
+        
+        // 主張しない程度の木目の波線
+        ctx.beginPath();
+        ctx.moveTo(0, y + 10);
+        ctx.quadraticCurveTo(w * 0.3, y + 5, w * 0.6, y + 20);
+        ctx.quadraticCurveTo(w * 0.8, y + 30, w, y + 15);
+        ctx.stroke();
+    }
+
+    // 小物の気配を描画
+    drawBackgroundProps(ctx, w, h);
+
+    // 4. 光の気配(焼き台の下や中央周辺に暖色の照り返し)
     ctx.globalAlpha = 0.15;
-    const grad = ctx.createRadialGradient(LAYOUT.CANVAS_WIDTH / 2, 0, 0, LAYOUT.CANVAS_WIDTH / 2, 0, 300);
-    grad.addColorStop(0, "#ff4400");
-    grad.addColorStop(1, "rgba(255, 68, 0, 0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, 300);
+    const fireGrad = ctx.createRadialGradient(cx, h * 0.6, 0, cx, h * 0.6, w * 0.5);
+    fireGrad.addColorStop(0, "#ff5500");
+    fireGrad.addColorStop(1, "rgba(255, 85, 0, 0)");
+    ctx.fillStyle = fireGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // 既存の上部の赤いグラデーション(少し馴染ませて残します)
+    const topGrad = ctx.createRadialGradient(cx, 0, 0, cx, 0, 350);
+    topGrad.addColorStop(0, "rgba(255, 50, 0, 0.4)");
+    topGrad.addColorStop(1, "rgba(255, 50, 0, 0)");
+    ctx.fillStyle = topGrad;
+    ctx.fillRect(0, 0, w, 350);
+
     ctx.globalAlpha = 1.0;
+
+    // 一番手前に薄い煙を描画
+    drawAmbientSmoke(ctx, w, h);
 }
 
 function render(ctx) {
