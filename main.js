@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Today's Customer Update (客の来店対応・完全版 v0.7 細部UI調整 + チュートリアル&アイコン注文化)
+// # main.js - YAKITORI WARS: Simple Orders & Clean UI Update
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -66,10 +66,10 @@ let LAYOUT = {
         STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334", HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
     },
     BUTTONS: [
-        { id: "meat", color: "#5a7a5a", icon: "meat", label: "肉" },       
-        { id: "put", color: "#4a6fa5", icon: "put_skewer", label: "置く" },     
-        { id: "harvest", color: "#a57a4a", icon: "serve_plate", label: "取る/捨" },  
-        { id: "uchiwa", color: "#8a4a6f", icon: "uchiwa", label: "うちわ" }    
+        { id: "meat", color: "#5a7a5a", icon: "meat", label: "MEAT" },       
+        { id: "put", color: "#4a6fa5", icon: "put_skewer", label: "PUT" },     
+        { id: "harvest", color: "#a57a4a", icon: "serve_plate", label: "TAKE" },  
+        { id: "uchiwa", color: "#8a4a6f", icon: "uchiwa", label: "FAN" }    
     ]
 };
 const VISUAL_STATES = {
@@ -123,17 +123,35 @@ const STAGE_CONFIG = {
     5: { profile: "master", level: 5, enemyName: "BOSS" }
 };
 
-// チュートリアル(Stage 1)かどうかを判定します
+// チュートリアル(Stage 1)判定
 function isTutorialStage() {
     return state.gameMode === "ai" && state.currentStage === 1;
 }
 
-// 現在のステージに応じて注文を設定します
+// EXTRA ORDER の無効化
+function canUseExtraOrder() {
+    return false;
+}
+
+// ステージごとの注文設定
 function assignOrderForCurrentStage() {
     if (isTutorialStage()) {
-        state.todaysOrder = null; // Stage 1は注文なし
+        state.todaysOrder = null;
+        return;
+    }
+
+    if (state.gameMode === "ai") {
+        if (state.currentStage === 2) {
+            state.todaysOrder = { id: "burnt", label: "BURNT OK" };
+        } else if (state.currentStage === 3) {
+            state.todaysOrder = { id: "strong", label: "HOT" };
+        } else if (state.currentStage === 4) {
+            state.todaysOrder = { id: "steal", label: "STEAL OK" };
+        } else {
+            state.todaysOrder = getRandomOrder();
+        }
     } else {
-        state.todaysOrder = getRandomOrder(); // Stage 2以降はランダムに注文
+        state.todaysOrder = getRandomOrder();
     }
 }
 
@@ -374,10 +392,6 @@ function finishEndRound() {
     state.cookPreviewEvents = [];
     if (state.round >= state.maxRounds) {
         state.gameOver = true; updateAllScores();
-        if (state.todaysOrder && state.todaysOrder.id === "meat_save") {
-            state.players.forEach(p => { p.servedScore += p.resources * 2; });
-        }
-
         state.players.forEach(p => { p.finalScore = (p.servedScore || 0) + (p.resources || 0); });
         const p1 = state.players[0].finalScore, p2 = state.players[1].finalScore;
         if (p1 > p2) {
@@ -424,11 +438,8 @@ function startNewRound() {
     state.currentPlayer = state.firstPlayer;
     state.pendingPlayer = state.firstPlayer; state.pendingTurnSplash = true; state.pendingAiBreath = false;
     
-    if (state.round === state.extraOrderSpawnRound && !isTutorialStage()) {
-        state.extraOrder = getRandomExtraOrder();
-        state.extraOrderActive = true;
-        state.extraOrderIntroActive = true;
-        state.extraOrderIntroTimer = 90; 
+    if (state.round === state.extraOrderSpawnRound && !isTutorialStage() && canUseExtraOrder()) {
+        // Disabled for now
     }
 }
 
@@ -481,24 +492,13 @@ function resolvePendingTurnFlow() {
 // ==========================================
 // 4. game/rules.js - 調理ルールとアクション
 // ==========================================
+// シンプル化された注文リスト
 const TODAYS_ORDERS = [
-    { id: "strong", title: "TODAY'S CUSTOMER", quote: "Make it hot.", effectText: "STRONG FIRE +2", shortText: "ORDER: STRONG +2" },
-    { id: "okay", title: "TODAY'S CUSTOMER", quote: "I'm in a hurry!", effectText: "OKAY +3", shortText: "ORDER: OKAY +3" },
-    { id: "burnt", title: "TODAY'S CUSTOMER", quote: "I like it smoky.", effectText: "BURNT +1", shortText: "ORDER: BURNT +1" },
-    { id: "weak_vip", title: "TODAY'S CUSTOMER", quote: "Slow and perfect.", effectText: "WEAK PERFECT +5", shortText: "ORDER: WEAK PERFECT +5" },
-    { id: "steal", title: "TODAY'S CUSTOMER", quote: "I want the best one!", effectText: "STEAL +3", shortText: "ORDER: STEAL +3" },
-    { id: "meat_save", title: "TODAY'S CUSTOMER", quote: "Save some meat.", effectText: "LEFT MEAT +2", shortText: "ORDER: LEFT MEAT +2" }
+    { id: "strong", label: "HOT" },
+    { id: "burnt", label: "BURNT OK" },
+    { id: "steal", label: "STEAL OK" }
 ];
 function getRandomOrder() { return TODAYS_ORDERS[Math.floor(Math.random() * TODAYS_ORDERS.length)]; }
-
-const EXTRA_ORDERS = [
-    { id: "first_okay", label: "FIRST OKAY +3", bonus: 3 },
-    { id: "first_perfect", label: "FIRST PERFECT +4", bonus: 4 },
-    { id: "first_steal", label: "FIRST STEAL +3", bonus: 3 },
-    { id: "first_burnt", label: "FIRST BURNT +2", bonus: 2 },
-    { id: "first_strong", label: "FIRST STRONG +3", bonus: 3 }
-];
-function getRandomExtraOrder() { return EXTRA_ORDERS[Math.floor(Math.random() * EXTRA_ORDERS.length)]; }
 
 function getCookLabel(laneType, cv) {
     if (laneType === "weak") { if (cv >= 8) return "burnt"; if (cv >= 6) return "perfect"; if (cv === 5) return "okay"; } 
@@ -547,8 +547,6 @@ function getHarvestScore(node, isSteal, status) {
     }
 
     if (order === "strong" && node.type === "strong" && score > 0) score += 2;
-    if (order === "okay" && status === "okay") score += 3;
-    if (order === "weak_vip" && node.type === "weak" && status === "perfect") score += 5;
     if (order === "steal" && isSteal && score > 0) score += 3;
 
     return score;
@@ -570,7 +568,7 @@ function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
     if (boxId === 1) { 
         p.resources += 1;
-        state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now() }); consumeWorker();
+        state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now(), duration: 800 }); consumeWorker();
     } else {
         state.isBusy = true;
         setTimeout(() => {
@@ -585,7 +583,7 @@ function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
     if (p.resources >= 1 && !node.built) {
         p.resources -= 1;
-        state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now() });
+        state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now(), duration: 800 });
         node.built = true; node.owner = state.currentPlayer;
         node.cookState = 0; node.justPlaced = true;
         state.visuals.placedAt[node.id] = performance.now(); consumeWorker();
@@ -599,55 +597,35 @@ function tryHarvestNode(node) {
         if (status !== "burnt") {
             if (p.resources < 1) return;
             p.resources -= 1;
-            state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now(), isSteal: true });
+            state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now(), duration: 800, isSteal: true });
             if (stolenFrom !== null && state.players[stolenFrom - 1]) {
                 state.players[stolenFrom - 1].resources += 1;
-                state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: stolenFrom, targetPlayerPanel: stolenFrom, startTime: performance.now() + 150, isSteal: true });
+                state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: stolenFrom, targetPlayerPanel: stolenFrom, startTime: performance.now() + 150, duration: 800, isSteal: true });
             }
             state.hitStopTimer = 4;
         }
     }
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
     if (status === "perfect") p.stats.perfect++; if (status === "burnt") p.stats.burnt++; if (isSteal && scoreGained > 0) p.stats.steal++;
+    
     let isBonus = false; let bonusText = "";
     const order = state.todaysOrder ? state.todaysOrder.id : null;
-    if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true; bonusText = "ORDER +2"; }
-    if (order === "okay" && status === "okay") { isBonus = true; bonusText = "ORDER +3"; }
-    if (order === "weak_vip" && node.type === "weak" && status === "perfect") { isBonus = true; bonusText = "VIP +5"; }
-    if (order === "steal" && isSteal && scoreGained > 0) { isBonus = true; bonusText = "ORDER +3"; }
-    if (order === "burnt" && status === "burnt") { isBonus = true; bonusText = "BURNT OK"; }
+    if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true; bonusText = "BONUS!"; }
+    if (order === "steal" && isSteal && scoreGained > 0) { isBonus = true; bonusText = "BONUS!"; }
+    if (order === "burnt" && status === "burnt") { isBonus = true; bonusText = "BONUS!"; }
 
     if (scoreGained !== 0) { 
+        let duration = 1000;
+        if (status === "perfect") duration = 1500;
+        else if (isBonus) duration = 1300;
+
         state.visuals.statusMessages.push({ 
             type: 'score', amount: scoreGained, player: state.currentPlayer, 
-            startTime: performance.now(), isPerfect: status === "perfect",
+            startTime: performance.now(), duration: duration, isPerfect: status === "perfect",
             isBonus: isBonus, bonusText: bonusText
         });
     }
 
-    if (state.extraOrderActive && !state.extraOrderClaimed) {
-        let achieved = false;
-        const exId = state.extraOrder.id;
-        
-        if (exId === "first_okay" && status === "okay") achieved = true;
-        if (exId === "first_perfect" && status === "perfect") achieved = true;
-        if (exId === "first_steal" && isSteal && scoreGained > 0) achieved = true;
-        if (exId === "first_burnt" && status === "burnt") achieved = true;
-        if (exId === "first_strong" && node.type === "strong" && scoreGained > 0) achieved = true;
-        if (achieved) {
-            state.extraOrderClaimed = true;
-            state.extraOrderWinner = state.currentPlayer;
-            p.servedScore += state.extraOrder.bonus; 
-            
-            state.visuals.statusMessages.push({ 
-                type: 'score', amount: state.extraOrder.bonus, player: state.currentPlayer, 
-                startTime: performance.now(), isPerfect: false,
-                isBonus: true, bonusText: "EXTRA DONE!"
-            });
-            state.hitStopTimer = 12; 
-        }
-    }
-    
     if (status === "perfect") { 
         spawnPerfectHarvestEffect(state.lanes.indexOf(node));
         state.hitStopTimer = 8;
@@ -665,7 +643,7 @@ function tryHarvestNode(node) {
 function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1;
-        state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now() }); 
+        state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now(), duration: 800 }); 
         state.visuals.uchiwaGusts[node.id] = performance.now();
         consumeWorker();
     }
@@ -744,7 +722,7 @@ function handleCanvasClick(event, canvas) {
                 let reason = "";
                 if (boxId === 2) reason = state.players[state.currentPlayer - 1].resources < 1 ? "NO MEAT" : "FULL";
                 if (boxId === 3) reason = "NO TARGET"; if (boxId === 4) reason = "NO TARGET";
-                if (reason) { state.visuals.statusMessages.push({ type: "hint", text: reason, startTime: performance.now(), x: b.x + b.w/2, y: b.y - 15 });
+                if (reason) { state.visuals.statusMessages.push({ type: "hint", text: reason, startTime: performance.now(), duration: 800, x: b.x + b.w/2, y: b.y - 15 });
                     state.visuals.buttonErrors[i] = performance.now(); }
             }
             return;
@@ -803,15 +781,12 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
     if (action.type === "meat") { 
         if (p.resources === 0) score += 15;
         else if (p.resources === 1) score -= 1; else score -= 15;
-        if (order === "meat_save" && roundsLeft <= 3) score += 15;
     }
     else if (action.type === "put") { 
         score += 10;
         if (profileName === "gambler" && node.type === "strong") score += 40;
         if (profileName === "master" && node.type === "weak") score += 15;
         if (order === "strong" && node.type === "strong") score += 15;
-        if (order === "weak_vip" && node.type === "weak") score += 20;
-        if (order === "meat_save" && roundsLeft <= 3 && p.resources <= 1) score -= 15;
     }
     else if (action.type === "serve") {
         const lbl = getCookLabel(node.type, node.cookState), isOwn = node.owner === playerIndex;
@@ -833,22 +808,13 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
             if (lbl === "perfect") score += 100;
             if (lbl === "okay") {
                 score += (profileName === "gambler" ? 45 : 15);
-                if (order === "okay") score += 40;
             }
-        }
-        
-        if (order === "weak_vip" && node.type === "weak") {
-            if (lbl === "perfect") score += 50;
-            if (!isOwn) score += 20;
         }
     } else if (action.type === "uchiwa") {
         const isOwn = node.owner === playerIndex, boosted_lbl = getCookLabel(node.type, node.cookState + getBaseHeat(node.type) + 1);
         if (isOwn) { 
             if (boosted_lbl === "perfect") score += 75;
-            if (boosted_lbl === "okay") {
-                score += 15;
-                if (order === "okay") score += 20;
-            }
+            if (boosted_lbl === "okay") score += 15;
         } else { 
             if (boosted_lbl === "burnt") score += 85;
         }
@@ -1042,138 +1008,6 @@ function drawScoreBreakdown(ctx, served, resources, endX, y) {
     drawDotIcon(ctx, "meat", currentX + 2, y - 6, "#666", 1.5); currentX += iconW; ctx.fillText(text3, currentX, y);
 }
 
-// 注文の条件をアイコンとダイヤで描画する新しい関数
-function drawOrderConditionIcon(ctx, orderId, isExtra, cx, cy, scale) {
-    ctx.save();
-    
-    // 追加注文(EXTRA)の場合は、左端にチェッカーフラッグ風のマークを描画して「早い者勝ち」感を演出
-    let startX = cx - (40 * scale);
-    if (isExtra) {
-        ctx.fillStyle = "#333";
-        ctx.fillRect(startX - 15 * scale, cy - 8 * scale, 10 * scale, 10 * scale);
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(startX - 15 * scale, cy - 8 * scale, 5 * scale, 5 * scale);
-        ctx.fillRect(startX - 10 * scale, cy - 3 * scale, 5 * scale, 5 * scale);
-        startX += 5 * scale;
-    }
-
-    const iconY = cy;
-    let bonusText = "";
-
-    // 注文IDに応じたアイコンの描画
-    if (orderId === "strong" || orderId === "first_strong") {
-        drawDotIcon(ctx, "fire", startX, iconY, "#fa3", 2 * scale);
-        drawDotIcon(ctx, "fire", startX + 15 * scale, iconY, "#fa3", 2 * scale);
-        drawDotIcon(ctx, "fire", startX + 30 * scale, iconY, "#fa3", 2 * scale);
-        bonusText = orderId === "strong" ? "+2" : "+3";
-    } else if (orderId === "okay" || orderId === "first_okay") {
-        drawDeliciousYakitori(ctx, startX + 15 * scale, iconY - 10 * scale, 30 * scale, 15 * scale, "#c88450", false, false, "OKAY", "medium", getTime());
-        bonusText = "+3";
-    } else if (orderId === "burnt" || orderId === "first_burnt") {
-        drawDeliciousYakitori(ctx, startX + 15 * scale, iconY - 10 * scale, 30 * scale, 15 * scale, "#3c2a23", false, false, "BURNT", "medium", getTime());
-        bonusText = orderId === "burnt" ? "+1" : "+2";
-    } else if (orderId === "weak_vip" || orderId === "first_perfect") {
-        drawDeliciousYakitori(ctx, startX + 15 * scale, iconY - 10 * scale, 30 * scale, 15 * scale, "#9f5524", false, false, "PERFECT", "medium", getTime());
-        if (orderId === "weak_vip") {
-            drawDotIcon(ctx, "fire", startX - 5 * scale, iconY, "#fa3", 1.5 * scale);
-            bonusText = "+5";
-        } else {
-            bonusText = "+4";
-        }
-    } else if (orderId === "steal" || orderId === "first_steal") {
-        ctx.fillStyle = "#a55"; 
-        ctx.fillRect(startX, iconY - 5 * scale, 15 * scale, 5 * scale);
-        ctx.fillStyle = "#888";
-        ctx.font = getPixelFont(8 * scale);
-        ctx.fillText("→", startX + 22 * scale, iconY + 2 * scale);
-        drawDotIcon(ctx, "serve_plate", startX + 35 * scale, iconY + 2 * scale, "#fff", 2 * scale);
-        bonusText = "+3";
-    } else if (orderId === "meat_save") {
-        drawDotIcon(ctx, "meat", startX, iconY, "#fff", 2 * scale);
-        ctx.fillStyle = "#888";
-        ctx.font = getPixelFont(8 * scale);
-        ctx.fillText("x", startX + 15 * scale, iconY + 2 * scale);
-        ctx.fillStyle = "#888";
-        ctx.font = getPixelFont(7 * scale);
-        ctx.fillText("END", startX + 32 * scale, iconY + 2 * scale);
-        bonusText = "+2";
-    }
-
-    // 右側にダイヤとスコアを描画
-    const bonusX = cx + (35 * scale);
-    drawDotIcon(ctx, "diamond", bonusX, iconY, "#6cf", 2.5 * scale);
-    ctx.fillStyle = "#fff";
-    ctx.font = getPixelFont(10 * scale);
-    ctx.textAlign = "left";
-    ctx.fillText(bonusText, bonusX + 12 * scale, iconY + 4 * scale);
-
-    ctx.restore();
-}
-
-// --- 伝票描画関数(今日の注文・追加注文兼用) ---
-function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false, claimed = false, winner = null) {
-    const titleFontSize = isIntro ? 10 * scale : 8 * scale;
-    
-    // 内容によって揺れないよう、固定の幅と高さを指定
-    const cardW = Math.round((isIntro ? 260 : 180) * scale);
-    const cardH = Math.round((isIntro ? 45 : 36) * scale);
-    const cardX = Math.round(cx - cardW / 2);
-    const cardY = Math.round(y);
-    
-    drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#e0d6c8");
-    
-    ctx.fillStyle = "#5a4a3a";
-    ctx.fillRect(cardX, cardY, cardW, Math.round(3 * scale));
-    
-    // テキスト設定を明示し、少数座標を丸める
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "#4a4a4a";
-    ctx.font = getPixelFont(titleFontSize);
-    const titleY = Math.round(cardY + (isIntro ? 15 * scale : 12 * scale));
-    ctx.fillText(title, Math.round(cx), titleY);
-    
-    // アイコン描画を呼び出す
-    const iconY = Math.round(cardY + (isIntro ? 32 * scale : 26 * scale));
-    const isExtra = title.includes("EXTRA");
-    drawOrderConditionIcon(ctx, orderObj.id, isExtra, cx, iconY, scale);
-    ctx.restore();
-
-    // 既存の文字を押し除けず、上にスタンプを重ねる
-    if (claimed) {
-        ctx.save();
-        const stampX = Math.round(cardX + cardW - 22 * scale);
-        const stampY = Math.round(cardY + cardH / 2);
-        ctx.translate(stampX, stampY);
-        ctx.rotate(-0.15); 
-        
-        ctx.globalAlpha = 0.75; 
-        ctx.strokeStyle = "#b04030";
-        ctx.lineWidth = Math.max(1, Math.round(1.5 * scale));
-        ctx.strokeRect(Math.round(-16 * scale), Math.round(-8 * scale), Math.round(32 * scale), Math.round(16 * scale));
-        
-        ctx.fillStyle = "#b04030";
-        ctx.font = getPixelFont(8 * scale);
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("DONE", 0, 0); 
-        
-        if (winner) {
-            const pColor = winner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-            ctx.fillStyle = pColor;
-            ctx.fillRect(Math.round(8 * scale), Math.round(2 * scale), Math.round(14 * scale), Math.round(10 * scale));
-            ctx.fillStyle = "#fff";
-            ctx.font = getPixelFont(7 * scale);
-            ctx.textAlign = "left";
-            ctx.textBaseline = "alphabetic";
-            ctx.fillText(`P${winner}`, Math.round(10 * scale), Math.round(10 * scale));
-        }
-        ctx.restore();
-    }
-}
-// ----------------------------------------
-
 function drawTableBackground(ctx) {
     ctx.fillStyle = LAYOUT.COLORS.BG;
     ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -1195,10 +1029,13 @@ function drawTableBackground(ctx) {
 function render(ctx) {
     const now = getTime();
     state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
-    // メッセージの寿命を全体的に短縮
+    
+    // Status messages duration adjusted individually, remove old messages
     state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { 
-        return now - m.startTime < 1000; 
+        const life = m.duration || 1000;
+        return now - m.startTime < life; 
     });
+    
     state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
     
     if (state.screen === "game") {
@@ -1380,14 +1217,24 @@ function drawGameScreen(ctx) {
         ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 40); 
     }
 
-    let orderYOffset = safeTop + 65;
+    let orderYOffset = safeTop + 55;
+    
+    // シンプルな1段の注文表示
     if (state.todaysOrder && state.orderIntroDone) {
-        drawOrderSlip(ctx, cx, orderYOffset, "ORDER", state.todaysOrder, 1, false);
-        orderYOffset += 40; 
-    }
-
-    if (state.extraOrderActive && !state.extraOrderIntroActive) {
-        drawOrderSlip(ctx, cx, orderYOffset, "EXTRA", state.extraOrder, 1, false, state.extraOrderClaimed, state.extraOrderWinner);
+        const badgeW = Math.min(180, LAYOUT.CANVAS_WIDTH * 0.45);
+        const badgeH = 24;
+        
+        ctx.fillStyle = "rgba(30, 20, 15, 0.8)";
+        ctx.fillRect(cx - badgeW / 2, orderYOffset, badgeW, badgeH);
+        
+        ctx.font = getPixelFont(10);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#888";
+        ctx.fillText("TODAY: ", cx, orderYOffset + 16);
+        
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#ffeb3b";
+        ctx.fillText(state.todaysOrder.label, cx, orderYOffset + 16);
     }
 
     state.lanes.forEach((lane, i) => {
@@ -1773,14 +1620,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             
             ctx.globalAlpha = btnAlpha;
             const offset = isPressed ? 3 : 0;
-            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 5 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
-            let textAlpha = isPressed ? 1.0 : 0.7; let textYOffset = isPressed ? -2 : 0; ctx.globalAlpha = textAlpha;
-            ctx.fillStyle = (canUse && !isLocked) ? "#fff" : "#aaa"; ctx.font = getPixelFont(9); ctx.textAlign = "center";
-            const textY = b.y + b.h - 8 + textYOffset; const textX = b.x + b.w/2 + offset;
-            if (boxId === 1) { ctx.fillText("+1", textX, textY); } else if (boxId === 2) { drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
-                ctx.fillText("-1", textX + 10, textY); } else if (boxId === 3) { drawDotIcon(ctx, "put_skewer", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
-                ctx.fillText("↑", textX + 10, textY); } else if (boxId === 4) { drawDotIcon(ctx, "fire", textX - 10, textY - 4, (canUse && !isLocked) ? "#fa3" : "#aaa", 1.5);
-                ctx.fillText("+1", textX + 10, textY); }
+            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 10 + offset, (canUse && !isLocked) ? "#fff" : "#888", 3);
+            let textAlpha = isPressed ? 1.0 : 0.8; let textYOffset = isPressed ? -2 : 0; ctx.globalAlpha = textAlpha;
+            ctx.fillStyle = (canUse && !isLocked) ? "#fff" : "#aaa"; ctx.font = getPixelFont(12); ctx.textAlign = "center";
+            const textY = b.y + b.h - 15 + textYOffset; const textX = b.x + b.w/2 + offset;
+            ctx.fillText(btn.label, textX, textY);
             ctx.globalAlpha = 1.0;
         });
     }
@@ -1808,18 +1652,12 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
             ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
-            drawOrderSlip(ctx, cx, cy - 30, "TODAY'S ORDER", state.todaysOrder, 1.5, true);
+            ctx.fillStyle = "rgba(30, 20, 15, 0.9)";
+            ctx.fillRect(cx - 120, cy - 20, 240, 40);
+            ctx.fillStyle = "#aaa"; ctx.font = getPixelFont(12); ctx.textAlign = "right"; ctx.fillText("TODAY:", cx - 10, cy + 5);
+            ctx.fillStyle = "#ffeb3b"; ctx.textAlign = "left"; ctx.fillText(state.todaysOrder.label, cx, cy + 5);
         }
         ctx.textBaseline = "alphabetic";
-    } else if (state.extraOrderIntroActive) {
-        ctx.fillStyle = "rgba(30, 20, 15, 0.85)";
-        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-        
-        let scale = 1.0;
-        if (state.extraOrderIntroTimer > 60) scale = 2.0;
-        else if (state.extraOrderIntroTimer > 30) scale = 1.6; 
-        else scale = 1.5;
-        drawOrderSlip(ctx, cx, cy - 30 * scale, "EXTRA ORDER", state.extraOrder, scale, true);
     } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
         const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
         ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
@@ -1851,32 +1689,32 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     let p1MsgCount = 0; let p2MsgCount = 0;
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime;
+        const duration = msg.duration || 1000;
         let alpha = 1; let yAnimOffset = 0; let isHint = msg.type === "hint";
         
-        // 全体表示時間を短縮(800ms〜1000ms)し、最後の250msでフェードアウト
-        const totalDuration = msg.isSteal ? 1000 : 800;
-        const fadeOutStart = totalDuration - 250;
+        // 最後の30%でゆっくりフェードアウトさせる
+        const fadeOutStart = duration * 0.7;
         const fadeInDuration = 100;
 
         if (isHint) {
-            const p = Math.min(1, elapsed / 800);
+            const p = Math.min(1, elapsed / duration);
             alpha = 1 - p;
             yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
         } else {
+            // ゆっくり上に浮き続ける
+            const p = Math.min(1, elapsed / duration);
+            yAnimOffset = -30 * Math.pow(p, 0.5);
+
             if (elapsed < fadeInDuration) {
                 alpha = elapsed / fadeInDuration;
-                yAnimOffset = 10 * (1 - alpha);
             } else if (elapsed > fadeOutStart) {
-                alpha = Math.max(0, 1 - (elapsed - fadeOutStart) / 250);
-                yAnimOffset = -15 * (1 - alpha);
+                alpha = Math.max(0, 1 - ((elapsed - fadeOutStart) / (duration - fadeOutStart)));
             } else {
                 alpha = 1;
-                yAnimOffset = 0;
             }
         }
 
         if (alpha <= 0) return;
-        // ポイント表示の開始位置を伝票の下(Y:170付近)まで下げる&座標を整数化
         let fx = Math.round(msg.x || cx);
         let fy = isHint ? Math.round(msg.y + yAnimOffset) : Math.round(170 + (idx * 32) + yAnimOffset);
         if (msg.targetPlayerPanel) {
@@ -1899,7 +1737,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillText(text2, currentX, fy);
         } else {
             ctx.globalAlpha = alpha;
-            // 全体に同じフェードを適用
             ctx.textAlign = "center";
             if (isHint) {
                 ctx.font = getPixelFont(10);
@@ -1910,13 +1747,13 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.fillText(msg.text, fx, fy);
             } else {
                 let isResult = msg.type === "result";
-                let icon = isResult ? null : (msg.type === 'meat' ? 'meat' : (msg.type === 'fire' ? 'fire' : 'diamond'));
+                // ボーナスがある場合はダイヤを出し、それ以外はスコアのみにする
+                let icon = isResult ? null : (msg.isBonus ? 'diamond' : null);
                 let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
-                let color = isResult ? "#ffeb3b" : (msg.type === 'meat' ? (msg.amount > 0 ? "#fa3" : "#f33") : (msg.type === 'fire' ? "#fa3" : (msg.amount > 0 ? "#ff4" : "#f33")));
+                let color = isResult ? "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14); 
                 
-                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha;
-                }
+                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha; }
                 
                 ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
                 if (icon) {
@@ -1928,18 +1765,24 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
 
                 ctx.fillStyle = color;
                 if (icon) { 
-                    drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0)), Math.round(fy - 8), "#fff", 2.5);
+                    drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0)), Math.round(fy - 8), "#6cf", 2.5);
                     ctx.fillText(text, Math.round(fx + 15), fy);
                 } else {
                     ctx.fillText(text, fx, fy);
                 }
                 
                 if (msg.isBonus && msg.bonusText) {
-                    ctx.font = getPixelFont(8);
+                    ctx.font = getPixelFont(10);
                     ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0) + 1), Math.round(fy + 12 + 1));
+                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0) + 1), Math.round(fy - 18 + 1));
                     ctx.fillStyle = "#ffeb3b";
-                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0)), Math.round(fy + 12));
+                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0)), Math.round(fy - 18));
+                } else if (msg.isPerfect && !msg.isBonus) {
+                    ctx.font = getPixelFont(10);
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+                    ctx.fillText("PERFECT!", Math.round(fx + 1), Math.round(fy - 18 + 1));
+                    ctx.fillStyle = "#ffeb3b";
+                    ctx.fillText("PERFECT!", Math.round(fx), Math.round(fy - 18));
                 }
             }
         }
