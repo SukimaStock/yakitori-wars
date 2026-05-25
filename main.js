@@ -1022,7 +1022,7 @@ function drawOrderSlip(ctx, cx, y, title, orderObj, scale = 1, isIntro = false) 
     const iconScale = isIntro ? 2.5 * scale : 2 * scale;
     
     // 注文票の幅(ここだけ変えれば全体が追従します)
-    const cardW = Math.round((isIntro ? 240 : 170) * scale);
+    const cardW = Math.round((isIntro ? 235 : 170) * scale);
     const cardH = Math.round((isIntro ? 50 : 40) * scale);
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
