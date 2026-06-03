@@ -1025,13 +1025,61 @@ const YAKITORI_GRILL_PARTS = {
     ]
 };
 
-const YAKITORI_COAL_PATTERN = [
-    "....dddddddddddddddddd..........", "..ddddddkkkkkkkddddddddd........", ".ddddkkkkkkkkkkkkkddddddd.......", ".ddkkkkkkrkkkkkkkrrrkkddd.......",
-    "..ddkkkrrrrkdddkkrrrkkddd.......", "...dddkkkkkkddddkkkkkdddd.......", "....dddkkkkkkddddddkkddddd......", "....ddkkkrrkdddkkkkdddddd.......", 
-    "....ddddddddddkkrrkkddddd.......", ".....dddddddddkkkkkddddd........", "......ddddkddddddddddd..........", ".......ddkkkkddddddd............",
-    "........ddddddddddd.............", "..........dddddd................", "................................"
-];
-
+// [ADD_AFTER: YAKITORI_COAL_PATTERN]
+const YAKITORI_COAL_PATTERNS = {
+    weak: [
+        "....ddaddddddddddadddd..........",
+        "..ddadddkkkkkkkddadddddd........",
+        ".ddddkkkkkakkkkkkkddadddd.......",
+        ".ddkkkkkkkkkkkkkkkkakkddd.......",
+        "..ddkkkkrkkkdddkkkkkkkddd.......",
+        "...dddkkkkkkadddkkkkkdddd.......",
+        "....dddkkkrkkddddddkkddddd......",
+        "....ddkkkkkkdddkkkkaddddd.......", 
+        "....ddadddddddkkkkkkddddd.......",
+        ".....ddddaddddkkkkkddddd........",
+        "......ddddkddddddadddd..........",
+        ".......ddkkkkddddddd............",
+        "........ddadddddddd.............",
+        "..........dddddd................",
+        "................................"
+    ],
+    medium: [
+        "....dddddddddddddddddd..........",
+        "..ddddddkkkkkkkddddddddd........",
+        ".ddddkkkkkkkkkkkkkddddddd.......",
+        ".ddkkkkkkrkkkkkkkrrrkkddd.......",
+        "..ddkkkrrrrkdddkkrrrkkddd.......",
+        "...dddkkkkkkddddkkkkkdddd.......",
+        "....dddkkkkkkddddddkkddddd......",
+        "....ddkkkrrkdddkkkkdddddd.......", 
+        "....ddddddddddkkrrkkddddd.......",
+        ".....dddddddddkkkkkddddd........",
+        "......ddddkddddddddddd..........",
+        ".......ddkkkkddddddd............",
+        "........ddddddddddd.............",
+        "..........dddddd................",
+        "................................"
+    ],
+    strong: [
+        "....dddddddddddddddddd..........",
+        "..ddddrrkkkkrrkddddddddd........",
+        ".ddrrkkrrrrkkkkrrrddddddd.......",
+        ".ddkrrrroorrrrrrrorrrkddd.......",
+        "..ddkrooyyyorrkrooyrrkddd.......",
+        "...ddrroooorrddrrooorrddd.......",
+        "....ddrrooookddrdrrrkddddd......",
+        "....ddkrroordddkrrrkddddd.......", 
+        "....ddddrrddddkkroorkdddd.......",
+        ".....dddddddddkkrrrrdddd........",
+        "......ddddkddddddrdddd..........",
+        ".......ddkkrrddddddd............",
+        "........ddddddddddd.............",
+        "..........dddddd................",
+        "................................"
+    ]
+};
+// [END_PATCH]
 const YAKITORI_SKEWER_SPRITES = {
     raw: [
         ".....55.....", ".....55.....", ".....55.....", ".....55.....", "..Ppppppp...", ".Pppqqqqqqq.", ".pqqqqqqqqQ.", "pqqqqqqqqqqQ", "qqqqqqqqqQQ.",
@@ -1513,8 +1561,22 @@ const spriteH = 48 * YAKITORI_PIXEL_UNIT;
         const gx = Math.round(b.x + b.w / 2 - spriteW / 2);
 const gy = Math.round(b.y + b.h / 2 - spriteH / 2) + 15;
         drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_GRILL_PARTS.base);
-drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_COAL_PATTERN, 0, 22);
         
+        const coalPattern = YAKITORI_COAL_PATTERNS[lane.type] || YAKITORI_COAL_PATTERNS.medium;
+        drawYakitoriSpriteMap(ctx, gx, gy, coalPattern, 0, 22);
+
+        if (lane.type === "strong" || lane.type === "medium") {
+            if (Math.sin(now / 100 + i * 13) > 0.5) {
+                ctx.fillStyle = lane.type === "strong" ? "#ffcc44" : "#f0a13a";
+                const dotX = gx + (lane.type === "strong" ? 14 : 12) * YAKITORI_PIXEL_UNIT;
+                const dotY = gy + 26 * YAKITORI_PIXEL_UNIT;
+                ctx.fillRect(dotX, dotY, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
+                if (lane.type === "strong") {
+                    ctx.fillRect(gx + 20 * YAKITORI_PIXEL_UNIT, gy + 27 * YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
+                }
+            }
+        }
+
         drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_GRILL_PARTS.net);
         const currentStatus = getCookLabel(lane.type, effectiveCookState);
 const isPrePerfect = (currentStatus !== "perfect" && currentStatus !== "burnt" && baseEndStatus === "perfect");
@@ -1537,8 +1599,6 @@ if (lane.type === "strong") { currentFireIntensity += (Math.sin(now / 100) * 0.0
 }
         if (!lane.built) { currentFireIntensity *= 0.2;
 }
-        ctx.fillStyle = "rgba(255, 60, 10, " + Math.max(0, currentFireIntensity * 0.5) + ")";
-ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
         if (lane.built) {
             const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && isFlashable);
 const targetCookState = isUchiwaPreviewActive ? baseEndState + 1 : displayCookState;
@@ -1979,6 +2039,7 @@ ctx.globalAlpha = 1.0;
 ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
 }
 }
+
 
 
 
