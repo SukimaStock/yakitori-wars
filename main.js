@@ -1,4 +1,4 @@
-// # main.js - YAKITORI WARS: Release Polish Update
+// # main.js - YAKITORI WARS: Pixel Art Consistency Update
 // ==========================================
 // 1. game/state.js - ゲームの状態管理
 // ==========================================
@@ -69,7 +69,7 @@ const audioSys = {
     masterGain: null, 
     unlocked: false, 
     lastPlayed: {}, 
-    masterVolume: 0.6 // テスト用に音量を一時的にアップ
+    masterVolume: 0.6 
 };
 function initAudio() {
     if (audioSys.ctx) return;
@@ -87,34 +87,20 @@ function initAudio() {
 
 async function unlockAudio() {
     if (audioSys.unlocked) return;
-    
     initAudio();
     if (!audioSys.ctx) return;
     try {
-        // iOS対応: resumeは非同期なので完了を待つ
-        if (audioSys.ctx.state === "suspended") {
-            await audioSys.ctx.resume();
-        }
-
+        if (audioSys.ctx.state === "suspended") await audioSys.ctx.resume();
         const t = audioSys.ctx.currentTime;
         const osc = audioSys.ctx.createOscillator();
         const gain = audioSys.ctx.createGain();
-        // ほぼ無音のダミー音を生成
         gain.gain.setValueAtTime(0.001, t);
         osc.frequency.setValueAtTime(440, t);
-        // 必ずmasterGainを経由させる
         osc.connect(gain);
         gain.connect(audioSys.masterGain);
-
         osc.start(t);
         osc.stop(t + 0.03);
-        // resumeとダミー音の再生が成功したらロック解除判定とする
         audioSys.unlocked = true;
-        console.log("audio unlocked", audioSys.ctx.state);
-        // 【テスト用】アンロック成功確認の音(確認後にここを削除してください)
-        setTimeout(() => {
-            playTone(880, 0.2, "sine", 0.8);
-        }, 100);
     } catch (e) {
         console.warn("audio unlock failed", e);
     }
@@ -990,31 +976,61 @@ function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
     if (currentTimer > maxTimer - fadeFrames) return Math.max(0, (maxTimer - currentTimer) / fadeFrames);
     if (currentTimer < fadeFrames) return Math.max(0, currentTimer / fadeFrames); return 1.0;
 }
+
+// 【完全ドット絵化】半透明を廃止し、ソリッドなピクセル枠を描画する
 function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
-    if (isPressed) { 
-        ctx.fillStyle = baseColor;
-        ctx.fillRect(x, y, w, h); ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y, w, h); 
-        ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-        ctx.fillRect(x, y, w, 8); ctx.fillRect(x, y, 8, h); 
-        ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(x, y, w, 14);
-        ctx.fillRect(x, y, 14, h); 
-    } else { 
-        ctx.fillStyle = baseColor;
-        ctx.fillRect(x, y, w, h);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; ctx.fillRect(x, y + h - 6, w, 6);
-        ctx.fillRect(x + w - 4, y, 4, h); 
+    // ピクセルグリッドにスナップ(小数点座標によるアンチエイリアスを防ぐ)
+    const px = Math.round(x);
+    const py = Math.round(y);
+    const pw = Math.round(w);
+    const ph = Math.round(h);
+    const scale = 4; // ドットの粗さ(仮想ピクセルサイズ)
+
+    // ソリッドなハイライトとシャドウの色を計算(rgbaの重ねがけは禁止)
+    const lightColor = brightenColor(baseColor, 0.4);
+    const darkColor = mixColor(baseColor, "#000000", 0.6);
+    const darkestColor = mixColor(baseColor, "#000000", 0.85);
+
+    // 1. 背景の塗りつぶし
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(px, py, pw, ph);
+
+    // 2. ドット絵らしいソリッドな枠線(上が明るく、下が暗い)
+    if (isPressed) {
+        // 押下時:全体が沈み、上部が一番暗くなる
+        ctx.fillStyle = darkestColor;
+        ctx.fillRect(px, py, pw, scale * 2); // 上の深い影
+        ctx.fillRect(px, py, scale * 2, ph); // 左の深い影
+        
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(px + pw - scale, py, scale, ph); // 右
+        ctx.fillRect(px, py + ph - scale, pw, scale); // 下
+    } else {
+        // 通常時:上と左にハイライト、下と右にシャドウ
+        ctx.fillStyle = lightColor;
+        ctx.fillRect(px, py, pw, scale); // 上
+        ctx.fillRect(px, py, scale, ph); // 左
+
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(px, py + ph - scale, pw, scale); // 下
+        ctx.fillRect(px + pw - scale, py, scale, ph); // 右
+        
+        // ピクセルアート特有の角の処理(カドを落とす)
+        ctx.fillStyle = darkestColor;
+        ctx.fillRect(px, py + ph - scale, scale, scale); // 左下
+        ctx.fillRect(px + pw - scale, py, scale, scale); // 右上
+        ctx.fillRect(px + pw - scale, py + ph - scale, scale, scale); // 右下
     }
 }
+
 function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false) {
-    ctx.fillStyle = isPressed ? "#151212" : "#201818"; ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = accentColor; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
-    if (isPressed) { ctx.fillStyle = "rgba(0, 0, 0, 0.5)"; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y, 4, h); }
-    else { ctx.fillStyle = "rgba(255, 255, 255, 0.05)"; ctx.fillRect(x, y, w, 3); ctx.fillRect(x, y, 3, h);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; ctx.fillRect(x, y + h - 4, w, 4);
-        ctx.fillRect(x + w - 3, y, 3, h); }
+    // 完全にピクセル化されたボタンスタイルに変更
+    drawBevelRect(ctx, x, y, w, h, isPressed ? "#2a2a2a" : "#3a3a40", isPressed);
     const offset = isPressed ? 2 : 0;
-    ctx.fillStyle = "#f4e6d0"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
+    // シャドウ
+    ctx.fillStyle = "#000"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(label, x + w / 2 + 2, y + h / 2 + 6 + offset + 2);
+    // メインテキスト
+    ctx.fillStyle = "#f4e6d0"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
 }
 
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay = false, status = "RAW", laneType = "medium", now = 0, isPreBurnt = false, isPrePerfect = false) {
@@ -1098,26 +1114,28 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
         else drawDotIcon(ctx, "warning", laneCx, hintY, "#888", 2);
     }
 }
+
+// ドット絵ルール: RadialGradientを削除し、純粋な四角形で構成
 function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scale = 1) {
     const baseAlpha = isPreview ? 0.3 : (isHarvestMode ? 0.8 : 0.65);
     ctx.globalAlpha = Math.min(1.0, baseAlpha + extraAlpha); ctx.fillStyle = "rgba(255, 255, 200, 0.9)";
     const positions = [{ dx: -32, dy: 15 }, { dx: 32, dy: 40 }, { dx: -28, dy: 70 }, { dx: 26, dy: 85 }];
     const w1 = 3 * scale, h1 = 10 * scale, w2 = 10 * scale, h2 = 3 * scale;
     positions.forEach((pos, idx) => { ctx.fillRect(cx + pos.dx - w1/2, y + pos.dy - h1/2, w1, h1); ctx.fillRect(cx + pos.dx - w2/2, y + pos.dy - h2/2, w2, h2); });
-    if (extraAlpha > 0) { ctx.globalAlpha = extraAlpha * 0.5; ctx.beginPath();
-        const grad = ctx.createRadialGradient(cx, y + 45, 0, cx, y + 45, 45 * scale); grad.addColorStop(0, "rgba(255, 255, 200, 0.8)");
-        grad.addColorStop(1, "rgba(255, 255, 200, 0)"); ctx.fillStyle = grad; ctx.fill(); }
     ctx.globalAlpha = 1.0;
 }
+
 function drawEndSplash(ctx) {
     if (!state.endSplashTimer || state.endSplashTimer <= 0) return;
     const cx = LAYOUT.CANVAS_WIDTH / 2;
     const cy = LAYOUT.CANVAS_HEIGHT / 2; const t = state.endSplashTimer; const alpha = t > 40 ?
         (55 - t) / 15 : Math.min(1, t / 12);
     ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-    ctx.fillStyle = "rgba(0, 0, 0, 0.45)"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-    ctx.font = getPixelFont(24); ctx.textAlign = "center"; ctx.fillStyle = state.endSplashColor || "#fff"; 
-    ctx.fillText(state.endSplashText, cx, cy);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.65)"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    ctx.font = getPixelFont(24); ctx.textAlign = "center"; 
+    // ドロップシャドウ
+    ctx.fillStyle = "#000"; ctx.fillText(state.endSplashText, cx + 2, cy + 2);
+    ctx.fillStyle = state.endSplashColor || "#fff"; ctx.fillText(state.endSplashText, cx, cy);
     ctx.font = getPixelFont(10); ctx.fillStyle = "#aaa"; ctx.fillText("MATCH END", cx, cy + 35); ctx.restore();
 }
 
@@ -1149,11 +1167,8 @@ function drawIntroOrderSlip(ctx, cx, y, orderObj) {
     ctx.font = getPixelFont(textFontSize);
     ctx.fillText(orderObj.label, leftCenterX, cardY + 38 * scale);
 
-    ctx.strokeStyle = "rgba(90, 74, 58, 0.2)";
-    ctx.beginPath();
-    ctx.moveTo(splitX, cardY + 5 * scale);
-    ctx.lineTo(splitX, cardY + cardH - 5 * scale);
-    ctx.stroke();
+    ctx.fillStyle = "rgba(90, 74, 58, 0.2)";
+    ctx.fillRect(splitX, cardY + 5 * scale, 2, cardH - 10 * scale);
     
     if (orderObj.icon && orderObj.bonus) {
         const rewardX = splitX + (cardX + cardW - splitX) / 2;
@@ -1192,126 +1207,143 @@ function drawCompactOrderCard(ctx, cx, y, orderObj) {
         const iconScale = 2.2;
         drawDotIcon(ctx, orderObj.icon, splitX + 18, cardY + cardH / 2, orderObj.color || "#fff", iconScale);
         ctx.textAlign = "left";
-        ctx.fillStyle = "#ffeb3b";
+        
+        // テキストシャドウ
+        ctx.fillStyle = "#000";
         ctx.font = getPixelFont(12);
+        ctx.fillText(orderObj.bonus, splitX + 38 + 1, cardY + cardH / 2 + 1);
+
+        ctx.fillStyle = "#ffeb3b";
         ctx.fillText(orderObj.bonus, splitX + 38, cardY + cardH / 2);
     }
     ctx.restore();
 }
 
 // --------------------------------------------------
-// 閉店後の静かな焼き鳥屋を演出する背景描画
+// ドット絵ルールの背景描画(ellipse廃止)
 // --------------------------------------------------
 function drawBackgroundProps(ctx, w, h) {
     ctx.save();
-    // 深夜の静かな焼き鳥屋をイメージし、透明度を8%に抑える
-    ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+    ctx.fillStyle = "#181310"; // ソリッドな暗がり
 
-    // 左上のメニュー札(壁にずらっと貼られている雰囲気)
+    // メニュー札
     for(let i = 0; i < 6; i++) {
         ctx.fillRect(w * 0.02 + i * 45, h * 0.05, 35, 90);
     }
 
-    // 右側の提灯のシルエット(画面端に少しだけ見える)
-    ctx.beginPath();
-    ctx.ellipse(w * 0.95, h * 0.2, 50, 75, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillRect(w * 0.95 - 25, h * 0.2 - 85, 50, 10); // 提灯の上の枠
-    ctx.fillRect(w * 0.95 - 25, h * 0.2 + 75, 50, 10); // 提灯の下の枠
+    // 提灯のシルエット(四角の組み合わせ)
+    const lanternX = w * 0.95;
+    const lanternY = h * 0.2;
+    ctx.fillRect(lanternX - 40, lanternY - 75, 80, 150); // 本体
+    ctx.fillRect(lanternX - 25, lanternY - 85, 50, 10); // 上枠
+    ctx.fillRect(lanternX - 25, lanternY + 75, 50, 10); // 下枠
 
-    // 左下の焼酎ボトルや徳利(カウンターの隅の気配)
-    ctx.fillRect(w * 0.05, h * 0.65, 25, 80); // 大きめのボトル
-    ctx.fillRect(w * 0.12, h * 0.72, 20, 73); // 少し背の低いボトル
-    ctx.beginPath();
-    ctx.ellipse(w * 0.22, h * 0.82, 25, 35, 0, 0, Math.PI * 2); // 徳利
-    ctx.fill();
-    ctx.fillRect(w * 0.22 - 8, h * 0.82 - 50, 16, 20); // 徳利の首
+    // 焼酎ボトルや徳利
+    ctx.fillRect(w * 0.05, h * 0.65, 25, 80); 
+    ctx.fillRect(w * 0.12, h * 0.72, 20, 73); 
+    ctx.fillRect(w * 0.22 - 15, h * 0.82, 30, 35); // 徳利本体
+    ctx.fillRect(w * 0.22 - 8, h * 0.82 - 50, 16, 50); // 徳利首
 
-    // 右下の箸立てやジョッキのシルエット
-    ctx.fillRect(w * 0.88, h * 0.75, 40, 60); // 箸立て
-    ctx.fillRect(w * 0.82, h * 0.78, 35, 55); // ビールジョッキ
-    ctx.fillRect(w * 0.82 - 10, h * 0.80, 10, 30); // ジョッキの取っ手
+    // 箸立てやジョッキ
+    ctx.fillRect(w * 0.88, h * 0.75, 40, 60); 
+    ctx.fillRect(w * 0.82, h * 0.78, 35, 55); 
+    ctx.fillRect(w * 0.82 - 10, h * 0.80, 10, 30); 
     
     ctx.restore();
 }
 
 function drawCharcoal(ctx, lane, bounds, now, laneIndex) {
     const { x, y, w, h } = bounds;
-    const cols = 5; // 横の炭の数
-    const rows = 4; // 縦の炭の数
-    const cw = w / cols;
-    const ch = (h * 0.35) / rows; // 焼き台の下部に配置
-    const startY = y + h * 0.6;
+    
+    // 炉の奥行き(底の暗がり)を表現する背景
+    ctx.fillStyle = "#0a0a0c";
+    ctx.fillRect(x, y + h * 0.4, w, h * 0.6);
 
-    // レーンの火力に応じて赤熱する確率を変える
-    let baseRed = 0.2; // 弱火
-    if (lane.type === "medium") baseRed = 0.5;
-    else if (lane.type === "strong") baseRed = 0.8;
+    const numCoals = 14; 
+    const startY = y + h * 0.55;
+    const endY = y + h * 0.95;
+
+    let baseRed = 0.15; 
+    if (lane.type === "medium") baseRed = 0.35;
+    else if (lane.type === "strong") baseRed = 0.65;
 
     ctx.save();
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            // ランダム(Math.random)を使うと毎フレーム形が変わってチカチカするため、
-            // レーン番号と位置から、常に同じ結果になる擬似的なランダム値を作ります
-            const pseudoRand1 = Math.abs(Math.sin(laneIndex * 10 + r * 5 + c * 3));
-            const pseudoRand2 = Math.abs(Math.cos(laneIndex * 7 + r * 11 + c * 13));
-            
-            // 炭の位置を少しずらして自然にする
-            const cx = x + c * cw + (pseudoRand1 * 4 - 2);
-            const cy = startY + r * ch + (pseudoRand2 * 4 - 2);
-            
-            // 炭のベースカラー(燃え尽きた灰か、黒い炭か)
-            const isAsh = pseudoRand1 > 0.6;
-            ctx.fillStyle = isAsh ? "#2a2a2a" : "#111111";
-            ctx.fillRect(cx, cy, cw * 0.9, ch * 0.9);
 
-            // 赤熱表現
-            if (pseudoRand2 < baseRed) {
-                // 時間(now)を使って、ごくゆっくりと静かに明滅させる
-                const flickerSpeed = 500 + pseudoRand1 * 500;
-                const flicker = Math.sin(now / flickerSpeed) * 0.2 + 0.8; // 0.6 ~ 1.0の間で変化
-                
-                ctx.fillStyle = `rgba(180, 40, 10, ${0.5 * flicker})`;
-                ctx.fillRect(cx + 2, cy + 2, cw * 0.9 - 4, ch * 0.9 - 4);
-                
-                // さらに熱い部分は中心を明るくする
-                if (pseudoRand2 < baseRed * 0.5) {
-                    ctx.fillStyle = `rgba(220, 80, 20, ${0.8 * flicker})`;
-                    ctx.fillRect(cx + 4, cy + 4, cw * 0.9 - 8, ch * 0.9 - 8);
-                }
+    // 先に薄い灰(Ash)を底に敷き詰める(ellipse廃止)
+    for (let i = 0; i < 8; i++) {
+        const pr1 = Math.abs(Math.sin(laneIndex * 5 + i * 7));
+        const pr2 = Math.abs(Math.cos(laneIndex * 3 + i * 11));
+        
+        ctx.fillStyle = `#333333`; // ソリッドな灰
+        const ashX = x + pr1 * (w - 10);
+        const ashY = startY + pr2 * (endY - startY);
+        
+        const ashW = 20 + pr1 * 16;
+        const ashH = 10 + pr2 * 12;
+        ctx.fillRect(ashX, ashY, ashW, ashH);
+    }
+
+    // 炭の塊を不規則に描画
+    for (let i = 0; i < numCoals; i++) {
+        const pr1 = Math.abs(Math.sin(laneIndex * 13 + i * 17));
+        const pr2 = Math.abs(Math.cos(laneIndex * 19 + i * 23));
+        const pr3 = Math.abs(Math.sin(laneIndex * 29 + i * 31));
+
+        const cw = 10 + pr1 * 14; 
+        const ch = 6 + pr2 * 8;
+        const cx = x + pr3 * (w - cw);
+        const cy = startY + pr1 * (endY - startY - ch);
+
+        // 炭の外周(ブロック状)
+        ctx.fillStyle = pr2 > 0.4 ? "#151515" : "#0a0a0a";
+        ctx.fillRect(cx, cy, cw, ch); 
+
+        // グラデーションを廃止し、ソリッドな四角形の重なりで熱を表現
+        if (pr2 < baseRed) {
+            const flickerSpeed = 800 + pr1 * 400;
+            const isBright = Math.sin(now / flickerSpeed) > 0; 
+
+            // 中間の赤
+            ctx.fillStyle = isBright ? "#881100" : "#550a00";
+            ctx.fillRect(cx + 2, cy + 2, cw - 4, ch - 4);
+
+            // 中心のもっとも熱い部分
+            if (isBright && pr2 < baseRed * 0.7) {
+                ctx.fillStyle = "#dd4411";
+                ctx.fillRect(cx + 4, cy + 4, cw - 8, ch - 8);
             }
         }
     }
+
+    // 炉の深さを出すためのシャドウ(グラデーションではなくソリッドな重ね)
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    ctx.fillRect(x, startY - 10, w, 20); // 少し上の暗がり
+    ctx.fillRect(x, startY + 10, w, (y + h) - startY - 10); // 下半分の暗がり
+
     ctx.restore();
 }
 
 function drawGrillDirt(ctx, bounds, laneIndex) {
     const { x, y, w, h } = bounds;
     ctx.save();
-    ctx.globalAlpha = 0.35; // 控えめな透明度
     for (let k = 0; k < 6; k++) {
-        // こちらも擬似ランダムで汚れの位置を固定します
         const pr1 = Math.abs(Math.sin(laneIndex * 8 + k * 17));
         const pr2 = Math.abs(Math.cos(laneIndex * 12 + k * 23));
         const dirtX = x + pr1 * w;
         const dirtY = y + pr2 * h;
-        const dirtSize = 8 + pr1 * 15;
+        const dirtSize = 4 + Math.floor(pr1 * 3) * 4; 
         
-        // 茶色っぽい焦げ跡か、黒い炭汚れか
         ctx.fillStyle = pr2 > 0.5 ? "#221100" : "#111111";
-        ctx.beginPath();
-        ctx.ellipse(dirtX, dirtY, dirtSize, dirtSize * 0.6, pr1 * Math.PI, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(dirtX, dirtY, dirtSize, dirtSize);
     }
     ctx.restore();
 }
-// --------------------------------------------------
 
+// ドット絵ルールの煙(ellipse廃止)
 function drawAmbientSmoke(ctx, w, h) {
     const now = getTime();
     ctx.save();
-    ctx.globalAlpha = 0.02; 
-    ctx.fillStyle = "#d0d0d5";
+    ctx.fillStyle = "#221d1b"; // 背景に近いソリッドカラー
     for(let i = 0; i < 3; i++) {
         const cx = w * 0.35 + (w * 0.15 * i);
         const cy = h * 0.6;
@@ -1319,9 +1351,16 @@ function drawAmbientSmoke(ctx, w, h) {
         const offsetY = ((now / 40) + i * 400) % (h * 0.6);
         const size = 70 + Math.sin(now / 2000 + i) * 20;
 
-        ctx.beginPath();
-        ctx.ellipse(cx + offsetX, cy - offsetY, size * 1.8, size, 0, 0, Math.PI * 2);
-        ctx.fill();
+        // ピクセルブロックの塊として描く
+        const blockSize = 20;
+        const blocks = Math.floor(size / blockSize);
+        for (let bx = -blocks; bx <= blocks; bx++) {
+            for (let by = -blocks; by <= blocks; by++) {
+                if (Math.abs(bx) + Math.abs(by) < blocks * 1.5) {
+                    ctx.fillRect(cx + offsetX + bx * blockSize, cy - offsetY + by * blockSize, blockSize, blockSize);
+                }
+            }
+        }
     }
     ctx.restore();
 }
@@ -1329,59 +1368,22 @@ function drawAmbientSmoke(ctx, w, h) {
 function drawTableBackground(ctx) {
     const w = LAYOUT.CANVAS_WIDTH;
     const h = LAYOUT.CANVAS_HEIGHT;
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
-    bgGrad.addColorStop(0, "#130a08"); 
-    bgGrad.addColorStop(0.5, LAYOUT.COLORS.BG);
-    bgGrad.addColorStop(1, "#221510"); 
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.05)";
-    ctx.lineWidth = 1.5;
+
+    // ソリッドな帯で背景を描画(グラデーション廃止)
+    ctx.fillStyle = "#130a08";
+    ctx.fillRect(0, 0, w, h * 0.3);
+    ctx.fillStyle = LAYOUT.COLORS.BG;
+    ctx.fillRect(0, h * 0.3, w, h * 0.4);
+    ctx.fillStyle = "#221510";
+    ctx.fillRect(0, h * 0.7, w, h * 0.3);
+
+    // ドット絵風の直線テーブルライン(ベクトル曲線の廃止)
+    ctx.fillStyle = "#110a08";
     for (let y = 0; y < h; y += 45) {
-        ctx.fillRect(0, y, w, 2);
-        const wobble1 = Math.sin(y * 0.05) * 15;
-        const wobble2 = Math.cos(y * 0.03) * 10;
-        
-        ctx.beginPath();
-        ctx.moveTo(0, y + 10 + wobble1);
-        ctx.quadraticCurveTo(w * 0.3, y + 5 + wobble2, w * 0.6, y + 20 - wobble1);
-        ctx.quadraticCurveTo(w * 0.8, y + 30 + wobble1, w, y + 15 + wobble2);
-        ctx.stroke();
+        ctx.fillRect(0, y, w, 4);
     }
 
     drawBackgroundProps(ctx, w, h);
-    ctx.globalAlpha = 0.15;
-    if (state && state.lanes) {
-        state.lanes.forEach((lane, i) => {
-            const b = getLaneBounds(i);
-            const laneCx = b.x + b.w / 2;
-            const laneCy = b.y + b.h; 
-            
-            let fireIntensity = 1.0;
-            if (lane.type === "weak") fireIntensity = 0.6;
-            if (lane.type === "strong") fireIntensity = 1.4;
-
-            const radius = (b.w * 0.7) * fireIntensity;
-            
-            const laneGrad = ctx.createRadialGradient(laneCx, laneCy, 0, laneCx, laneCy, radius);
-            laneGrad.addColorStop(0, "rgba(255, 85, 0, 0.6)");
-            laneGrad.addColorStop(1, "rgba(255, 85, 0, 0)");
-            
-            ctx.fillStyle = laneGrad;
-            ctx.beginPath();
-            ctx.ellipse(laneCx, laneCy, radius, radius * 0.5, 0, 0, Math.PI * 2);
-            ctx.fill();
-        });
-    }
-
-    const topGrad = ctx.createRadialGradient(w / 2, 0, 0, w / 2, 0, 350);
-    topGrad.addColorStop(0, "rgba(255, 50, 0, 0.15)"); 
-    topGrad.addColorStop(1, "rgba(255, 50, 0, 0)");
-    ctx.fillStyle = topGrad;
-    ctx.fillRect(0, 0, w, 350);
-
-    ctx.globalAlpha = 1.0;
     drawAmbientSmoke(ctx, w, h);
 }
 
@@ -1520,15 +1522,17 @@ function render(ctx) {
             ctx.translate(cx, btnY);
             if (state.screen === "stage_clear") {
                 ctx.globalAlpha = alpha * pulse;
-                ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText("▶ NEXT STAGE", 0, 0);
+                ctx.fillStyle = "#000"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText("▶ NEXT STAGE", 2, 2);
+                ctx.fillStyle = "#fff"; ctx.fillText("▶ NEXT STAGE", 0, 0);
                 ctx.globalAlpha = alpha; ctx.fillStyle = "#777";
                 ctx.font = getPixelFont(12); ctx.fillText("▶ RETRY", 0, 30);
             } else {
                 ctx.globalAlpha = alpha * pulse;
-                ctx.fillStyle = "#fff"; ctx.font = getPixelFont(14); ctx.textAlign = "center";
-                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 0, 0);
+                ctx.font = getPixelFont(14); ctx.textAlign = "center";
+                ctx.fillStyle = "#000";
+                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 2, 2); ctx.fillStyle = "#fff"; ctx.fillText("▶ RETRY", 0, 0);
                 } 
-                else { ctx.fillText("▶ REMATCH", 0, 0);
+                else { ctx.fillText("▶ REMATCH", 2, 2); ctx.fillStyle = "#fff"; ctx.fillText("▶ REMATCH", 0, 0);
                 }
             }
             ctx.restore();
@@ -1564,19 +1568,19 @@ function drawGameScreen(ctx) {
     const roundText = `ROUND ${state.round}/${state.maxRounds}`;
     const tw = ctx.measureText(roundText).width;
     const hudW = Math.min(tw + 40, centerSpace - 20, 340);
-    ctx.fillStyle = "rgba(26, 16, 12, 0.75)";
-    ctx.fillRect(cx - hudW / 2, safeTop + 2, hudW, 36);
+    drawBevelRect(ctx, cx - hudW / 2, safeTop + 2, hudW, 36, "#1a100c");
     
     ctx.fillStyle = "#e0d6c8";
     ctx.textAlign = "center"; 
-    ctx.fillText(roundText, cx, safeTop + 22);
+    ctx.fillText(roundText, cx, safeTop + 26);
     
     if (state.gameMode === "ai") { 
         ctx.font = getPixelFont(10);
-        ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 40); 
+        ctx.fillStyle = "#aaa";
+        ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 50); 
     }
 
-    let orderYOffset = safeTop + 60;
+    let orderYOffset = safeTop + 70;
     if (state.todaysOrder && state.orderIntroDone) {
         drawCompactOrderCard(ctx, cx, orderYOffset, state.todaysOrder);
     }
@@ -1592,19 +1596,14 @@ function drawGameScreen(ctx) {
             if (trace.type === "perfect") {
                 traceAlpha = Math.max(0, 1 - (elapsed / 1200)) * 0.15;
                 if (traceAlpha > 0) {
-                    const grad = ctx.createRadialGradient(laneCx, b.y + b.h*0.4, 0, laneCx, b.y + b.h*0.4, 30);
-                    grad.addColorStop(0, `rgba(255, 100, 30, ${traceAlpha})`);
-                    grad.addColorStop(1, "rgba(255, 100, 30, 0)");
-                    ctx.fillStyle = grad;
+                    ctx.fillStyle = `rgba(255, 100, 30, ${traceAlpha})`;
                     ctx.fillRect(laneCx - 30, b.y + b.h*0.1, 60, 100);
                 }
             } else if (trace.type === "burnt") {
                 traceAlpha = Math.max(0, 1 - (elapsed / 2000)) * 0.2;
                 if (traceAlpha > 0) {
                     ctx.fillStyle = `rgba(10, 10, 10, ${traceAlpha})`;
-                    ctx.beginPath();
-                    ctx.ellipse(laneCx, b.y + b.h*0.4, 15, 35, 0, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.fillRect(laneCx - 15, b.y + b.h*0.1, 30, 80);
                 }
             } else if (trace.type === "okay") {
                 traceAlpha = Math.max(0, 1 - (elapsed / 800)) * 0.05;
@@ -1654,8 +1653,16 @@ function drawGameScreen(ctx) {
                 uchiwaTargetStatus = getCookLabel(lane.type, uchiwaTargetState); }
         }
 
-        drawBevelRect(ctx, b.x - 6, b.y - 6, b.w + 12, b.h + 12, "#3a3a45");
-        ctx.fillStyle = "#0a0a0f"; ctx.fillRect(b.x, b.y, b.w, b.h);
+        // --- 焼き台のドット絵化 ---
+        const scale = 4; // ピクセルスケール
+        const gridColor = "#4a4a55"; // 暗い鉄の色
+        const gridHighlight = "#7a7a85"; // 鉄の反射
+
+        // 1. 焼き台の外枠(太いドットの鉄枠)
+        ctx.fillStyle = "#1a1a20";
+        ctx.fillRect(b.x - scale, b.y - scale, b.w + scale * 2, b.h + scale * 2);
+        ctx.fillStyle = "#2a2a35";
+        ctx.fillRect(b.x, b.y, b.w, b.h);
 
         // ==== ここに炭火の追加描画 ====
         drawCharcoal(ctx, lane, b, now, i);
@@ -1666,8 +1673,12 @@ function drawGameScreen(ctx) {
         const isPreBurnt = (currentStatus !== "burnt" && baseEndStatus === "burnt");
         if (lane.built) {
             if (currentStatus === "perfect") { const pulse = 0.5 + 0.5 * Math.sin(now / 300);
-                ctx.strokeStyle = `rgba(255, 230, 120, ${0.2 + pulse * 0.2})`; ctx.lineWidth = 2;
-                ctx.strokeRect(b.x - 4, b.y - 4, b.w + 8, b.h + 8);
+                // ソリッドなハイライト線
+                ctx.fillStyle = `rgba(255, 230, 120, ${0.2 + pulse * 0.2})`;
+                ctx.fillRect(b.x - scale, b.y - scale, b.w + scale*2, scale);
+                ctx.fillRect(b.x - scale, b.y - scale, scale, b.h + scale*2);
+                ctx.fillRect(b.x - scale, b.y + b.h, b.w + scale*2, scale);
+                ctx.fillRect(b.x + b.w, b.y - scale, scale, b.h + scale*2);
             }
         }
         
@@ -1678,12 +1689,23 @@ function drawGameScreen(ctx) {
             }
         }
         
-        ctx.strokeStyle = "#555";
-        ctx.lineWidth = 2; ctx.beginPath();
-        for (let j = 1; j <= 5; j++) { const barY = b.y + (b.h * j / 6);
-            ctx.moveTo(b.x, barY); ctx.lineTo(b.x + b.w, barY); }
-        [0.2, 0.8].forEach(ratio => { const barX = b.x + b.w * ratio; ctx.moveTo(barX, b.y); ctx.lineTo(barX, b.y + b.h); });
-        ctx.stroke();
+        // 2. 金網(ピクセル単位の四角形として描画)
+        // 横線
+        for (let j = 1; j <= 5; j++) { 
+            const barY = Math.round(b.y + (b.h * j / 6));
+            ctx.fillStyle = gridColor;
+            ctx.fillRect(b.x, barY, b.w, scale);
+            ctx.fillStyle = gridHighlight;
+            ctx.fillRect(b.x, barY - 2, b.w, 2); // 1ピクセル風のハイライト
+        }
+        // 縦線
+        [0.2, 0.8].forEach(ratio => { 
+            const barX = Math.round(b.x + b.w * ratio);
+            ctx.fillStyle = gridColor;
+            ctx.fillRect(barX, b.y, scale, b.h);
+            ctx.fillStyle = gridHighlight;
+            ctx.fillRect(barX - 2, b.y, 2, b.h);
+        });
 
         // ==== ここに金網の汚れの追加描画 ====
         drawGrillDirt(ctx, b, i);
@@ -1707,40 +1729,41 @@ function drawGameScreen(ctx) {
         if (isPreBurnt && !lane.justPlaced) { currentFireIntensity += (Math.sin(now / 50) * 0.1);
         }
 
-        const gradient = ctx.createLinearGradient(0, b.y + b.h - 50, 0, b.y + b.h);
-        gradient.addColorStop(0, "rgba(255, 50, 0, 0)"); 
-        gradient.addColorStop(1, `rgba(255, 60, 10, ${Math.max(0, currentFireIntensity)})`);
-        ctx.fillStyle = gradient;
+        // 熱の表現もグラデーションを廃止し、透過ブロックにする
+        ctx.fillStyle = `rgba(255, 60, 10, ${Math.max(0, currentFireIntensity * 0.5)})`;
         ctx.fillRect(b.x, b.y + b.h - 50, b.w, 50);
 
         if (isFlashable) {
             const selectPulse = 0.5 + 0.5 * Math.sin(now / 350);
             if (state.buildMode === "harvest") {
                 const harvestStatus = getCookLabel(lane.type, effectiveCookState);
-                let fillAlphaBase = 0.08, fillAlphaRange = 0.10, strokeAlphaBase = 0.25, strokeAlphaRange = 0.20, rgb = "255, 255, 255";
+                let fillAlphaBase = 0.08, fillAlphaRange = 0.10, rgb = "255, 255, 255";
                 if (isPerfectTarget) rgb = "255, 230, 100";
                 else if (harvestStatus === "burnt") { if (lane.owner !== activePlayer) rgb = "180, 180, 180";
-                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; strokeAlphaBase = 0.15; strokeAlphaRange = 0.10;
+                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; 
                     } 
                 } 
                 else if (harvestStatus === "early") { rgb = "255, 80, 80";
                 }
-                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange, currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
+                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
                 ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
+                // ベクター線の代わりに矩形の枠
+                ctx.fillRect(b.x, b.y, b.w, 3); ctx.fillRect(b.x, b.y, 3, b.h);
+                ctx.fillRect(b.x, b.y + b.h - 3, b.w, 3); ctx.fillRect(b.x + b.w - 3, b.y, 3, b.h);
             } else if (state.buildMode === "uchiwa") {
-                let fillAlphaBase = 0.08, fillAlphaRange = 0.10, strokeAlphaBase = 0.25, strokeAlphaRange = 0.20, rgb = "255, 255, 255";
+                let fillAlphaBase = 0.08, fillAlphaRange = 0.10, rgb = "255, 255, 255";
                 if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") rgb = "255, 100, 100";
                 else if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") rgb = "255, 230, 100";
-                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange, currentStrokeAlpha = strokeAlphaBase + selectPulse * strokeAlphaRange;
+                const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
                 ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h);
-                ctx.strokeStyle = `rgba(${rgb}, ${currentStrokeAlpha})`; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
+                ctx.fillRect(b.x, b.y, b.w, 3); ctx.fillRect(b.x, b.y, 3, b.h);
+                ctx.fillRect(b.x, b.y + b.h - 3, b.w, 3); ctx.fillRect(b.x + b.w - 3, b.y, 3, b.h);
             } else {
-                const currentFillAlpha = 0.08 + selectPulse * 0.10, currentStrokeAlpha = 0.25 + selectPulse * 0.20;
+                const currentFillAlpha = 0.08 + selectPulse * 0.10;
                 ctx.fillStyle = `rgba(255, 255, 255, ${currentFillAlpha})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.strokeStyle = `rgba(255, 255, 255, ${currentStrokeAlpha})`; ctx.lineWidth = 3;
-                ctx.strokeRect(b.x, b.y, b.w, b.h);
+                ctx.fillRect(b.x, b.y, b.w, 3); ctx.fillRect(b.x, b.y, 3, b.h);
+                ctx.fillRect(b.x, b.y + b.h - 3, b.w, 3); ctx.fillRect(b.x + b.w - 3, b.y, 3, b.h);
             }
         }
 
@@ -1784,11 +1807,10 @@ function drawGameScreen(ctx) {
                 if (elapsedAI < state.visuals.aiTargetLane.duration) { markerXOffset = Math.sin(now / 40) * 1.5;
                 }
             }
-            ctx.beginPath();
-            ctx.moveTo(laneCx + markerXOffset, markerY); 
-            ctx.lineTo(laneCx - markerSize + markerXOffset, markerY - markerSize); 
-            ctx.lineTo(laneCx + markerSize + markerXOffset, markerY - markerSize);
-            ctx.fill();
+            // ドットの三角形
+            ctx.fillRect(laneCx - 2 + markerXOffset, markerY - 2, 4, 4);
+            ctx.fillRect(laneCx - 4 + markerXOffset, markerY - 6, 8, 4);
+            ctx.fillRect(laneCx - 6 + markerXOffset, markerY - 10, 12, 4);
 
             const isOwn = lane.owner === activePlayer, realCanSteal = !isOwn && currentStatus !== "early" && currentStatus !== "burnt" && pResources >= 1;
             if (!lane.justPlaced) {
@@ -1821,7 +1843,7 @@ function drawGameScreen(ctx) {
             const dx = dotStartX + j * (dotSize + dotGap);
             if (j < cv) {
                 if (isCurrentPreviewLane && previewProg < 0.35 && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
-                    const flashAlpha = 0.5 + 0.5 * Math.sin(getTime() / 50);
+                    const flashAlpha = Math.sin(getTime() / 50) > 0 ? 1 : 0.5; // 点滅をソリッドに
                     ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                 } else {
                     ctx.fillStyle = getVisualPalette(getCookLabel(lane.type, displayCookState).toUpperCase()).dot;
@@ -1838,7 +1860,10 @@ function drawGameScreen(ctx) {
                         strokeStyle = "rgba(255, 100, 100, 1.0)"; }
                     ctx.fillStyle = fillStyle;
                     ctx.fillRect(dx, dotStartY, dotSize, dotSize);
-                    ctx.strokeStyle = strokeStyle; ctx.lineWidth = 1; ctx.strokeRect(dx, dotStartY, dotSize, dotSize);
+                    // strokeRectの代わりにfillRect
+                    ctx.fillStyle = strokeStyle;
+                    ctx.fillRect(dx, dotStartY, dotSize, 1); ctx.fillRect(dx, dotStartY, 1, dotSize);
+                    ctx.fillRect(dx, dotStartY + dotSize - 1, dotSize, 1); ctx.fillRect(dx + dotSize - 1, dotStartY, 1, dotSize);
                 } else { ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                 }
             } else { ctx.fillStyle = "rgba(10, 10, 15, 0.9)";
@@ -1852,11 +1877,15 @@ function drawGameScreen(ctx) {
             if (previewEventForThisLane.prevStatus !== "perfect" && previewEventForThisLane.newStatus === "perfect") { 
                 ctx.fillStyle = `rgba(255, 230, 100, ${0.25 * textProgress})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.fillStyle = "#e6d555"; ctx.font = getPixelFont(14); ctx.fillText("READY!", laneCx, textY);
+                ctx.font = getPixelFont(14);
+                ctx.fillStyle = "#000"; ctx.fillText("READY!", laneCx + 2, textY + 2); // シャドウ
+                ctx.fillStyle = "#e6d555"; ctx.fillText("READY!", laneCx, textY);
             } else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") { 
                 ctx.fillStyle = `rgba(255, 50, 50, ${0.25 * textProgress})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h); 
-                ctx.fillStyle = "#f33"; ctx.font = getPixelFont(16); ctx.fillText("BURNT!", laneCx, textY);
+                ctx.font = getPixelFont(16);
+                ctx.fillStyle = "#000"; ctx.fillText("BURNT!", laneCx + 2, textY + 2); // シャドウ
+                ctx.fillStyle = "#f33"; ctx.fillText("BURNT!", laneCx, textY);
             } else { 
                 ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * textProgress})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h); 
@@ -1881,8 +1910,9 @@ function drawGameScreen(ctx) {
                 let scoreText = score > 0 ?
                     `+${score}` : `${score}`; let color = score > 0 ? "#ffeb3b" : (score < 0 ? "#ff5555" : "#aaaaaa");
                 if (score === 0) color = "#aaaaaa";
-                ctx.globalAlpha = modeAlpha; ctx.font = getPixelFont(12); ctx.fillStyle = "rgba(0,0,0,0.6)";
-                ctx.fillText(scoreText, laneCx + 1, floatY + 1); ctx.fillStyle = color; ctx.fillText(scoreText, laneCx, floatY);
+                ctx.globalAlpha = modeAlpha; ctx.font = getPixelFont(12); 
+                ctx.fillStyle = "#000"; ctx.fillText(scoreText, laneCx + 2, floatY + 2); 
+                ctx.fillStyle = color; ctx.fillText(scoreText, laneCx, floatY);
             } else if (state.buildMode === "uchiwa") {
                 let statusText = uchiwaTargetStatus.toUpperCase();
                 if (uchiwaTargetStatus === "burnt") statusText = "BURN"; if (uchiwaTargetStatus === "okay") statusText = "OK";
@@ -1896,9 +1926,10 @@ function drawGameScreen(ctx) {
                 } else { color = "#aaaaaa"; }
                 ctx.globalAlpha = textAlpha;
                 ctx.font = getPixelFont(10);
-                ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText("NEXT", laneCx + 1, floatY - 14 + 1); ctx.fillStyle = "#aaaaaa";
-                ctx.fillText("NEXT", laneCx, floatY - 14); 
-                ctx.font = getPixelFont(10); ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText(statusText, laneCx + 1, floatY + 1);
+                ctx.fillStyle = "#000"; ctx.fillText("NEXT", laneCx + 2, floatY - 14 + 2); 
+                ctx.fillStyle = "#aaaaaa"; ctx.fillText("NEXT", laneCx, floatY - 14); 
+                
+                ctx.fillStyle = "#000"; ctx.fillText(statusText, laneCx + 2, floatY + 2);
                 ctx.fillStyle = color; ctx.fillText(statusText, laneCx, floatY);
             }
             ctx.globalAlpha = 1.0;
@@ -1925,16 +1956,21 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         p.y += p.vy; const ratio = p.life / p.maxLife; ctx.globalAlpha = 0.6 * (1 - ratio);
         if (p.isText) {
             ctx.globalAlpha = 1 - ratio;
-            ctx.fillStyle = p.color; ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); ctx.textAlign = "center";
-            ctx.shadowColor = "#ffeb3b";
-            ctx.shadowBlur = 10 * (1 - ratio); ctx.fillText(p.text, p.x, p.y); ctx.shadowBlur = 0;
+            ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); ctx.textAlign = "center";
+            // ShadowBlurをドロップシャドウに置き換え
+            ctx.fillStyle = "#000";
+            ctx.fillText(p.text, Math.round(p.x) + 2, Math.round(p.y) + 2);
+            ctx.fillStyle = p.color; 
+            ctx.fillText(p.text, Math.round(p.x), Math.round(p.y));
         } else if (p.isSparkle) {
             ctx.fillStyle = p.color;
             const size = p.size * (1 - ratio * 0.5); ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else {
-            ctx.fillStyle = p.color ||
-                "#e0e0e0"; ctx.beginPath(); ctx.arc(p.x, p.y, (p.size * (1 + ratio)) / 2, 0, Math.PI * 2); ctx.fill();
+            // Arcをブロック(fillRect)に置き換え
+            ctx.fillStyle = p.color || "#e0e0e0"; 
+            const s = Math.max(2, Math.floor((p.size * (1 + ratio)) / 2));
+            ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         }
     }
     ctx.globalAlpha = 1.0;
@@ -1945,7 +1981,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         const isPressed = (now - (state.visuals.cancelClick || 0) < 150);
         drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
         const offset = isPressed ? 3 : 0; ctx.fillStyle = "#fff";
-        ctx.font = getPixelFont(12); ctx.textAlign="center"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
+        ctx.font = getPixelFont(12); ctx.textAlign="center"; 
+        ctx.fillStyle = "#000"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset + 2, cb.y + cb.h/2 + 6 + offset + 2); // シャドウ
+        ctx.fillStyle = "#fff"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
     } else {
         LAYOUT.BUTTONS.forEach((btn, i) => {
             const b = getButtonBounds(i), boxId = i + 1; let canUse = false;
@@ -1971,7 +2009,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (harvestBreatheAlpha > 0 && !isPressed) {
                 ctx.globalAlpha = harvestBreatheAlpha;
                 ctx.fillStyle = "#fff";
-                ctx.fillRect(b.x + 4, b.y + 2, b.w - 8, 2);
+                ctx.fillRect(b.x + 4, b.y + 4, b.w - 8, 4); // 厚みのあるハイライト
             }
             
             ctx.globalAlpha = btnAlpha;
@@ -2020,7 +2058,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const p_fight = state.fightSplashTimer / 25, elapsedP = 1 - p_fight, scale = 1.0 + elapsedP * 0.08, alpha = p_fight < 0.2 ?
                 p_fight * 5 : 1.0;
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
-            ctx.fillStyle = "rgba(200, 0, 0, 0.5)"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
+            ctx.fillStyle = "#000"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
             drawIntroOrderSlip(ctx, cx, cy - 30, state.todaysOrder);
         }
@@ -2050,7 +2088,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, false, ghostStatusUpper, "medium", now);
             drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
-            ctx.fillStyle = g.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.beginPath(); ctx.moveTo(laneCx, stickTop - 10); ctx.lineTo(laneCx-5, stickTop-15); ctx.lineTo(laneCx+5, stickTop-15); ctx.fill();
+            ctx.fillStyle = g.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
+            // 矢印もドット絵化
+            ctx.fillRect(laneCx - 2, stickTop - 10, 4, 4);
+            ctx.fillRect(laneCx - 4, stickTop - 14, 8, 4);
+            ctx.fillRect(laneCx - 6, stickTop - 18, 12, 4);
         }
     });
 
@@ -2145,15 +2187,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 let color = isResult ?
                     "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
-                if (msg.isPerfect) { ctx.shadowColor = "#ffeb3b"; ctx.shadowBlur = 15 * alpha;
-                }
                 
-                ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+                // ドロップシャドウ
+                ctx.fillStyle = "#000";
                 if (icon) {
                     drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0) + 1), Math.round(fy - 8 + 1), "#000", 2.5);
-                    ctx.fillText(text, Math.round(fx + 15 + 1), Math.round(fy + 1));
+                    ctx.fillText(text, Math.round(fx + 15 + 2), Math.round(fy + 2));
                 } else {
-                    ctx.fillText(text, Math.round(fx + 1), Math.round(fy + 1));
+                    ctx.fillText(text, Math.round(fx + 2), Math.round(fy + 2));
                 }
 
                 ctx.fillStyle = color;
@@ -2166,21 +2207,19 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 
                 if (msg.isBonus && msg.bonusText) {
                     ctx.font = getPixelFont(10);
-                    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0) + 1), Math.round(fy - 18 + 1));
+                    ctx.fillStyle = "#000";
+                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0) + 2), Math.round(fy - 18 + 2));
                     ctx.fillStyle = "#ffeb3b";
                     ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0)), Math.round(fy - 18));
                 } else if (msg.isPerfect && !msg.isBonus) {
                     ctx.font = getPixelFont(10);
-                    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-                    ctx.fillText("PERFECT!", Math.round(fx + 1), Math.round(fy - 18 + 1));
+                    ctx.fillStyle = "#000";
+                    ctx.fillText("PERFECT!", Math.round(fx + 2), Math.round(fy - 18 + 2));
                     ctx.fillStyle = "#ffeb3b";
                     ctx.fillText("PERFECT!", Math.round(fx), Math.round(fy - 18));
                 }
             }
         }
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = "transparent";
     });
     ctx.globalAlpha = 1.0;
 }
@@ -2188,10 +2227,20 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx, baseColor = active ?
         (idx === 1 ? "#2a4a6a" : "#6a2a3a") : LAYOUT.COLORS.PANEL_BG;
+    
+    // ピクセル枠のパネルとして描画
     drawBevelRect(ctx, x, y, w, h, baseColor);
-    if (active) { ctx.strokeStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.lineWidth = 2;
-        ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+    
+    if (active) { 
+        // アクティブな枠線もソリッドなドット枠にする
+        const scale = 4;
+        ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
+        ctx.fillRect(x - scale, y - scale, w + scale*2, scale);
+        ctx.fillRect(x - scale, y - scale, scale, h + scale*2);
+        ctx.fillRect(x - scale, y + h, w + scale*2, scale);
+        ctx.fillRect(x + w, y - scale, scale, h + scale*2);
     }
+
     ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(12); ctx.textAlign = "left";
     ctx.fillText(`P${idx}`, x + 10, y + 25);
     ctx.fillStyle = "#ccc"; ctx.font = getPixelFont(10);
