@@ -1235,53 +1235,82 @@ function drawBackgroundProps(ctx, w, h) {
     ctx.restore();
 }
 
+// 2. 本物の炭火焼き機を表現する炭の描画
 function drawCharcoal(ctx, lane, bounds, now, laneIndex) {
     const { x, y, w, h } = bounds;
-    const cols = 5; // 横の炭の数
-    const rows = 4; // 縦の炭の数
-    const cw = w / cols;
-    const ch = (h * 0.35) / rows; // 焼き台の下部に配置
-    const startY = y + h * 0.6;
+    
+    // 炉の奥行き(底の暗がり)を表現する背景
+    ctx.fillStyle = "#0a0a0c";
+    ctx.fillRect(x, y + h * 0.4, w, h * 0.6);
 
-    // レーンの火力に応じて赤熱する確率を変える
-    let baseRed = 0.2; // 弱火
-    if (lane.type === "medium") baseRed = 0.5;
-    else if (lane.type === "strong") baseRed = 0.8;
+    const numCoals = 14; // 不規則に配置する炭の数
+    const startY = y + h * 0.55;
+    const endY = y + h * 0.95;
+
+    // 前回の設定から発光確率(baseRed)を10〜20%抑え、静かな熱に
+    let baseRed = 0.15; // 弱火
+    if (lane.type === "medium") baseRed = 0.35;
+    else if (lane.type === "strong") baseRed = 0.65;
 
     ctx.save();
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-            // ランダム(Math.random)を使うと毎フレーム形が変わってチカチカするため、
-            // レーン番号と位置から、常に同じ結果になる擬似的なランダム値を作ります
-            const pseudoRand1 = Math.abs(Math.sin(laneIndex * 10 + r * 5 + c * 3));
-            const pseudoRand2 = Math.abs(Math.cos(laneIndex * 7 + r * 11 + c * 13));
-            
-            // 炭の位置を少しずらして自然にする
-            const cx = x + c * cw + (pseudoRand1 * 4 - 2);
-            const cy = startY + r * ch + (pseudoRand2 * 4 - 2);
-            
-            // 炭のベースカラー(燃え尽きた灰か、黒い炭か)
-            const isAsh = pseudoRand1 > 0.6;
-            ctx.fillStyle = isAsh ? "#2a2a2a" : "#111111";
-            ctx.fillRect(cx, cy, cw * 0.9, ch * 0.9);
 
-            // 赤熱表現
-            if (pseudoRand2 < baseRed) {
-                // 時間(now)を使って、ごくゆっくりと静かに明滅させる
-                const flickerSpeed = 500 + pseudoRand1 * 500;
-                const flicker = Math.sin(now / flickerSpeed) * 0.2 + 0.8; // 0.6 ~ 1.0の間で変化
-                
-                ctx.fillStyle = `rgba(180, 40, 10, ${0.5 * flicker})`;
-                ctx.fillRect(cx + 2, cy + 2, cw * 0.9 - 4, ch * 0.9 - 4);
-                
-                // さらに熱い部分は中心を明るくする
-                if (pseudoRand2 < baseRed * 0.5) {
-                    ctx.fillStyle = `rgba(220, 80, 20, ${0.8 * flicker})`;
-                    ctx.fillRect(cx + 4, cy + 4, cw * 0.9 - 8, ch * 0.9 - 8);
-                }
-            }
+    // 先に薄い灰(Ash)を底に敷き詰める
+    for (let i = 0; i < 8; i++) {
+        const pr1 = Math.abs(Math.sin(laneIndex * 5 + i * 7));
+        const pr2 = Math.abs(Math.cos(laneIndex * 3 + i * 11));
+        
+        ctx.fillStyle = `rgba(85, 85, 85, 0.3)`; // #555の低透明度
+        const ashX = x + pr1 * (w - 10);
+        const ashY = startY + pr2 * (endY - startY);
+        
+        ctx.beginPath();
+        ctx.ellipse(ashX + 5, ashY + 5, 12 + pr1 * 8, 6 + pr2 * 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 炭の塊を不規則に描画
+    for (let i = 0; i < numCoals; i++) {
+        const pr1 = Math.abs(Math.sin(laneIndex * 13 + i * 17));
+        const pr2 = Math.abs(Math.cos(laneIndex * 19 + i * 23));
+        const pr3 = Math.abs(Math.sin(laneIndex * 29 + i * 31));
+
+        const cw = 10 + pr1 * 14; // サイズをばらけさせる
+        const ch = 6 + pr2 * 8;
+        const cx = x + pr3 * (w - cw);
+        const cy = startY + pr1 * (endY - startY - ch);
+
+        // 炭の外周(燃え尽きた黒や暗灰)
+        ctx.fillStyle = pr2 > 0.4 ? "#151515" : "#0a0a0a";
+        ctx.beginPath();
+        ctx.ellipse(cx + cw/2, cy + ch/2, cw/2, ch/2, pr3 * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 炭の中心だけの赤熱(RadialGradientによる発光)
+        if (pr2 < baseRed) {
+            const flickerSpeed = 800 + pr1 * 400;
+            const flicker = Math.sin(now / flickerSpeed) * 0.15 + 0.75; // チカチカしない静かな明滅
+
+            // 中心が一番明るく、外にいくほど透明になるグラデーション
+            const grad = ctx.createRadialGradient(cx + cw/2, cy + ch/2, 0, cx + cw/2, cy + ch/2, Math.max(cw, ch) * 0.6);
+            grad.addColorStop(0, `rgba(200, 70, 15, ${0.85 * flicker})`); // 中心は赤橙
+            grad.addColorStop(0.6, `rgba(120, 30, 10, ${0.4 * flicker})`); // 中間は暗い赤
+            grad.addColorStop(1, "rgba(0, 0, 0, 0)"); // 外周は発光しない
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.ellipse(cx + cw/2, cy + ch/2, cw/2, ch/2, pr3 * Math.PI, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
+
+    // 炉の深さを出すためのシャドウオーバーレイ(炭の上に暗がりを落とす)
+    const shadowGrad = ctx.createLinearGradient(x, startY, x, y + h);
+    shadowGrad.addColorStop(0, "rgba(0, 0, 0, 0.7)");
+    shadowGrad.addColorStop(0.3, "rgba(0, 0, 0, 0.1)");
+    shadowGrad.addColorStop(1, "rgba(0, 0, 0, 0.8)");
+    ctx.fillStyle = shadowGrad;
+    ctx.fillRect(x, startY - 10, w, (y + h) - startY + 10);
+
     ctx.restore();
 }
 
@@ -1678,11 +1707,22 @@ function drawGameScreen(ctx) {
             }
         }
         
-        ctx.strokeStyle = "#555";
-        ctx.lineWidth = 2; ctx.beginPath();
+// 焼き網ベース(少し明るめの金属色で主役にする)
+        ctx.strokeStyle = "#7a7a85"; 
+        ctx.lineWidth = 2; 
+        ctx.beginPath();
         for (let j = 1; j <= 5; j++) { const barY = b.y + (b.h * j / 6);
             ctx.moveTo(b.x, barY); ctx.lineTo(b.x + b.w, barY); }
         [0.2, 0.8].forEach(ratio => { const barX = b.x + b.w * ratio; ctx.moveTo(barX, b.y); ctx.lineTo(barX, b.y + b.h); });
+        ctx.stroke();
+
+        // 焼き網のハイライト(1px上に細い白い線を重ねて金属の立体感を強調)
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.lineWidth = 1; 
+        ctx.beginPath();
+        for (let j = 1; j <= 5; j++) { const barY = b.y + (b.h * j / 6) - 1;
+            ctx.moveTo(b.x, barY); ctx.lineTo(b.x + b.w, barY); }
+        [0.2, 0.8].forEach(ratio => { const barX = b.x + b.w * ratio - 1; ctx.moveTo(barX, b.y); ctx.lineTo(barX, b.y + b.h); });
         ctx.stroke();
 
         // ==== ここに金網の汚れの追加描画 ====
