@@ -1515,8 +1515,6 @@ const gy = Math.round(b.y + b.h / 2 - spriteH / 2) + 15;
         drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_GRILL_PARTS.base);
 drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_COAL_PATTERN, 0, 22);
         
-        // --- 炭の半透明フィルター(coalFilterColor)はドット絵らしさを損なうため削除 ---
-        
         drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_GRILL_PARTS.net);
         const currentStatus = getCookLabel(lane.type, effectiveCookState);
 const isPrePerfect = (currentStatus !== "perfect" && currentStatus !== "burnt" && baseEndStatus === "perfect");
@@ -1706,8 +1704,6 @@ if (status === "perfect") isPerfectTarget = true; }
                 else if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") rgb = "255, 230, 100";
             }
             const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
-            
-            // --- 選択面の半透明塗りつぶしを廃止し、ドット枠のみで表現 ---
             ctx.fillStyle = "rgba(" + rgb + ", " + (currentFillAlpha + 0.4) + ")";
             ctx.fillRect(b.x, b.y, b.w, 4);
             ctx.fillRect(b.x, b.y, 4, b.h);
@@ -1774,15 +1770,7 @@ ctx.font = getPixelFont(10);
             const textY = b.y + b.h * 0.1 - 15; ctx.textAlign = "center";
             ctx.globalAlpha = textProgress;
             
-            // --- READY / BURNT 時の半透明の面塗りを廃止し、枠点滅と札表現に変更 ---
-            const flashPulse = Math.sin(getTime() / 50) > 0 ? 1 : 0;
-
             if (previewEventForThisLane.prevStatus !== "perfect" && previewEventForThisLane.newStatus === "perfect") {
-                if (flashPulse) {
-                    ctx.fillStyle = "#ffeb3b";
-                    ctx.fillRect(b.x, b.y, b.w, 4); ctx.fillRect(b.x, b.y, 4, b.h);
-                    ctx.fillRect(b.x, b.y + b.h - 4, b.w, 4); ctx.fillRect(b.x + b.w - 4, b.y, 4, b.h);
-                }
                 const msgW = ctx.measureText("READY!").width + 16;
                 drawBevelRect(ctx, laneCx - msgW/2, textY - 14, msgW, 20, "#e6d555");
                 
@@ -1790,29 +1778,30 @@ ctx.font = getPixelFont(10);
                 ctx.fillStyle = "#fff";
                 ctx.fillText("READY!", laneCx, textY);
             } else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") {
-                if (flashPulse) {
-                    ctx.fillStyle = "#f33";
-                    ctx.fillRect(b.x, b.y, b.w, 4); ctx.fillRect(b.x, b.y, 4, b.h);
-                    ctx.fillRect(b.x, b.y + b.h - 4, b.w, 4); ctx.fillRect(b.x + b.w - 4, b.y, 4, b.h);
-                }
                 const msgW = ctx.measureText("BURNT!").width + 16;
-                drawBevelRect(ctx, laneCx - msgW/2, textY - 16, msgW, 24, "#ff5555");
+                drawBevelRect(ctx, laneCx - msgW/2, textY - 16, msgW, 24, "#8a3a3a");
                 
                 ctx.font = getPixelFont(16); ctx.fillStyle = "#000"; ctx.fillText("BURNT!", laneCx + 2, textY + 2);
-                ctx.fillStyle = "#fff";
+                ctx.fillStyle = "#ffaa88";
                 ctx.fillText("BURNT!", laneCx, textY);
-            } else {
-                if (flashPulse) {
-                    ctx.fillStyle = "#fff";
-                    ctx.fillRect(b.x, b.y, b.w, 4); ctx.fillRect(b.x, b.y, 4, b.h);
-                    ctx.fillRect(b.x, b.y + b.h - 4, b.w, 4); ctx.fillRect(b.x + b.w - 4, b.y, 4, b.h);
-                }
             }
             ctx.globalAlpha = 1.0;
         }
         drawLaneHint(ctx, lane, i, state.buildMode, activePlayer, pResources);
         
-        // --- プレビュー中の非アクティブレーン暗転(黒い半透明被せ)を廃止 ---
+        if (state.cookPreviewActive && !isCurrentPreviewLane) {
+            ctx.fillStyle = "rgba(15, 10, 8, 0.4)";
+            ctx.fillRect(b.x - 8, b.y - 8, b.w + 16, b.h + 80);
+            
+            ctx.fillStyle = "rgba(40, 35, 30, 0.6)";
+            for(let s = 0; s < 5; s++) {
+                let sy = b.y + b.h - ((now / 40 + s * 30 + i * 50) % (b.h + 40));
+                let sx = b.x + 10 + (Math.sin(now / 400 + s) * (b.w - 20));
+                ctx.fillRect(sx, sy, 16, 16);
+                ctx.fillRect(sx - 4, sy + 4, 8, 8);
+                ctx.fillRect(sx + 12, sy + 4, 8, 8);
+            }
+        }
     });
 if (state.startRouletteActive || state.startRouletteBlinkActive) {
         drawRouletteBanner(ctx, cx, cy, state);
@@ -1990,6 +1979,7 @@ ctx.globalAlpha = 1.0;
 ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
 }
 }
+
 
 
 
