@@ -2491,8 +2491,6 @@ function render(ctx) {
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
 const active = activePlayer === idx;
-
-```
 // アクティブ時に少し浮く演出
 const offsetAnim = active ? -2 : 0;
 const px = Math.round(x);
@@ -2577,10 +2575,8 @@ drawShadowText(`${player.score}`, boxX + boxW - 6, boxY1 + 15, "#fff", getPixelF
 // 肉（リソース）
 drawDotIcon(ctx, "meat", boxX + 10, boxY2 + boxH / 2, "#f77", 1.8);
 drawShadowText(`${player.resources || 0}`, boxX + boxW - 6, boxY2 + 15, "#fff", getPixelFont(10), "right");
-
-```
-
 }
+
 
 
 // ==========================================
