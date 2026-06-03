@@ -2115,8 +2115,6 @@ function render(ctx) {
     }
 }
 
-// [PATCH: renderParticlesAndOverlay]
-```javascript
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
     for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
@@ -2144,116 +2142,65 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     ctx.globalAlpha = 1.0;
     if (state.buildMode) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
-        if (selectedIcon) { 
-            const iconX = cb.x + cb.w / 2, iconY = cb.y - 26; ctx.globalAlpha = 0.9;
-            drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3); ctx.globalAlpha = 1.0; 
-        }
+        if (selectedIcon) { const iconX = cb.x + cb.w / 2, iconY = cb.y - 26; ctx.globalAlpha = 0.9;
+            drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3); ctx.globalAlpha = 1.0; }
         const isPressed = (now - (state.visuals.cancelClick || 0) < 150);
-        drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#8a3a3a", isPressed);
+        drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
         const offset = isPressed ? 4 : 0; 
-        
-        // 四隅の釘（道具札らしさ）
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
         ctx.fillRect(cb.x + 4, cb.y + 4, 4, 4);
         ctx.fillRect(cb.x + cb.w - 8, cb.y + 4, 4, 4);
         ctx.fillRect(cb.x + 4, cb.y + cb.h - 8, 4, 4);
         ctx.fillRect(cb.x + cb.w - 8, cb.y + cb.h - 8, 4, 4);
-
         ctx.fillStyle = "#fff";
         ctx.font = getPixelFont(12); ctx.textAlign="center"; 
         ctx.fillStyle = "#000"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset + 2, cb.y + cb.h/2 + 6 + offset + 2);
         ctx.fillStyle = "#fff";
         ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
     } else {
-        // 世界観に合わせた道具札風のカラーリング（彩度を少し落とし和の染め色風に）
         const tagColors = ["#5c6e58", "#4e627d", "#8e6d4c", "#784b5c"];
-        
         LAYOUT.BUTTONS.forEach((btn, i) => {
             const b = getButtonBounds(i), boxId = i + 1; let canUse = false;
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);  if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); 
             if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
-          
             const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
             const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); 
-            
-            let baseColor = tagColors[i];
-            if (isError) {
-                baseColor = "#7a3b3b";
-            } else if (!canUse || isLocked) {
-                baseColor = "#4a4642"; // 使用不可時は落ち着いた木のグレー色
-            }
-
-            let btnAlpha = 1.0; 
+            let baseColor = isError ? "#7a3b3b" : ((!canUse || isLocked) ? "#4a4642" : tagColors[i]);
             let harvestBreatheAlpha = 0;
-    
             if (boxId === 3 && canUse && !isLocked && state.buildMode === null) { 
                 const isPerfect = hasPerfectHarvestTarget(state.currentPlayer); 
                 baseColor = brightenColor(tagColors[i], isPerfect ? 0.2 : 0.0); 
                 harvestBreatheAlpha = isPerfect ? 0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
             }
-            
-            ctx.globalAlpha = btnAlpha;
+            ctx.globalAlpha = 1.0;
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
-            
-            // 木札としての彫り込みライン
             ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
             ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, 4);
             ctx.fillRect(b.x + 8, b.y + 12, 4, b.h - 24);
             ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
             ctx.fillRect(b.x + 8, b.y + b.h - 12, b.w - 16, 4);
             ctx.fillRect(b.x + b.w - 12, b.y + 12, 4, b.h - 24);
-
-            // 四隅の釘（留め具）
             ctx.fillStyle = (canUse && !isLocked) ? "rgba(30, 20, 10, 0.4)" : "rgba(10, 10, 10, 0.6)";
             ctx.fillRect(b.x + 4, b.y + 4, 4, 4);
             ctx.fillRect(b.x + b.w - 8, b.y + 4, 4, 4);
             ctx.fillRect(b.x + 4, b.y + b.h - 8, 4, 4);
             ctx.fillRect(b.x + b.w - 8, b.y + b.h - 8, 4, 4);
-
-            if (harvestBreatheAlpha > 0 && !isPressed) {
-                ctx.globalAlpha = harvestBreatheAlpha;
-                ctx.fillStyle = "#fff";
-                ctx.fillRect(b.x + 12, b.y + 8, b.w - 24, 4); // 上部の彫り込みラインに合わせて光らせる
-            }
-            
-            ctx.globalAlpha = btnAlpha;
-            const offset = isPressed ? 4 : 0; // ドット絵の4pxルールに合わせた沈み込み
-
+            if (harvestBreatheAlpha > 0 && !isPressed) { ctx.globalAlpha = harvestBreatheAlpha; ctx.fillStyle = "#fff"; ctx.fillRect(b.x + 12, b.y + 8, b.w - 24, 4); }
+            ctx.globalAlpha = 1.0;
+            const offset = isPressed ? 4 : 0; 
             drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "#999", 4);
-            
-            let textAlpha = isPressed ? 1.0 : 0.85; 
-            ctx.globalAlpha = textAlpha;
-            const textY = b.y + b.h - 10 + offset; 
-            const textX = b.x + b.w/2 + offset;
-            
-            // コスト・情報の背景に小さな「焼印 / 帯」のような座布団を敷いて可読性を上げる
-            ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-            ctx.fillRect(textX - 24, textY - 9, 48, 14);
-
-            ctx.fillStyle = (canUse && !isLocked) ? "#f4e6d0" : "#999"; 
-            ctx.font = getPixelFont(9); ctx.textAlign = "center";
-            
-            if (boxId === 1) { 
-                drawDotIcon(ctx, "meat", textX - 10, textY - 3, (canUse && !isLocked) ? "#ffbaba" : "#999", 1.5);
-                ctx.fillText("+1", textX + 10, textY); 
-            } else if (boxId === 2) { 
-                drawDotIcon(ctx, "meat", textX - 10, textY - 3, (canUse && !isLocked) ? "#ffbaba" : "#999", 1.5);
-                ctx.fillText("-1", textX + 10, textY); 
-            } else if (boxId === 3) { 
-                drawDotIcon(ctx, "put_skewer", textX - 10, textY - 3, (canUse && !isLocked) ? "#fff" : "#999", 1.5);
-                ctx.fillText("↑", textX + 10, textY); 
-            } else if (boxId === 4) { 
-                drawDotIcon(ctx, "fire", textX - 10, textY - 3, (canUse && !isLocked) ? "#fa3" : "#999", 1.5);
-                ctx.fillText("+1", textX + 10, textY); 
-            }
+            ctx.globalAlpha = isPressed ? 1.0 : 0.85; 
+            const textY = b.y + b.h - 10 + offset; const textX = b.x + b.w/2 + offset;
+            ctx.fillStyle = "rgba(0, 0, 0, 0.25)"; ctx.fillRect(textX - 24, textY - 9, 48, 14);
+            ctx.fillStyle = (canUse && !isLocked) ? "#f4e6d0" : "#999"; ctx.font = getPixelFont(9); ctx.textAlign = "center";
+            if (boxId === 1) { drawDotIcon(ctx, "meat", textX - 10, textY - 3, (canUse && !isLocked) ? "#ffbaba" : "#999", 1.5); ctx.fillText("+1", textX + 10, textY); }
+            else if (boxId === 2) { drawDotIcon(ctx, "meat", textX - 10, textY - 3, (canUse && !isLocked) ? "#ffbaba" : "#999", 1.5); ctx.fillText("-1", textX + 10, textY); }
+            else if (boxId === 3) { drawDotIcon(ctx, "put_skewer", textX - 10, textY - 3, (canUse && !isLocked) ? "#fff" : "#999", 1.5); ctx.fillText("↑", textX + 10, textY); }
+            else if (boxId === 4) { drawDotIcon(ctx, "fire", textX - 10, textY - 3, (canUse && !isLocked) ? "#fa3" : "#999", 1.5); ctx.fillText("+1", textX + 10, textY); }
             ctx.globalAlpha = 1.0;
         });
     }
 }
-
-```
-
-
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx, baseColor = active ?
