@@ -1424,6 +1424,80 @@ ctx.restore();
 
 
 
+function drawRouletteBanner(ctx, cx, cy, state) {
+let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
+if (!isVisible) return;
+
+```
+const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex;
+const color = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+const text = `P${idx}`;
+
+const bannerW = 100;
+const bannerH = 56;
+const bx = Math.round(cx - bannerW / 2);
+const by = Math.round(cy - bannerH / 2) - 15;
+
+const isFinalBlink = state.startRouletteBlinkActive;
+const offset = isFinalBlink ? 2 : 0;
+
+ctx.save();
+ctx.globalAlpha = 0.9;
+drawBevelRect(ctx, bx, by + offset, bannerW, bannerH, "#241e1a", isFinalBlink);
+
+ctx.font = getPixelFont(24);
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+
+ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+ctx.fillText(text, cx + 2, by + bannerH / 2 + 2 + offset);
+ctx.fillStyle = color;
+ctx.fillText(text, cx, by + bannerH / 2 + offset);
+
+ctx.restore();
+
+```
+
+}
+
+function drawTurnBanner(ctx, cx, cy, state, activePlayer) {
+const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
+if (fadeAlpha <= 0) return;
+
+```
+const bannerW = 200;
+const bannerH = 48;
+const bx = Math.round(cx - bannerW / 2);
+const by = Math.round(cy - bannerH / 2) - 15;
+
+ctx.save();
+ctx.globalAlpha = fadeAlpha * 0.95;
+drawBevelRect(ctx, bx, by, bannerW, bannerH, "#241e1a", false);
+
+const color = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
+const text = `P${activePlayer} TURN`;
+
+ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+ctx.fillRect(bx + 8, by + 8, bannerW - 16, 2);
+ctx.fillRect(bx + 8, by + bannerH - 10, bannerW - 16, 2);
+
+ctx.font = getPixelFont(16);
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+
+ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+ctx.fillText(text, cx + 2, by + bannerH / 2 + 2);
+ctx.fillStyle = color;
+ctx.fillText(text, cx, by + bannerH / 2);
+
+ctx.restore();
+
+```
+
+}
+
+
+
 function drawGameScreen(ctx) {
 const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2, safeTop = 15, panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25), now = getTime();
 const activePlayer = (state.startRouletteActive || state.startRouletteBlinkActive) ? (state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex) : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
@@ -2082,6 +2156,7 @@ if (state.gameOver && state.gameEndWaitTimer > 0) {
 ```
 
 }
+
 
 
 
