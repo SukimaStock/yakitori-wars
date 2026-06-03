@@ -2271,171 +2271,234 @@ function drawTableBackground(ctx) {
 }
 
 function render(ctx) {
-    const now = getTime();
-    state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
+const now = getTime();
+state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
+
+```
+state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { 
+    const life = m.duration || 1000;
+    return now - m.startTime < life; 
+});
+state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
+
+if (state.screen === "game") {
+    drawTableBackground(ctx);
+} else {
+    ctx.fillStyle = LAYOUT.COLORS.BG; 
+    ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+}
+
+const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
+if (state.screen === "title") {
+    const logoOffsetY = -205, buttonOffsetY = 85;
+    if (logoImage.complete && logoImage.naturalWidth > 0) { 
+        const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82);
+        const ratio = logoImage.naturalHeight / logoImage.naturalWidth, logoW = logoMaxW, logoH = logoW * ratio;
+        ctx.drawImage(logoImage, cx - logoW / 2, cy + logoOffsetY, logoW, logoH);
+    }
+    const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 }, btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
+    drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI", "rgba(255, 150, 60, 0.45)", state.visuals.titleClick === "ai");
+    drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", state.visuals.titleClick === "pvp");
+} else if (state.screen === "game") { 
+    drawGameScreen(ctx); drawEndSplash(ctx);
+} else if (state.screen === "clear") {
+    state.resultScreenTimer++; const timer = state.resultScreenTimer;
+    const alphaOverlay = Math.min(0.85, timer / 90);
+    ctx.fillStyle = `rgba(30, 15, 10, ${alphaOverlay})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     
-    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { 
-        const life = m.duration || 1000;
-        return now - m.startTime < life; 
-    });
-    state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
+    if (timer % 6 === 0) { 
+        state.visuals.floaters.push({ x: Math.random() * LAYOUT.CANVAS_WIDTH, y: LAYOUT.CANVAS_HEIGHT + 10, vx: (Math.random() - 0.5) * 0.4, vy: -0.4 - Math.random() * 0.6, life: 0, maxLife: 200 + Math.random() * 150, size: 2 + Math.random() * 4 });
+    }
+    for (let i = state.visuals.floaters.length - 1; i >= 0; i--) {
+        let f = state.visuals.floaters[i];
+        f.life++; if (f.life >= f.maxLife) { state.visuals.floaters.splice(i, 1); continue; }
+        f.x += f.vx; f.y += f.vy; const ratio = f.life / f.maxLife; ctx.globalAlpha = Math.max(0, 1 - ratio);
+        ctx.fillStyle = `rgba(255, ${100 + Math.random() * 50}, 50, 0.8)`; ctx.fillRect(f.x, f.y, f.size, f.size);
+    }
+    ctx.globalAlpha = 1.0; ctx.textAlign = "center";
     
-    if (state.screen === "game") {
-        drawTableBackground(ctx);
-    } else {
-        ctx.fillStyle = LAYOUT.COLORS.BG; 
+    if (timer > 60) { 
+        ctx.globalAlpha = Math.min(1, (timer - 60) / 45); 
+        
+        const bw = 280, bh = 220;
+        const bx = Math.round(cx - bw/2), by = Math.round(cy - 120);
+        drawBevelRect(ctx, bx, by, bw, bh, "#241e1a", false);
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        ctx.fillRect(bx+8, by+8, bw-16, 2);
+        ctx.fillRect(bx+8, by+bh-10, bw-16, 2);
+        
+        ctx.font = getPixelFont(20); ctx.fillStyle = "#000";
+        ctx.fillText("SURVIVAL CLEAR", cx + 2, cy - 80 + 2); 
+        ctx.fillStyle = "#ffeb3b";
+        ctx.fillText("SURVIVAL CLEAR", cx, cy - 80); 
+    }
+    if (timer > 140) { 
+        ctx.globalAlpha = Math.min(1, (timer - 140) / 45);
+        ctx.font = getPixelFont(12); ctx.fillStyle = "#000"; ctx.fillText("You mastered the grill.", cx + 1, cy - 30 + 1);
+        ctx.fillStyle = "#e0e0e0"; ctx.fillText("You mastered the grill.", cx, cy - 30);
+    }
+    if (timer > 220) { 
+        ctx.globalAlpha = Math.min(1, (timer - 220) / 45);
+        ctx.font = getPixelFont(12); ctx.fillStyle = "#000"; ctx.fillText("THANK YOU FOR PLAYING", cx + 1, cy + 20 + 1);
+        ctx.fillStyle = "#fa3"; ctx.fillText("THANK YOU FOR PLAYING", cx, cy + 20);
+    }
+    if (timer > 300) { 
+        const pulse = 0.85 + 0.15 * Math.sin(getTime() / 600);
+        ctx.globalAlpha = Math.min(1, (timer - 300) / 45) * pulse; 
+        
+        drawBevelRect(ctx, cx - 110, cy + 76, 220, 36, "#3a3a40", false);
+        
+        ctx.font = getPixelFont(12); ctx.fillStyle = "#000";
+        ctx.fillText("▶ BACK TO TITLE", cx + 1, cy + 100 + 1); 
+        ctx.fillStyle = "#fff";
+        ctx.fillText("▶ BACK TO TITLE", cx, cy + 100); 
+    }
+    ctx.globalAlpha = 1.0;
+} else if (state.screen === "gameover" || state.screen === "stage_clear") {
+    state.resultScreenTimer++;
+    const timer = state.resultScreenTimer;
+    if (timer >= 10) {
+        let titleText = state.winnerText;
+        let titleColor = "#fff";
+        if (state.screen === "gameover") { 
+            if (titleText.includes("P1")) titleColor = LAYOUT.COLORS.P1; 
+            else if (titleText.includes("DRAW")) titleColor = "#888";
+            else titleColor = LAYOUT.COLORS.P2; 
+        } else { titleColor = "#ffeb3b"; }
+        
+        if (!state.visuals.resultComment) {
+            const diff = Math.abs((state.players[0].finalScore || state.players[0].score) - (state.players[1].finalScore || state.players[1].score));
+            let comment = "Good game.";
+            if (state.screen === "gameover" && !state.winnerText.includes("DRAW") && diff <= 2) comment = "So close.";
+            else if (state.players[0].stats.perfect >= 3 || state.players[1].stats.perfect >= 3) comment = "Nice timing.";
+            else if (state.players[0].stats.burnt >= 3 || state.players[1].stats.burnt >= 3) comment = "Still counts.";
+            else if (state.players[0].stats.steal >= 2 || state.players[1].stats.steal >= 2) comment = "Nice steal.";
+            state.visuals.resultComment = comment;
+        }
+        
+        const alpha = Math.min(1, (timer - 10) / 10);
+        ctx.globalAlpha = alpha;
+        if (timer === 10 || timer === 11) { 
+            ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+            ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); 
+        }
+        
+        ctx.fillStyle = "rgba(20, 16, 14, 0.85)";
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-    }
-    
-    const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
-    if (state.screen === "title") {
-        const logoOffsetY = -205, buttonOffsetY = 85;
-        if (logoImage.complete && logoImage.naturalWidth > 0) { 
-            const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82);
-            const ratio = logoImage.naturalHeight / logoImage.naturalWidth, logoW = logoMaxW, logoH = logoW * ratio;
-            ctx.drawImage(logoImage, cx - logoW / 2, cy + logoOffsetY, logoW, logoH);
-        }
-        const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 }, btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
-        drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI", "rgba(255, 150, 60, 0.45)", state.visuals.titleClick === "ai");
-        drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", state.visuals.titleClick === "pvp");
-    } else if (state.screen === "game") { 
-        drawGameScreen(ctx); drawEndSplash(ctx);
-    } else if (state.screen === "clear") {
-        state.resultScreenTimer++; const timer = state.resultScreenTimer;
-        const alphaOverlay = Math.min(0.85, timer / 90);
-        ctx.fillStyle = `rgba(30, 15, 10, ${alphaOverlay})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-        if (timer % 6 === 0) { state.visuals.floaters.push({ x: Math.random() * LAYOUT.CANVAS_WIDTH, y: LAYOUT.CANVAS_HEIGHT + 10, vx: (Math.random() - 0.5) * 0.4, vy: -0.4 - Math.random() * 0.6, life: 0, maxLife: 200 + Math.random() * 150, size: 2 + Math.random() * 4 });
-        }
-        for (let i = state.visuals.floaters.length - 1; i >= 0; i--) {
-            let f = state.visuals.floaters[i];
-            f.life++; if (f.life >= f.maxLife) { state.visuals.floaters.splice(i, 1); continue; }
-            f.x += f.vx;
-            f.y += f.vy; const ratio = f.life / f.maxLife; ctx.globalAlpha = Math.max(0, 1 - ratio);
-            ctx.fillStyle = `rgba(255, ${100 + Math.random() * 50}, 50, 0.8)`; ctx.fillRect(f.x, f.y, f.size, f.size);
-        }
-        ctx.globalAlpha = 1.0; ctx.textAlign = "center";
-        if (timer > 60) { ctx.globalAlpha = Math.min(1, (timer - 60) / 45); ctx.font = getPixelFont(24); ctx.fillStyle = "#ffeb3b";
-            ctx.fillText("SURVIVAL CLEAR", cx, cy - 80); }
-        if (timer > 140) { ctx.globalAlpha = Math.min(1, (timer - 140) / 45);
-            ctx.font = getPixelFont(12); ctx.fillStyle = "#e0e0e0"; ctx.fillText("You mastered the grill.", cx, cy - 30);
-        }
-        if (timer > 220) { ctx.globalAlpha = Math.min(1, (timer - 220) / 45);
-            ctx.font = getPixelFont(12); ctx.fillStyle = "#fa3"; ctx.fillText("THANK YOU FOR PLAYING", cx, cy + 20);
-        }
-        if (timer > 300) { const pulse = 0.85 + 0.15 * Math.sin(getTime() / 600);
-            ctx.globalAlpha = Math.min(1, (timer - 300) / 45) * pulse; ctx.font = getPixelFont(14); ctx.fillStyle = "#fff";
-            ctx.fillText("▶ BACK TO TITLE", cx, cy + 100); }
+
+        const bw = 260, bh = 270;
+        const bx = Math.round(cx - bw/2), by = Math.round(cy - 145);
+        drawBevelRect(ctx, bx, by, bw, bh, "#2a221c", false);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+        ctx.fillRect(bx + 6, by + 6, bw - 12, 2);
+        ctx.fillRect(bx + 6, by + bh - 8, bw - 12, 2);
+
+        ctx.font = getPixelFont(22);
+        ctx.textAlign = "center"; 
+        ctx.fillStyle = "#000"; ctx.fillText(titleText, cx + 2, cy - 110 + 2);
+        ctx.fillStyle = titleColor; ctx.fillText(titleText, cx, cy - 110);
+        
+        ctx.font = getPixelFont(10); 
+        ctx.fillStyle = "#000"; ctx.fillText(state.visuals.resultComment, cx + 1, cy - 80 + 1);
+        ctx.fillStyle = "#a89f91"; ctx.fillText(state.visuals.resultComment, cx, cy - 80); 
         ctx.globalAlpha = 1.0;
-    } else if (state.screen === "gameover" || state.screen === "stage_clear") {
-        state.resultScreenTimer++;
-        const timer = state.resultScreenTimer;
-        if (timer >= 10) {
-            let titleText = state.winnerText;
-            let titleColor = "#fff";
-            if (state.screen === "gameover") { if (titleText.includes("P1")) titleColor = LAYOUT.COLORS.P1; else if (titleText.includes("DRAW")) titleColor = "#888";
-                else titleColor = LAYOUT.COLORS.P2; } else { titleColor = "#ffeb3b";
-            }
-            if (!state.visuals.resultComment) {
-                const diff = Math.abs((state.players[0].finalScore || state.players[0].score) - (state.players[1].finalScore || state.players[1].score));
-                let comment = "Good game.";
-                if (state.screen === "gameover" && !state.winnerText.includes("DRAW") && diff <= 2) comment = "So close.";
-                else if (state.players[0].stats.perfect >= 3 || state.players[1].stats.perfect >= 3) comment = "Nice timing.";
-                else if (state.players[0].stats.burnt >= 3 || state.players[1].stats.burnt >= 3) comment = "Still counts.";
-                else if (state.players[0].stats.steal >= 2 || state.players[1].stats.steal >= 2) comment = "Nice steal.";
-                state.visuals.resultComment = comment;
-            }
-            const alpha = Math.min(1, (timer - 10) / 10);
-            ctx.globalAlpha = alpha;
-            if (timer === 10 || timer === 11) { ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-                ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); }
-            ctx.font = getPixelFont(28);
-            ctx.textAlign = "center"; ctx.fillStyle = titleColor; ctx.fillText(titleText, cx, cy - 110);
-            ctx.font = getPixelFont(12); ctx.fillStyle = "#888";
-            ctx.fillText(state.visuals.resultComment, cx, cy - 80); ctx.globalAlpha = 1.0;
-        }
-        if (timer >= 30) {
-            const alpha = Math.min(1, (timer - 30) / 10), p1Score = state.players[0].finalScore ||
-                state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
-            const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
-            let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
-            } 
-            else if (p2Score > p1Score) { p1Color = "#555";
-                p1Alpha = 0.5; } 
-            
-            ctx.globalAlpha = alpha * p1Alpha;
-            ctx.textAlign = "left";
-            ctx.fillStyle = p1Color; ctx.font = getPixelFont(16); ctx.fillText("P1", cx - 80, cy - 25);
-            ctx.textAlign = "right";
-            ctx.fillText(`${p1Score}`, cx + 80, cy - 25);
-            
-            ctx.globalAlpha = alpha * p2Alpha; ctx.textAlign = "left"; ctx.fillStyle = p2Color;
-            ctx.fillText(p2Name, cx - 80, cy + 5);
-            ctx.textAlign = "right"; ctx.fillText(`${p2Score}`, cx + 80, cy + 5);
-        }
-        if (timer >= 55) {
-            const alpha = Math.min(1, (timer - 55) / 10), p1Score = state.players[0].finalScore ||
-                state.players[0].score, p2Score = state.players[1].finalScore || state.players[1].score;
-            let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
-            } 
-            else if (p2Score > p1Score) { p1Color = "#555";
-                p1Alpha = 0.5; } 
-            
-            ctx.font = getPixelFont(10);
-            const statsLabels = ["PERFECT", "BURNT", "STEAL"];
-            statsLabels.forEach((label, i) => {
-                const statKey = label.toLowerCase();
-                const y = cy + 45 + i * 18;
-                
-                ctx.globalAlpha = alpha; ctx.textAlign = "left"; ctx.fillStyle = "#888";
-                ctx.fillText(label, cx - 80, y);
-                
-                ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right";
-                ctx.fillText(state.players[0].stats[statKey], cx + 15, y);
-                
-                ctx.globalAlpha = alpha; ctx.fillStyle = "#555"; ctx.textAlign = "center";
-                ctx.fillText("-", cx + 35, y);
-                
-                ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left";
-                ctx.fillText(state.players[1].stats[statKey], cx + 55, y);
-            });
-            const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500);
-            ctx.globalAlpha = alpha; const btnY = cy + 120; ctx.save();
-            ctx.translate(cx, btnY);
-            if (state.screen === "stage_clear") {
-                ctx.globalAlpha = alpha * pulse;
-                ctx.fillStyle = "#000"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText("▶ NEXT STAGE", 2, 2);
-                ctx.fillStyle = "#fff";
-                ctx.fillText("▶ NEXT STAGE", 0, 0);
-                ctx.globalAlpha = alpha; ctx.fillStyle = "#777";
-                ctx.font = getPixelFont(12); ctx.fillText("▶ RETRY", 0, 30);
-            } else {
-                ctx.globalAlpha = alpha * pulse;
-                ctx.font = getPixelFont(14); ctx.textAlign = "center";
-                ctx.fillStyle = "#000";
-                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 2, 2);
-                    ctx.fillStyle = "#fff"; ctx.fillText("▶ RETRY", 0, 0);
-                } 
-                else { ctx.fillText("▶ REMATCH", 2, 2);
-                    ctx.fillStyle = "#fff"; ctx.fillText("▶ REMATCH", 0, 0);
-                }
-            }
-            ctx.restore();
-            ctx.globalAlpha = 1.0;
-        }
     }
-    
-    if (state.transition && state.transition.active) {
-        let t = state.transition.timer, d = state.transition.duration;
-        let alpha = (t < d) ? (t / d) : (1 - (t - d) / d);
-        alpha = Math.max(0, Math.min(1, alpha)); ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    if (timer >= 30) {
+        const alpha = Math.min(1, (timer - 30) / 10);
+        const p1Score = state.players[0].finalScore || state.players[0].score;
+        const p2Score = state.players[1].finalScore || state.players[1].score;
+        const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
+        let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
+        if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
+        else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
+        
+        ctx.globalAlpha = alpha;
+        drawBevelRect(ctx, cx - 110, cy - 50, 220, 70, "#1c1410", false);
+
+        ctx.globalAlpha = alpha * p1Alpha;
+        ctx.textAlign = "left";
+        ctx.fillStyle = p1Color; ctx.font = getPixelFont(16); ctx.fillText("P1", cx - 90, cy - 25);
+        ctx.textAlign = "right"; ctx.fillText(`${p1Score}`, cx + 90, cy - 25);
+        
+        ctx.globalAlpha = alpha * p2Alpha; ctx.textAlign = "left"; ctx.fillStyle = p2Color;
+        ctx.fillText(p2Name, cx - 90, cy + 5);
+        ctx.textAlign = "right"; ctx.fillText(`${p2Score}`, cx + 90, cy + 5);
     }
-    if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
-        const alpha = (state.visuals.perfectFlash.timer / 15) * 0.15;
-        ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); state.visuals.perfectFlash.timer--;
+    if (timer >= 55) {
+        const alpha = Math.min(1, (timer - 55) / 10);
+        const p1Score = state.players[0].finalScore || state.players[0].score;
+        const p2Score = state.players[1].finalScore || state.players[1].score;
+        let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
+        if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5; } 
+        else if (p2Score > p1Score) { p1Color = "#555"; p1Alpha = 0.5; } 
+        
+        ctx.font = getPixelFont(10);
+        const statsLabels = ["PERFECT", "BURNT", "STEAL"];
+        statsLabels.forEach((label, i) => {
+            const statKey = label.toLowerCase();
+            const y = cy + 45 + i * 18;
+            
+            ctx.globalAlpha = alpha; ctx.textAlign = "left"; ctx.fillStyle = "#888";
+            ctx.fillText(label, cx - 80, y);
+            
+            ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right";
+            ctx.fillText(state.players[0].stats[statKey], cx + 15, y);
+            
+            ctx.globalAlpha = alpha; ctx.fillStyle = "#555"; ctx.textAlign = "center";
+            ctx.fillText("-", cx + 35, y);
+            
+            ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left";
+            ctx.fillText(state.players[1].stats[statKey], cx + 55, y);
+        });
+        
+        const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500);
+        ctx.globalAlpha = alpha; 
+        const btnY = cy + 120; 
+
+        drawBevelRect(ctx, cx - 90, btnY - 22, 180, 36, "#3a3a40", false);
+        
+        ctx.save();
+        ctx.translate(cx, btnY);
+        if (state.screen === "stage_clear") {
+            ctx.globalAlpha = alpha * pulse;
+            ctx.fillStyle = "#000"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText("▶ NEXT STAGE", 2, 2);
+            ctx.fillStyle = "#fff";
+            ctx.fillText("▶ NEXT STAGE", 0, 0);
+            
+            ctx.globalAlpha = alpha; ctx.fillStyle = "#777";
+            ctx.font = getPixelFont(12); ctx.fillText("▶ RETRY", 0, 30);
+        } else {
+            ctx.globalAlpha = alpha * pulse;
+            ctx.font = getPixelFont(14); ctx.textAlign = "center";
+            ctx.fillStyle = "#000";
+            if (state.gameMode === "ai") { 
+                ctx.fillText("▶ RETRY", 2, 2);
+                ctx.fillStyle = "#fff"; ctx.fillText("▶ RETRY", 0, 0);
+            } 
+            else { 
+                ctx.fillText("▶ REMATCH", 2, 2);
+                ctx.fillStyle = "#fff"; ctx.fillText("▶ REMATCH", 0, 0);
+            }
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1.0;
     }
 }
+
+if (state.transition && state.transition.active) {
+    let t = state.transition.timer, d = state.transition.duration;
+    let alpha = (t < d) ? (t / d) : (1 - (t - d) / d);
+    alpha = Math.max(0, Math.min(1, alpha)); ctx.fillStyle = `rgba(22, 22, 32, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+}
+if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
+    const alpha = (state.visuals.perfectFlash.timer / 15) * 0.15;
+    ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); state.visuals.perfectFlash.timer--;
+}
+
+```
+
+}
+
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
 const active = activePlayer === idx;
