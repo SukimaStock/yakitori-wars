@@ -1999,6 +1999,7 @@ if (state.gameOver && state.gameEndWaitTimer > 0) {
 
 
 
+
 // --------------------------------------------------
 // ドット絵ルールの背景描画(ellipse廃止)
 // --------------------------------------------------
@@ -2325,7 +2326,6 @@ function render(ctx) {
     }
 }
 
-// [PATCH: renderParticlesAndOverlay]
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
 const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
 for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
@@ -2351,8 +2351,6 @@ ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
 }
 }
 ctx.globalAlpha = 1.0;
-
-```
 if (state.buildMode) {
     const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
     if (selectedIcon) { 
@@ -2453,14 +2451,7 @@ if (state.buildMode) {
         });
     }
 }
-
-```
-
 }
-
-
-
-
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx, baseColor = active ?
@@ -2507,6 +2498,7 @@ if (state.cookPreviewActive || state.roundEndPauseTimer > 0) return false;
 if (state.turnSplashTimer > 0 || state.pendingPlayer !== null || state.aiBreathTimer > 0) return false;
 return true;
 }
+
 
 window.addEventListener("DOMContentLoaded", () => {
     const canvas = document.getElementById("game"); if (!canvas) return; const ctx = canvas.getContext("2d");
