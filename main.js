@@ -2089,7 +2089,7 @@ function render(ctx) {
     }
 }
 
-
+// [PATCH: renderParticlesAndOverlay]
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
     for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
@@ -2100,7 +2100,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (p.isText) {
             ctx.globalAlpha = 1 - ratio;
             ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); ctx.textAlign = "center";
-            // ShadowBlurをドロップシャドウに置き換え
             ctx.fillStyle = "#000";
             ctx.fillText(p.text, Math.round(p.x) + 2, Math.round(p.y) + 2);
             ctx.fillStyle = p.color; 
@@ -2110,9 +2109,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const size = p.size * (1 - ratio * 0.5); ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else {
-            // Arcをブロック(fillRect)に置き換え
-            ctx.fillStyle = p.color ||
-                "#e0e0e0"; 
+            ctx.fillStyle = p.color || "#e0e0e0"; 
             const s = Math.max(2, Math.floor((p.size * (1 + ratio)) / 2));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         }
@@ -2120,280 +2117,108 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     ctx.globalAlpha = 1.0;
     if (state.buildMode) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
-        if (selectedIcon) { const iconX = cb.x + cb.w / 2, iconY = cb.y - 26; ctx.globalAlpha = 0.9;
-            drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3); ctx.globalAlpha = 1.0; }
+        if (selectedIcon) { 
+            const iconX = cb.x + cb.w / 2, iconY = cb.y - 26; ctx.globalAlpha = 0.9;
+            drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3); ctx.globalAlpha = 1.0; 
+        }
         const isPressed = (now - (state.visuals.cancelClick || 0) < 150);
-        drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
-        const offset = isPressed ? 3 : 0; ctx.fillStyle = "#fff";
+        drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#8a3a3a", isPressed);
+        const offset = isPressed ? 4 : 0; 
+        
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(cb.x + 4, cb.y + 4, 4, 4);
+        ctx.fillRect(cb.x + cb.w - 8, cb.y + 4, 4, 4);
+        ctx.fillRect(cb.x + 4, cb.y + cb.h - 8, 4, 4);
+        ctx.fillRect(cb.x + cb.w - 8, cb.y + cb.h - 8, 4, 4);
+
+        ctx.fillStyle = "#fff";
         ctx.font = getPixelFont(12); ctx.textAlign="center"; 
         ctx.fillStyle = "#000"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset + 2, cb.y + cb.h/2 + 6 + offset + 2);
-        // シャドウ
         ctx.fillStyle = "#fff";
         ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
     } else {
+        const tagColors = ["#5c6e58", "#4e627d", "#8e6d4c", "#784b5c"];
+        
         LAYOUT.BUTTONS.forEach((btn, i) => {
             const b = getButtonBounds(i), boxId = i + 1; let canUse = false;
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer);  if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); 
             if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
           
             const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
-            let baseColor = (canUse && !isLocked) ? btn.color : "#445"; let btnAlpha = 0.9; 
-            const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); if (isError) baseColor = "#6a3a3a"; 
+            const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); 
             
+            let baseColor = tagColors[i];
+            if (isError) {
+                baseColor = "#7a3b3b";
+            } else if (!canUse || isLocked) {
+                baseColor = "#4a4642"; 
+            }
+
+            let btnAlpha = 1.0; 
             let harvestBreatheAlpha = 0;
     
             if (boxId === 3 && canUse && !isLocked && state.buildMode === null) { 
                 const isPerfect = hasPerfectHarvestTarget(state.currentPlayer); 
-                baseColor = brightenColor(btn.color, isPerfect ? 0.3 : 0.0); 
-                if (isPerfect) btnAlpha = 1.0;
+                baseColor = brightenColor(tagColors[i], isPerfect ? 0.2 : 0.0); 
                 harvestBreatheAlpha = isPerfect ? 0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
             }
             
             ctx.globalAlpha = btnAlpha;
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             
+            ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+            ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, 4);
+            ctx.fillRect(b.x + 8, b.y + 12, 4, b.h - 24);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+            ctx.fillRect(b.x + 8, b.y + b.h - 12, b.w - 16, 4);
+            ctx.fillRect(b.x + b.w - 12, b.y + 12, 4, b.h - 24);
+
+            ctx.fillStyle = (canUse && !isLocked) ? "rgba(30, 20, 10, 0.4)" : "rgba(10, 10, 10, 0.6)";
+            ctx.fillRect(b.x + 4, b.y + 4, 4, 4);
+            ctx.fillRect(b.x + b.w - 8, b.y + 4, 4, 4);
+            ctx.fillRect(b.x + 4, b.y + b.h - 8, 4, 4);
+            ctx.fillRect(b.x + b.w - 8, b.y + b.h - 8, 4, 4);
+
             if (harvestBreatheAlpha > 0 && !isPressed) {
                 ctx.globalAlpha = harvestBreatheAlpha;
                 ctx.fillStyle = "#fff";
-                ctx.fillRect(b.x + 4, b.y + 4, b.w - 8, 4);
-                // 厚みのあるハイライト
+                ctx.fillRect(b.x + 12, b.y + 8, b.w - 24, 4); 
             }
             
             ctx.globalAlpha = btnAlpha;
-            const offset = isPressed ? 3 : 0;
-            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 5 + offset, (canUse && !isLocked) ? "#fff" : "#888", 4);
-            let textAlpha = isPressed ? 1.0 : 0.8; let textYOffset = isPressed ? -2 : 0; ctx.globalAlpha = textAlpha;
-            ctx.fillStyle = (canUse && !isLocked) ? "#fff" : "#aaa"; ctx.font = getPixelFont(9); ctx.textAlign = "center";
-            const textY = b.y + b.h - 8 + textYOffset; const textX = b.x + b.w/2 + offset;
+            const offset = isPressed ? 4 : 0; 
+
+            drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "#999", 4);
+            
+            let textAlpha = isPressed ? 1.0 : 0.85; 
+            ctx.globalAlpha = textAlpha;
+            const textY = b.y + b.h - 10 + offset; 
+            const textX = b.x + b.w/2 + offset;
+            
+            ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+            ctx.fillRect(textX - 24, textY - 9, 48, 14);
+
+            ctx.fillStyle = (canUse && !isLocked) ? "#f4e6d0" : "#999"; 
+            ctx.font = getPixelFont(9); ctx.textAlign = "center";
+            
             if (boxId === 1) { 
-                drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                drawDotIcon(ctx, "meat", textX - 10, textY - 3, (canUse && !isLocked) ? "#ffbaba" : "#999", 1.5);
                 ctx.fillText("+1", textX + 10, textY); 
             } else if (boxId === 2) { 
-                drawDotIcon(ctx, "meat", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                drawDotIcon(ctx, "meat", textX - 10, textY - 3, (canUse && !isLocked) ? "#ffbaba" : "#999", 1.5);
                 ctx.fillText("-1", textX + 10, textY); 
             } else if (boxId === 3) { 
-                drawDotIcon(ctx, "put_skewer", textX - 10, textY - 4, (canUse && !isLocked) ? "#fff" : "#aaa", 1.5);
+                drawDotIcon(ctx, "put_skewer", textX - 10, textY - 3, (canUse && !isLocked) ? "#fff" : "#999", 1.5);
                 ctx.fillText("↑", textX + 10, textY); 
             } else if (boxId === 4) { 
-                drawDotIcon(ctx, "fire", textX - 10, textY - 4, (canUse && !isLocked) ? "#fa3" : "#aaa", 1.5);
+                drawDotIcon(ctx, "fire", textX - 10, textY - 3, (canUse && !isLocked) ? "#fa3" : "#999", 1.5);
                 ctx.fillText("+1", textX + 10, textY); 
             }
             ctx.globalAlpha = 1.0;
         });
     }
-
-    if (state.startRouletteActive || state.startRouletteBlinkActive) {
-        ctx.globalAlpha = 1.0;
-        ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
-        let isVisible = state.startRouletteBlinkActive ?
-            state.startRouletteBlinkCount % 2 === 0 : true;
-        if (isVisible) { const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex;
-            ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(36); ctx.textAlign = "center"; ctx.fillText(`P${idx}`, cx, cy + 15);
-        }
-    } else if (state.introSequenceActive && state.introPhase !== "pause") { 
-        ctx.fillStyle = "rgba(22, 22, 32, 0.85)";
-        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        if (state.introPhase === "vs") {
-            const p_vs = state.introVsTimer / 60;
-            ctx.fillStyle = LAYOUT.COLORS.P1; ctx.font = getPixelFont(36); ctx.fillText("P1", cx - 80 + (p_vs * 30), cy - 60);
-            ctx.fillStyle = "#fff";
-            ctx.font = getPixelFont(28); ctx.fillText("VS", cx, cy); const p2Name = state.gameMode === "ai" ? state.enemyName : "P2"; ctx.fillStyle = LAYOUT.COLORS.P2;
-            ctx.font = getPixelFont(36); ctx.fillText(p2Name, cx + 80 - (p_vs * 30), cy + 60);
-            if (state.gameMode === "ai") { ctx.fillStyle = "#aaa"; ctx.font = getPixelFont(11); ctx.fillText(`STAGE ${state.currentStage}`, cx, cy + 120);
-            }
-        } else if (state.introPhase === "fight") {
-            const p_fight = state.fightSplashTimer / 25, elapsedP = 1 - p_fight, scale = 1.0 + elapsedP * 0.08, alpha = p_fight < 0.2 ?
-            p_fight * 5 : 1.0;
-            ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
-            ctx.fillStyle = "#000";
-            ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
-        } else if (state.introPhase === "order" && state.todaysOrder) {
-            drawIntroOrderSlip(ctx, cx, cy - 30, state.todaysOrder);
-        }
-        ctx.textBaseline = "alphabetic";
-    } else if (state.turnSplashTimer > 0 && !state.cookPreviewActive) {
-        const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
-        ctx.globalAlpha = fadeAlpha; ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; ctx.fillRect(0, cy - 40, LAYOUT.CANVAS_WIDTH, 80);
-        ctx.fillStyle = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(22); ctx.textAlign = "center";
-        ctx.fillText(`P${activePlayer} TURN`, cx, cy + 10);
-    }
-    
-    ctx.globalAlpha = 1.0;
-    state.visuals.ghosts.forEach(g => {
-        const elapsed = now - g.startTime, progress = Math.min(1, elapsed / 800);
-        let moveDist = -150; let alphaProg = progress;
-        
-        if (g.status === "BURNT") { moveDist = -40; alphaProg = Math.min(1, elapsed / 500); }
-  
-        const yOffset = moveDist * (1 - Math.pow(1 - progress, 3)); ctx.globalAlpha = Math.max(0, 1 - alphaProg);
-        
-        const b = getLaneBounds(g.laneIndex), laneCx = b.x + b.w / 2;
-
-        // --- OLD GHOST DRAWING (Commented out) ---
-        // const p = getVisualPalette(g.status), stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + yOffset; 
-        // if (g.cookState !== undefined) {
-        //     ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; 
-        //     ctx.fillRect(laneCx-2, stickTop, 4, stickH);
-        //     const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW/2;
-        //     const ghostStatusUpper = g.status.toUpperCase();
-        //     drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
-        //     drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, false, ghostStatusUpper, "medium", now);
-        //     drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
-        // -----------------------------------------
-
-        // ===== NEW: ピクセルアートGhostの描画 =====
-        if (g.cookState !== undefined) {
-            const ghostStatusUpper = g.status.toUpperCase();
-            let spriteStage = "raw";
-            if (ghostStatusUpper === "OKAY" || ghostStatusUpper === "PERFECT") spriteStage = "cooked";
-            else if (ghostStatusUpper === "BURNT") spriteStage = "burnt";
-
-            const skewerSprite = YAKITORI_SKEWER_SPRITES[spriteStage];
-            const spriteW = 32 * YAKITORI_PIXEL_UNIT;
-            const spriteH = 48 * YAKITORI_PIXEL_UNIT;
-            const gx = Math.round(b.x + b.w / 2 - spriteW / 2);
-            const gy = Math.round(b.y + b.h / 2 - spriteH / 2);
-            
-            const ghostOffsetY = 8 + Math.round(yOffset / YAKITORI_PIXEL_UNIT);
-            
-            drawYakitoriSpriteMap(ctx, gx, gy, skewerSprite, 10, ghostOffsetY);
-        // ==========================================
-
-            const stickTop = b.y + b.h * 0.1 + yOffset; 
-            ctx.fillStyle = g.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
-            // 矢印もドット絵化
-            ctx.fillRect(laneCx - 2, stickTop - 10, 4, 4);
-            ctx.fillRect(laneCx - 4, stickTop - 14, 8, 4);
-            ctx.fillRect(laneCx - 6, stickTop - 18, 12, 4);
-        }
-    });
-
-    let p1MsgCount = 0; let p2MsgCount = 0;
-    
-    ctx.textBaseline = "alphabetic";
-    state.visuals.statusMessages.forEach((msg, idx) => {
-        const elapsed = now - msg.startTime;
-        const duration = msg.duration || 1000;
-        let alpha = 1; let yAnimOffset = 0; let isHint = msg.type === "hint";
-        
-        const fadeOutStart = duration * 0.7;
-        const fadeInDuration = 100;
-
-        if (isHint) {
-            const p = Math.min(1, elapsed / duration);
-            alpha = 1 - p;
-            yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
-        } else {
-            const p = Math.min(1, Math.max(0, elapsed / duration));
-            
-            if (msg.type === "meat" && msg.targetPlayerPanel) {
-                const ease = Math.pow(p, 0.55);
-                const moveDist = 18;
-                const dir = msg.amount >= 0 ? -1 : 1;
-                yAnimOffset = dir * moveDist * ease;
-            } else {
-                yAnimOffset = -30 * Math.pow(p, 0.5);
-            }
-
-            if (elapsed < fadeInDuration) {
-                alpha = elapsed / fadeInDuration;
-            } else if (elapsed > fadeOutStart) {
-                alpha = Math.max(0, 1 - ((elapsed - fadeOutStart) / (duration - fadeOutStart)));
-            } else {
-                alpha = 1;
-            }
-        }
-
-        if (alpha <= 0) return;
-        let fx = Math.round(msg.x || cx);
-        let fy = 0;
-        if (msg.targetPlayerPanel) {
-            const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
-            fx = Math.round(msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2);
-            let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++;
-            
-            fy = Math.round(136 + (offsetIdx * 28) + yAnimOffset);
-            ctx.globalAlpha = alpha;
-            ctx.textAlign = "center";
-            ctx.font = getPixelFont(14);
-            const text1 = `P${msg.targetPlayerPanel}`; 
-            const text2 = msg.amount > 0 ?
-                `+${msg.amount}` : `${msg.amount}`;
-            
-            const w1 = ctx.measureText(text1).width;
-            const w2 = ctx.measureText(text2).width; 
-            const iconW = 16; const gap = 8;
-            let currentX = Math.round(fx - (w1 + gap + iconW + gap + w2)/2);
-            
-            ctx.textAlign = "left";
-            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
-            ctx.fillText(text1, currentX, fy); 
-            currentX += w1 + gap;
-            drawDotIcon(ctx, 'meat', Math.round(currentX + iconW/2 - 4), Math.round(fy - 8), "#fff", 2); 
-            currentX += iconW + gap;
-            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
-            ctx.fillText(text2, currentX, fy);
-        } else {
-            if (isHint) {
-                fy = Math.round(msg.y + yAnimOffset);
-            } else if (msg.x !== undefined && msg.y !== undefined) {
-                fy = Math.round(msg.y + yAnimOffset);
-            } else {
-                fy = Math.round(170 + (idx * 32) + yAnimOffset);
-            }
-
-            ctx.globalAlpha = alpha;
-            ctx.textAlign = "center";
-            if (isHint) {
-                ctx.font = getPixelFont(10);
-                const txtW = Math.round(ctx.measureText(msg.text).width + 16);
-                ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; 
-                ctx.fillRect(Math.round(fx - txtW/2), Math.round(fy - 12), txtW, 18);
-                ctx.fillStyle = "#ff5555"; 
-                ctx.fillText(msg.text, fx, fy);
-            } else {
-                let isResult = msg.type === "result";
-                let icon = isResult ? null : (msg.isBonus ? 'diamond' : null);
-                let text = msg.text ||
-                (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
-                let color = isResult ?
-                "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
-                ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
-                // ドロップシャドウ
-                ctx.fillStyle = "#000";
-                if (icon) {
-                    drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0) + 1), Math.round(fy - 8 + 1), "#000", 2.5);
-                    ctx.fillText(text, Math.round(fx + 15 + 2), Math.round(fy + 2));
-                } else {
-                    ctx.fillText(text, Math.round(fx + 2), Math.round(fy + 2));
-                }
-
-                ctx.fillStyle = color;
-                if (icon) { 
-                    drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0)), Math.round(fy - 8), "#6cf", 2.5);
-                    ctx.fillText(text, Math.round(fx + 15), fy);
-                } else {
-                    ctx.fillText(text, fx, fy);
-                }
-                
-                if (msg.isBonus && msg.bonusText) {
-                    ctx.font = getPixelFont(10);
-                    ctx.fillStyle = "#000";
-                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0) + 2), Math.round(fy - 18 + 2));
-                    ctx.fillStyle = "#ffeb3b";
-                    ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0)), Math.round(fy - 18));
-                } else if (msg.isPerfect && !msg.isBonus) {
-                    ctx.font = getPixelFont(10);
-                    ctx.fillStyle = "#000";
-                    ctx.fillText("PERFECT!", Math.round(fx + 2), Math.round(fy - 18 + 2));
-                    ctx.fillStyle = "#ffeb3b";
-                    ctx.fillText("PERFECT!", Math.round(fx), Math.round(fy - 18));
-                }
-            }
-        }
-    });
-    ctx.globalAlpha = 1.0;
 }
+
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx, baseColor = active ?
