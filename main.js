@@ -2270,11 +2270,10 @@ function drawTableBackground(ctx) {
     drawAmbientSmoke(ctx, w, h);
 }
 
+
 function render(ctx) {
 const now = getTime();
 state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
-
-```
 state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { 
     const life = m.duration || 1000;
     return now - m.startTime < life; 
@@ -2494,11 +2493,7 @@ if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
     const alpha = (state.visuals.perfectFlash.timer / 15) * 0.15;
     ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); state.visuals.perfectFlash.timer--;
 }
-
-```
-
 }
-
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
 const active = activePlayer === idx;
