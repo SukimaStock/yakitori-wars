@@ -1362,23 +1362,45 @@ function drawGameScreen(ctx) {
     const p2Left = LAYOUT.CANVAS_WIDTH - panelW - 10;
     const centerSpace = p2Left - p1Right;
     
+    // パネルの幅と位置計算
     ctx.font = getPixelFont(14);
     const roundText = `ROUND ${state.round}/${state.maxRounds}`;
     const tw = ctx.measureText(roundText).width;
-    const hudW = Math.min(tw + 40, centerSpace - 20, 340);
-    drawBevelRect(ctx, cx - hudW / 2, safeTop + 2, hudW, 36, "#1a100c");
+    const hudW = Math.min(tw + 48, centerSpace - 20, 340);
+    const hudX = Math.round(cx - hudW / 2);
+    const hudY = safeTop + 2;
     
-    ctx.fillStyle = "#e0d6c8";
-    ctx.textAlign = "center";
-    ctx.fillText(roundText, cx, safeTop + 26);
+    // ROUND表示のメインパネル（控えめな暗い木札/金属札風）
+    drawBevelRect(ctx, hudX, hudY, hudW, 32, "#241b16");
     
-    if (state.gameMode === "ai") { 
-        ctx.font = getPixelFont(10);
-        ctx.fillStyle = "#aaa";
-        ctx.fillText(`STAGE ${state.currentStage}`, cx, safeTop + 50); 
+    // STAGE表示がある場合は、下に小さなサブパネルをぶら下げる
+    let stageHudH = 0;
+    if (state.gameMode === "ai") {
+        stageHudH = 20;
+        const stageW = Math.round(hudW * 0.7);
+        // ドット絵の接続感を出すための暗い背景
+        drawBevelRect(ctx, Math.round(cx - stageW / 2), hudY + 30, stageW, stageHudH, "#18120e");
     }
 
-    let orderYOffset = safeTop + 70;
+    // ROUND テキスト描画 (影をつけて可読性アップ)
+    ctx.textAlign = "center";
+    ctx.font = getPixelFont(14);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+    ctx.fillText(roundText, cx + 2, hudY + 22 + 2);
+    ctx.fillStyle = "#e0d6c8";
+    ctx.fillText(roundText, cx, hudY + 22);
+
+    // STAGE テキスト描画
+    if (state.gameMode === "ai") {
+        ctx.font = getPixelFont(10);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillText(`STAGE ${state.currentStage}`, cx + 2, hudY + 44 + 2);
+        ctx.fillStyle = "#a89f91"; // ROUNDより少し暗くして控えめに
+        ctx.fillText(`STAGE ${state.currentStage}`, cx, hudY + 44);
+    }
+
+    // 注文札との間隔調整 (パネル下部から一定の余白を取ることで詰まりを防ぐ)
+    let orderYOffset = hudY + 32 + stageHudH + 12; 
     if (state.todaysOrder && state.orderIntroDone) {
         drawCompactOrderCard(ctx, cx, orderYOffset, state.todaysOrder);
     }
@@ -1762,6 +1784,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 // --------------------------------------------------
 // ドット絵ルールの背景描画(ellipse廃止)
