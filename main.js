@@ -1498,80 +1498,6 @@ ctx.restore();
 
 
 
-function drawRouletteBanner(ctx, cx, cy, state) {
-let isVisible = state.startRouletteBlinkActive ? state.startRouletteBlinkCount % 2 === 0 : true;
-if (!isVisible) return;
-
-```
-const idx = state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex;
-const color = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-const text = `P${idx}`;
-
-const bannerW = 100;
-const bannerH = 56;
-const bx = Math.round(cx - bannerW / 2);
-const by = Math.round(cy - bannerH / 2) - 15;
-
-const isFinalBlink = state.startRouletteBlinkActive;
-const offset = isFinalBlink ? 2 : 0;
-
-ctx.save();
-ctx.globalAlpha = 0.9;
-drawBevelRect(ctx, bx, by + offset, bannerW, bannerH, "#241e1a", isFinalBlink);
-
-ctx.font = getPixelFont(24);
-ctx.textAlign = "center";
-ctx.textBaseline = "middle";
-
-ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-ctx.fillText(text, cx + 2, by + bannerH / 2 + 2 + offset);
-ctx.fillStyle = color;
-ctx.fillText(text, cx, by + bannerH / 2 + offset);
-
-ctx.restore();
-
-```
-
-}
-
-function drawTurnBanner(ctx, cx, cy, state, activePlayer) {
-const fadeAlpha = getFadeAlpha(state.turnSplashTimer, 45, 10);
-if (fadeAlpha <= 0) return;
-
-```
-const bannerW = 200;
-const bannerH = 48;
-const bx = Math.round(cx - bannerW / 2);
-const by = Math.round(cy - bannerH / 2) - 15;
-
-ctx.save();
-ctx.globalAlpha = fadeAlpha * 0.95;
-drawBevelRect(ctx, bx, by, bannerW, bannerH, "#241e1a", false);
-
-const color = activePlayer === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-const text = `P${activePlayer} TURN`;
-
-ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-ctx.fillRect(bx + 8, by + 8, bannerW - 16, 2);
-ctx.fillRect(bx + 8, by + bannerH - 10, bannerW - 16, 2);
-
-ctx.font = getPixelFont(16);
-ctx.textAlign = "center";
-ctx.textBaseline = "middle";
-
-ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-ctx.fillText(text, cx + 2, by + bannerH / 2 + 2);
-ctx.fillStyle = color;
-ctx.fillText(text, cx, by + bannerH / 2);
-
-ctx.restore();
-
-```
-
-}
-
-
-
 function drawGameScreen(ctx) {
 const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2, safeTop = 15, panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25), now = getTime();
 const activePlayer = (state.startRouletteActive || state.startRouletteBlinkActive) ? (state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex) : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
@@ -1649,6 +1575,7 @@ state.lanes.forEach((lane, i) => {
     });
 });
 
+// Pass 1: 全レーンの焼き台・串
 state.lanes.forEach((lane, i) => {
     const b = getLaneBounds(i), laneCx = b.x + b.w / 2;
     let effectiveCookState = lane.cookState, displayCookState = lane.cookState, gaugeCookState = lane.cookState;   
@@ -1850,6 +1777,7 @@ state.lanes.forEach((lane, i) => {
     ctx.globalAlpha = 1.0; }
 });
 
+// Pass 2: 選択枠、テキスト、プレビュー時のオーバーレイ等の前面描画
 state.lanes.forEach((lane, i) => {
     const b = getLaneBounds(i), laneCx = b.x + b.w / 2;
     let effectiveCookState = lane.cookState;
@@ -2013,6 +1941,7 @@ state.lanes.forEach((lane, i) => {
     }
 });
 
+// ===== UI演出 (ルーレット / イントロ / ターン) =====
 if (state.startRouletteActive || state.startRouletteBlinkActive) {
     drawRouletteBanner(ctx, cx, cy, state);
 } else if (state.introSequenceActive && state.introPhase !== "pause") { 
@@ -2049,12 +1978,16 @@ state.visuals.ghosts.forEach(g => {
 
     const yOffset = moveDist * (1 - Math.pow(1 - progress, 3)); ctx.globalAlpha = Math.max(0, 1 - alphaProg);
 
+   
+     
     const b = getLaneBounds(g.laneIndex), laneCx = b.x + b.w / 2;
 
     if (g.cookState !== undefined) {
         const ghostStatusUpper = g.status.toUpperCase();
         let spriteStage = "raw";
         if (ghostStatusUpper === "OKAY" || ghostStatusUpper === "PERFECT") spriteStage = "cooked";
+       
+  
          else if (ghostStatusUpper === "BURNT") spriteStage = "burnt";
 
         const skewerSprite = YAKITORI_SKEWER_SPRITES[spriteStage];
@@ -2085,17 +2018,25 @@ state.visuals.statusMessages.forEach((msg, idx) => {
     const fadeInDuration = 100;
 
     if (isHint) {
+
         const p = Math.min(1, elapsed / duration);
         alpha = 1 - p;
         yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
     } else {
         const p = Math.min(1, Math.max(0, elapsed / duration));
-        if (msg.type === "meat" && msg.targetPlayerPanel) {
-            const ease = Math.pow(p, 0.55);
-            const moveDist = 18;
-            const dir = msg.amount >= 0 ? -1 : 1;
-            yAnimOffset = dir * moveDist * ease;
-        } else {
+        if (msg.type === "meat" && 
+
+```
+
+msg.targetPlayerPanel) {
+const ease = Math.pow(p, 0.55);
+const moveDist = 18;
+const dir = msg.amount >= 0 ? -1 : 1;
+yAnimOffset = dir * moveDist * ease;
+}
+
+```
+        else {
             yAnimOffset = -30 * Math.pow(p, 0.5);
         }
 
@@ -2121,8 +2062,13 @@ state.visuals.statusMessages.forEach((msg, idx) => {
         ctx.textAlign = "center";
         ctx.font = getPixelFont(14);
         const text1 = `P${msg.targetPlayerPanel}`; 
-        const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
-        
+        const text2 = msg.amount > 0 ?
+
+```
+
+`+${msg.amount}` : `${msg.amount}`;
+
+```
         const w1 = ctx.measureText(text1).width;
         const w2 = ctx.measureText(text2).width; 
         const iconW = 16; const gap = 8;
@@ -2157,17 +2103,23 @@ state.visuals.statusMessages.forEach((msg, idx) => {
         } else {
             let isResult = msg.type === "result";
             let icon = isResult ? null : (msg.isBonus ? 'diamond' : null);
-            let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
-            let color = isResult ? "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
-            ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
-            ctx.fillStyle = "#000";
-            if (icon) {
-                drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0) + 1), Math.round(fy - 8 + 1), "#000", 2.5);
-                ctx.fillText(text, Math.round(fx + 15 + 2), Math.round(fy + 2));
-            } else {
-                ctx.fillText(text, Math.round(fx + 2), Math.round(fy + 2));
-            }
+            let text = msg.text ||
 
+```
+
+(msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
+let color = isResult ?
+"#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
+ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
+ctx.fillStyle = "#000";
+if (icon) {
+drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0) + 1), Math.round(fy - 8 + 1), "#000", 2.5);
+ctx.fillText(text, Math.round(fx + 15 + 2), Math.round(fy + 2));
+} else {
+ctx.fillText(text, Math.round(fx + 2), Math.round(fy + 2));
+}
+
+```
             ctx.fillStyle = color;
             if (icon) { 
                 drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0)), Math.round(fy - 8), "#6cf", 2.5);
@@ -2204,7 +2156,6 @@ if (state.gameOver && state.gameEndWaitTimer > 0) {
 ```
 
 }
-
 
 
 
