@@ -1840,17 +1840,13 @@ state.visuals.ghosts.forEach(g => {
 
     const yOffset = moveDist * (1 - Math.pow(1 - progress, 3)); ctx.globalAlpha = Math.max(0, 1 - alphaProg);
 
-   
-     
     const b = getLaneBounds(g.laneIndex), laneCx = b.x + b.w / 2;
 
     if (g.cookState !== undefined) {
         const ghostStatusUpper = g.status.toUpperCase();
         let spriteStage = "raw";
         if (ghostStatusUpper === "OKAY" || ghostStatusUpper === "PERFECT") spriteStage = "cooked";
-       
-  
-         else if (ghostStatusUpper === "BURNT") spriteStage = "burnt";
+        else if (ghostStatusUpper === "BURNT") spriteStage = "burnt";
 
         const skewerSprite = YAKITORI_SKEWER_SPRITES[spriteStage];
         const spriteW = 32 * YAKITORI_PIXEL_UNIT;
@@ -1880,27 +1876,20 @@ state.visuals.statusMessages.forEach((msg, idx) => {
     const fadeInDuration = 100;
 
     if (isHint) {
-
         const p = Math.min(1, elapsed / duration);
         alpha = 1 - p;
         yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
     } else {
         const p = Math.min(1, Math.max(0, elapsed / duration));
-        if (msg.type === "meat" && 
+        if (msg.type === "meat" && msg.targetPlayerPanel) {
+            const ease = Math.pow(p, 0.55);
+            const moveDist = 18;
+            const dir = msg.amount >= 0 ? -1 : 1;
+            yAnimOffset = dir * moveDist * ease;
+        } else {
+            yAnimOffset = -30 * Math.pow(p, 0.5);
+        }
 
-```
-
-msg.targetPlayerPanel) {
-const ease = Math.pow(p, 0.55);
-const moveDist = 18;
-const dir = msg.amount >= 0 ? -1 : 1;
-yAnimOffset = dir * moveDist * ease;
-}
-else {
-yAnimOffset = -30 * Math.pow(p, 0.5);
-}
-
-```
         if (elapsed < fadeInDuration) {
             alpha = elapsed / fadeInDuration;
         } else if (elapsed > fadeOutStart) {
@@ -1923,18 +1912,12 @@ yAnimOffset = -30 * Math.pow(p, 0.5);
         ctx.textAlign = "center";
         ctx.font = getPixelFont(14);
         const text1 = `P${msg.targetPlayerPanel}`; 
-        const text2 = msg.amount > 0 ?
-
-```
-
-`+${msg.amount}` : `${msg.amount}`;
-
-```
+        const text2 = msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`;
+        
         const w1 = ctx.measureText(text1).width;
-        const w2 = ctx.measureText(text2).width; 
+        const w2 = ctx.measureText(text2).width;
         const iconW = 16; const gap = 8;
         let currentX = Math.round(fx - (w1 + gap + iconW + gap + w2)/2);
-        
         ctx.textAlign = "left";
         ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
         ctx.fillText(text1, currentX, fy); 
@@ -1964,23 +1947,17 @@ yAnimOffset = -30 * Math.pow(p, 0.5);
         } else {
             let isResult = msg.type === "result";
             let icon = isResult ? null : (msg.isBonus ? 'diamond' : null);
-            let text = msg.text ||
+            let text = msg.text || (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
+            let color = isResult ? "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
+            ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
+            ctx.fillStyle = "#000";
+            if (icon) {
+                drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0) + 1), Math.round(fy - 8 + 1), "#000", 2.5);
+                ctx.fillText(text, Math.round(fx + 15 + 2), Math.round(fy + 2));
+            } else {
+                ctx.fillText(text, Math.round(fx + 2), Math.round(fy + 2));
+            }
 
-```
-
-(msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`);
-let color = isResult ?
-"#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
-ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
-ctx.fillStyle = "#000";
-if (icon) {
-drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0) + 1), Math.round(fy - 8 + 1), "#000", 2.5);
-ctx.fillText(text, Math.round(fx + 15 + 2), Math.round(fy + 2));
-} else {
-ctx.fillText(text, Math.round(fx + 2), Math.round(fy + 2));
-}
-
-```
             ctx.fillStyle = color;
             if (icon) { 
                 drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0)), Math.round(fy - 8), "#6cf", 2.5);
@@ -2008,7 +1985,6 @@ ctx.fillText(text, Math.round(fx + 2), Math.round(fy + 2));
 ctx.globalAlpha = 1.0;
 
 renderParticlesAndOverlay(ctx, now, activePlayer);
-
 if (state.gameOver && state.gameEndWaitTimer > 0) {
     const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 55));
     ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.8})`; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
@@ -2017,6 +1993,7 @@ if (state.gameOver && state.gameEndWaitTimer > 0) {
 ```
 
 }
+
 
 
 function shouldShowActionButtons() {
