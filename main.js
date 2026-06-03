@@ -1666,39 +1666,10 @@ uchiwaPreviewNextCv = baseEndHeatCv;
             if (state.buildMode === "uchiwa" && isFlashable) { uchiwaDotIndex = Math.min(5, baseEndState); uchiwaPreviewNextCv = Math.min(6, baseEndState + 1);
 }
         }
-        const dotSize = 8, dotGap = 2, gridW = 6 * dotSize + 5 * dotGap, dotStartX = laneCx - gridW / 2, dotStartY = b.y + b.h + 12;
-drawBevelRect(ctx, dotStartX - 6, dotStartY - 6, gridW + 12, dotSize + 12, "#242430");
-for (let j = 0; j < 6; j++) {
-            const dx = dotStartX + j * (dotSize + dotGap);
-if (j < cv) {
-                if (isCurrentPreviewLane && previewProg < 0.35 && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
-                    const flashAlpha = Math.sin(getTime() / 50) > 0 ?
-1 : 0.5;
-                    ctx.fillStyle = "rgba(255, 255, 255, " + flashAlpha + ")";
-                    ctx.fillRect(dx, dotStartY, dotSize, dotSize);
-} else {
-                    ctx.fillStyle = getVisualPalette(getCookLabel(lane.type, displayCookState).toUpperCase()).dot;
-ctx.fillRect(dx, dotStartY, dotSize, dotSize);
-                    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-ctx.fillRect(dx + 1, dotStartY + 1, dotSize - 4, dotSize - 5);
-}
-            } else if (j < uchiwaPreviewNextCv) {
-                if (j === uchiwaDotIndex) {
-                    let fillStyle = "rgba(255, 255, 255, 0.8)", strokeStyle = "rgba(255, 255, 255, 1.0)";
-if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") { fillStyle = "rgba(255, 230, 100, 0.8)";
-strokeStyle = "rgba(255, 230, 100, 1.0)"; }
-                    else if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") { fillStyle = "rgba(255, 100, 100, 0.8)";
-strokeStyle = "rgba(255, 100, 100, 1.0)"; }
-                    ctx.fillStyle = fillStyle;
-ctx.fillRect(dx, dotStartY, dotSize, dotSize);
-                    ctx.fillStyle = strokeStyle;
-                    ctx.fillRect(dx, dotStartY, dotSize, 1); ctx.fillRect(dx, dotStartY, 1, dotSize);
-ctx.fillRect(dx, dotStartY + dotSize - 1, dotSize, 1); ctx.fillRect(dx + dotSize - 1, dotStartY, 1, dotSize);
-} else { ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
-}
-            } else { ctx.fillStyle = "rgba(10, 10, 15, 0.9)";
-ctx.fillRect(dx, dotStartY, dotSize, dotSize); }
-        }
+        
+        const dotStartY = b.y + b.h + 12;
+        drawCookGauge(ctx, laneCx, dotStartY, cv, uchiwaPreviewNextCv, uchiwaDotIndex, uchiwaTargetStatus, baseEndStatus, isCurrentPreviewLane, previewProg, previewEventForThisLane);
+
         const fireScale = 2.5, fireSize = 8 * fireScale, totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1)), startFireX = laneCx - totalFireW / 2 + fireSize / 2;
 for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, b.y + b.h + 40, "#fa3", fireScale);
 if (lane.uchiwaBoost > 0) { ctx.globalAlpha = 0.6; drawDotIcon(ctx, "fire", b.x + b.w - 18, b.y + b.h - 18, "#f85", 2);
@@ -2044,6 +2015,7 @@ ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOU
 
 
 
+
 function shouldShowActionButtons() {
     if (state.screen !== "game") return false;
     if (state.gameOver) return false;
@@ -2331,6 +2303,92 @@ function drawCharcoal(ctx, lane, bounds, now, laneIndex) {
 
     ctx.restore();
 }
+
+function getCookGaugeSlotColor(index) {
+    if (index === 0) return "#e8e0d5";
+    if (index === 1) return "#dccab5";
+    if (index === 2) return "#dca055";
+    if (index === 3) return "#c85525";
+    if (index === 4) return "#8a3015";
+    if (index === 5) return "#4a180a";
+    return "#333333";
+}
+
+function drawCookGauge(ctx, cx, y, cv, uchiwaPreviewNextCv, uchiwaDotIndex, uchiwaTargetStatus, baseEndStatus, isCurrentPreviewLane, previewProg, previewEventForThisLane) {
+    const dotSize = 8;
+    const dotGap = 2;
+    const gridW = 6 * dotSize + 5 * dotGap;
+    const startX = Math.round(cx - gridW / 2);
+    
+    const framePadding = 6;
+    const frameX = startX - framePadding;
+    const frameY = y - framePadding;
+    const frameW = gridW + framePadding * 2;
+    const frameH = dotSize + framePadding * 2;
+    
+    drawBevelRect(ctx, frameX, frameY, frameW, frameH, "#2a2724");
+    
+    ctx.fillStyle = "#0a0908";
+    ctx.fillRect(frameX + 2, frameY + 2, 2, 2);
+    ctx.fillRect(frameX + frameW - 4, frameY + 2, 2, 2);
+    ctx.fillRect(frameX + 2, frameY + frameH - 4, 2, 2);
+    ctx.fillRect(frameX + frameW - 4, frameY + frameH - 4, 2, 2);
+    
+    for (let j = 0; j < 6; j++) {
+        const dx = startX + j * (dotSize + dotGap);
+        
+        ctx.fillStyle = "#151210";
+        ctx.fillRect(dx, y, dotSize, dotSize);
+        
+        ctx.fillStyle = "#050403";
+        ctx.fillRect(dx, y, dotSize, 2);
+        ctx.fillRect(dx, y, 2, dotSize);
+        
+        ctx.fillStyle = "#403a35";
+        ctx.fillRect(dx, y + dotSize - 1, dotSize, 1);
+        ctx.fillRect(dx + dotSize - 1, y, 1, dotSize);
+
+        let isLit = j < cv;
+        let isFlashing = false;
+        
+        if (isLit) {
+            if (isCurrentPreviewLane && previewProg < 0.35 && previewEventForThisLane && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
+                isFlashing = Math.sin(getTime() / 50) > 0;
+            }
+        }
+        
+        if (isLit) {
+            if (isFlashing) {
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(dx + 2, y + 2, dotSize - 4, dotSize - 4);
+            } else {
+                const color = getCookGaugeSlotColor(j);
+                ctx.fillStyle = color;
+                ctx.fillRect(dx + 2, y + 2, dotSize - 4, dotSize - 4);
+                
+                ctx.fillStyle = brightenColor(color, 0.4);
+                ctx.fillRect(dx + 2, y + 2, dotSize - 4, 1);
+                ctx.fillRect(dx + 2, y + 2, 1, dotSize - 4);
+            }
+        } else if (j < uchiwaPreviewNextCv) {
+            if (j === uchiwaDotIndex) {
+                let strokeStyle = "#aaaaaa";
+                if (uchiwaTargetStatus === "perfect" && baseEndStatus !== "perfect") strokeStyle = "#ffcc44";
+                else if (uchiwaTargetStatus === "burnt" && baseEndStatus !== "burnt") strokeStyle = "#ff5555";
+                
+                ctx.fillStyle = strokeStyle;
+                ctx.fillRect(dx + 1, y + 1, dotSize - 2, 1);
+                ctx.fillRect(dx + 1, y + 1, 1, dotSize - 2);
+                ctx.fillRect(dx + 1, y + dotSize - 2, dotSize - 2, 1);
+                ctx.fillRect(dx + dotSize - 2, y + 1, 1, dotSize - 2);
+            } else {
+                ctx.fillStyle = mixColor(getCookGaugeSlotColor(j), "#000000", 0.8);
+                ctx.fillRect(dx + 2, y + 2, dotSize - 4, dotSize - 4);
+            }
+        }
+    }
+}
+
 
 
 function drawGrillDirt(ctx, bounds, laneIndex) {
