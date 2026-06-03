@@ -2326,15 +2326,15 @@ function render(ctx) {
 
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
 const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
-for (let i = state.visuals.particles.length - 1; i >= 0; i–) {
+for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
 let p = state.visuals.particles[i];
 p.life++; if (p.life >= p.maxLife) { state.visuals.particles.splice(i, 1); continue; }
 p.x += p.vx;
 p.y += p.vy; const ratio = p.life / p.maxLife; ctx.globalAlpha = 0.6 * (1 - ratio);
 if (p.isText) {
 ctx.globalAlpha = 1 - ratio;
-ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); ctx.textAlign = “center”;
-ctx.fillStyle = “#000”;
+ctx.font = getPixelFont(Math.max(8, Math.floor(p.size * 0.7))); ctx.textAlign = "center";
+ctx.fillStyle = "#000";
 ctx.fillText(p.text, Math.round(p.x) + 2, Math.round(p.y) + 2);
 ctx.fillStyle = p.color;
 ctx.fillText(p.text, Math.round(p.x), Math.round(p.y));
@@ -2343,7 +2343,7 @@ ctx.fillStyle = p.color;
 const size = p.size * (1 - ratio * 0.5); ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
 ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
 } else {
-ctx.fillStyle = p.color || “#e0e0e0”;
+ctx.fillStyle = p.color || "#e0e0e0";
 const s = Math.max(2, Math.floor((p.size * (1 + ratio)) / 2));
 ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
 }
