@@ -32,7 +32,6 @@ function initGameState() {
         startRouletteFinalPlayer: null, startRouletteBlinkActive: false,
         startRouletteBlinkTimer: 0, startRouletteBlinkCount: 0,
         turnSplashTimer: 0, pendingTurnSplash: false, pendingAiBreath: false,
-    
         pendingPlayer: null, aiBreathTimer: 0, 
         buildMode: null,
         buildModeStartTime: 0, pendingBox: null, uiHint: "tap",
@@ -51,7 +50,6 @@ function initGameState() {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
             peakFlashes: {}, ghosts: [], floaters: [], statusMessages: [], particles: [], 
             cancelClick: 0, titleClick: null, perfectFlash: { timer: 0 }, resultComment: null,
-    
             aiTargetLane: null, traces: [], uchiwaGusts: {} 
         }
     };
@@ -295,13 +293,16 @@ function updateGameEndWait() {
                     else { state.screen = "stage_clear";
                         state.winnerText = "STAGE CLEAR"; }
                 } else { state.screen = "gameover";
-                    state.winnerText = "P1 WIN"; }
+                        state.winnerText = "P1 WIN"; }
             } else if (p2 > p1) { 
-                const winnerName = state.gameMode === "ai" ? state.enemyName : "P2";
+                const winnerName = state.gameMode === "ai" ?
+                    state.enemyName : "P2";
                 state.screen = "gameover"; state.winnerText = `${winnerName} WIN`;
             } else { 
-                if (state.gameMode === "ai") { retryStage(); return; } 
-                else { state.screen = "gameover"; state.winnerText = "DRAW"; }
+                if (state.gameMode === "ai") { retryStage();
+                    return; } 
+                else { state.screen = "gameover";
+                    state.winnerText = "DRAW"; }
             }
         }
     }
@@ -572,8 +573,10 @@ function resolvePendingTurnFlow() {
     
     if (state.turnSplashTimer > 0) state.turnSplashTimer--;
     else if (state.pendingPlayer !== null) {
-        if (state.pendingAiBreath) { state.aiBreathTimer = 15; state.pendingAiBreath = false; }
-        else if (state.aiBreathTimer <= 0) { state.currentPlayer = state.pendingPlayer; state.pendingPlayer = null; }
+        if (state.pendingAiBreath) { state.aiBreathTimer = 15;
+            state.pendingAiBreath = false; }
+        else if (state.aiBreathTimer <= 0) { state.currentPlayer = state.pendingPlayer;
+            state.pendingPlayer = null; }
     }
     if (state.aiBreathTimer > 0) state.aiBreathTimer--;
 }
@@ -583,7 +586,8 @@ function resolvePendingTurnFlow() {
 // ==========================================
 function getCookLabel(laneType, cv) {
     if (laneType === "weak") { if (cv >= 8) return "burnt";
-        if (cv >= 6) return "perfect"; if (cv === 5) return "okay"; } 
+        if (cv >= 6) return "perfect"; if (cv === 5) return "okay";
+    } 
     else { if (cv >= 7) return "burnt"; if (cv === 6) return "perfect";
         if (cv === 5) return "okay"; }
     return "early";
@@ -750,7 +754,8 @@ function isNodeValidForMode(node, mode) {
     if (!node) return false;
     if (mode === "sapling") return !node.built;
     if (mode === "harvest") { if (!node.built) return false;
-        if (node.owner === state.currentPlayer) return true; return getCookLabel(node.type, node.cookState) !== "early"; }
+        if (node.owner === state.currentPlayer) return true; return getCookLabel(node.type, node.cookState) !== "early";
+    }
     if (mode === "uchiwa") return node.built; return false;
 }
 
@@ -909,7 +914,8 @@ function scoreAIAction(currentState, action, playerIndex, profileName) {
             if (order === "steal") score += 25;
         } else { 
             if (lbl === "perfect") score += 100;
-            if (lbl === "okay") { score += (profileName === "gambler" ? 45 : 15); }
+            if (lbl === "okay") { score += (profileName === "gambler" ? 45 : 15);
+            }
         }
     } else if (action.type === "uchiwa") {
         const isOwn = node.owner === playerIndex, boosted_lbl = getCookLabel(node.type, node.cookState + getBaseHeat(node.type) + 1);
@@ -964,7 +970,6 @@ function playAITurn() {
             else if (best.type === "put") { state.buildMode="sapling"; state.buildModeStartTime=performance.now(); tryBuildNode(state.lanes.find(l=>l.id===best.nodeId)); }
             else if (best.type === "serve") { state.buildMode="harvest"; state.buildModeStartTime=performance.now(); tryHarvestNode(state.lanes.find(l=>l.id===best.nodeId)); }
             else if (best.type === "uchiwa") { state.buildMode="uchiwa"; state.buildModeStartTime=performance.now(); tryUchiwaNode(state.lanes.find(l=>l.id===best.nodeId)); }
-      
         } finally { state.isAIThinking = false; }
     }, delay);
 }
@@ -972,6 +977,110 @@ function playAITurn() {
 // ==========================================
 // 7. render/render.js - 描画処理
 // ==========================================
+
+// ==========================================
+// YAKITORI PIXEL ART SPRITES & PALETTE
+// ==========================================
+const YAKITORI_PIXEL_UNIT = 4;
+
+const YAKITORI_PALETTE = {
+    ".": null,      
+    "O": "#0b0a0a", "S": "#161313", "1": "#2b2d35", "2": "#454854", "3": "#747887",
+    "k": "#111111", "d": "#26211f", "a": "#3a302b", "r": "#8a2f18", "o": "#d75a20", "y": "#f0a13a",
+    "5": "#dca", "6": "#a87", "W": "#2a2a2a", "w": "#1f1f1f", 
+    "P": "#ffe8e8", "p": "#ffbaba", "q": "#e68a8a", "Q": "#c45c5c", "E": "#f4faee", "e": "#a4d674", "f": "#51912a",
+    "H": "#fffae8", "L": "#e8a45c", "M": "#c26d36", "D": "#8a401a", "C": "#52210b", "V": "#f0f2d8", "N": "#96a646", "B": "#5e6924", "J": "#e6cc67", 
+    "x": "#331613", "z": "#1a0a09", "j": "#a88e36", "b": "#3b5226"  
+};
+
+const YAKITORI_GRILL_PARTS = {
+    base: [
+        "11111111111111111111111111111111", "22222222222222222222222222222222", "11111111111111111111111111111111", "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "SSOOOOOOOOOOOOOOOOOOOOOOOOOOOOSS",
+        "11SSSSSSSSSSSSSSSSSSSSSSSSSSSS11", "33333333333333333333333333333333", "22222222222222222222222222222222", "11111111111111111111111111111111",
+        "11111111111111111111111111111111", "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO"
+    ],
+    net: [
+        "................................", "................................", "................................", "................................",
+        "................................", "................................", "................................", "................................",
+        "................................", "................................", "................................", "................................",
+        "...1.1111..11.1.1.11.11...111...", "........1..........1............", "........1..........1............", "........1..........1............",
+        "........1..........1............", "...................1............", "........1.......................", "........1..........1............",
+        "........1..........1............", "........1..........1............", "........1..........1............", "................................",
+        "...111111O1111111111O1.111111...", "........1..........1............", "........1..........1............", "........1..........1............",
+        "........1..........1............", "................................", "........1..........1............", "........1..........1............",
+        "........1..........1............", "........1..........1............", "................................", "...2222222222O222222222222O22...",
+        "...1111111111O111111111111O11...", "........2..........2............", "........2..........2............", "........1..........1............",
+        "........1..........1............", "................................", "................................", "................................",
+        "................................", "................................", "................................", "................................"
+    ]
+};
+
+const YAKITORI_COAL_PATTERN = [
+    "....dddddddddddddddddd..........", "..ddddddkkkkkkkddddddddd........", ".ddddkkkkkkkkkkkkkddddddd.......", ".ddkkkkkkrkkkkkkkrrrkkddd.......",
+    "..ddkkkrrrrkdddkkrrrkkddd.......", "...dddkkkkkkddddkkkkkdddd.......", "....dddkkkkkkddddddkkddddd......", "....ddkkkrrkdddkkkkdddddd.......", 
+    "....ddddddddddkkrrkkddddd.......", ".....dddddddddkkkkkddddd........", "......ddddkddddddddddd..........", ".......ddkkkkddddddd............",
+    "........ddddddddddd.............", "..........dddddd................", "................................"
+];
+
+const YAKITORI_SKEWER_SPRITES = {
+    raw: [
+        ".....55.....", ".....55.....", ".....55.....", ".....55.....", "..Ppppppp...", ".Pppqqqqqqq.", ".pqqqqqqqqQ.", "pqqqqqqqqqqQ", "qqqqqqqqqQQ.",
+        ".qqqqqqqqqQ.", ".qqqqqqQQQQ.", "..qQQQQQ....", "...Eeeef....", "..EEEeeeff..", "..eEEeeeff..", "..eeEeeeff..", "...eeffff...", "..Ppppppp...", 
+        ".Pppqqqqqq..", "pqqqqqqqqqQ.", "pqqqqqqqqqqQ", ".qqqqqqqqqQQ", ".qqqqqqQQQQ.", "..qqqQQQQQ..", "...qQQQQ....", ".....55.....", ".....55.....",
+        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....66.....", ".....66....."  
+    ],
+    cooked: [
+        ".....55.....", "....W55.....", "...w.55.w...", ".....55.....", "..HHLLMMM...", ".HLLMMMMDDC.", ".LMMMMMDDDD.", "LLMMMMMDDDDC", "MMMMMMMDDDD.", 
+        ".MMMMMDDMMD.", ".MMMMMDDCCC.", "..MMDDCC....", "...VJNNB....", "..VVJNNNBB..", "..JVVNNNBB..", "..JJJNNNBC..", "...JNBBBC...", "..HHLLMMM...", 
+        ".HLLMMMDDD..", "LLMMMMMDDDD.", "MMMMMMMDDDDC", ".MMMMMDDMMD.", ".MMMMMDDDCC.", "..MMMDDDCC..", "...MDDCC....", ".....55.....", ".....55.....",
+        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....66.....", ".....66....."  
+    ],
+    burnt: [
+        "..w.55..w...", ".W..55...W..", "..w.55.w....", ".....55.....", "..xDxxxxC...", ".xxzxxxxxCx.", ".zxxxxxxxxC.", "zxxxxxxxxxzz", "xxxxxxxxxzz.",
+        ".xxxxxxxxzC.", ".xxxxzCCCzz.", "..xCCzzz....", "...jbbbk....", "..jjbbbbkk..", "..jjjbbbkk..", "..jxxbbkzz..", "...xxkkkz...", "..MDxxxxx...", 
+        ".MDxxxxxxx..", "DxxxxxxxxxC.", "DxxxxxxxxxxC", ".xxxxxxxxxCC", ".xxxxxxCCCz.", "..xxxCCCzz..", "...xCCzz....", ".....55.....", ".....55.....",
+        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....66.....", ".....66....."  
+    ]
+};
+
+function drawYakitoriSpriteMap(ctx, x, y, spriteArray, offsetX = 0, offsetY = 0) {
+    for (let row = 0; row < spriteArray.length; row++) {
+        const line = spriteArray[row];
+        for (let col = 0; col < line.length; col++) {
+            const char = line[col];
+            if (char !== ".") {
+                const color = YAKITORI_PALETTE[char];
+                if (!color) continue;
+                ctx.fillStyle = color;
+                ctx.fillRect(Math.floor(x) + (col + offsetX) * YAKITORI_PIXEL_UNIT, Math.floor(y) + (row + offsetY) * YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
+            }
+        }
+    }
+}
+
+function drawYakitoriSolidShadow(ctx, x, y, spriteArray, offsetX, offsetY) {
+    for (let row = 0; row < spriteArray.length; row++) {
+        const line = spriteArray[row];
+        for (let col = 0; col < line.length; col++) {
+            const c = line[col];
+            if (c !== "." && c !== "W" && c !== "w" && YAKITORI_PALETTE[c]) {
+                ctx.fillStyle = ((col + row) % 2 === 0) ? YAKITORI_PALETTE["O"] : YAKITORI_PALETTE["S"];
+                ctx.fillRect(Math.floor(x) + (col + offsetX) * YAKITORI_PIXEL_UNIT, Math.floor(y) + (row + offsetY) * YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
+            }
+        }
+    }
+}
+
+
 function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
     if (currentTimer > maxTimer - fadeFrames) return Math.max(0, (maxTimer - currentTimer) / fadeFrames);
     if (currentTimer < fadeFrames) return Math.max(0, currentTimer / fadeFrames); return 1.0;
@@ -990,11 +1099,9 @@ function drawBevelRect(ctx, x, y, w, h, baseColor, isPressed = false) {
     const lightColor = brightenColor(baseColor, 0.4);
     const darkColor = mixColor(baseColor, "#000000", 0.6);
     const darkestColor = mixColor(baseColor, "#000000", 0.85);
-
     // 1. 背景の塗りつぶし
     ctx.fillStyle = baseColor;
     ctx.fillRect(px, py, pw, ph);
-
     // 2. ドット絵らしいソリッドな枠線(上が明るく、下が暗い)
     if (isPressed) {
         // 押下時:全体が沈み、上部が一番暗くなる
@@ -1028,7 +1135,8 @@ function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false)
     drawBevelRect(ctx, x, y, w, h, isPressed ? "#2a2a2a" : "#3a3a40", isPressed);
     const offset = isPressed ? 2 : 0;
     // シャドウ
-    ctx.fillStyle = "#000"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText(label, x + w / 2 + 2, y + h / 2 + 6 + offset + 2);
+    ctx.fillStyle = "#000"; ctx.font = getPixelFont(14);
+    ctx.textAlign = "center"; ctx.fillText(label, x + w / 2 + 2, y + h / 2 + 6 + offset + 2);
     // メインテキスト
     ctx.fillStyle = "#f4e6d0"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
 }
@@ -1128,15 +1236,18 @@ function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scal
 function drawEndSplash(ctx) {
     if (!state.endSplashTimer || state.endSplashTimer <= 0) return;
     const cx = LAYOUT.CANVAS_WIDTH / 2;
-    const cy = LAYOUT.CANVAS_HEIGHT / 2; const t = state.endSplashTimer; const alpha = t > 40 ?
-        (55 - t) / 15 : Math.min(1, t / 12);
-    ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    const cy = LAYOUT.CANVAS_HEIGHT / 2; const t = state.endSplashTimer;
+    const alpha = t > 40 ? (55 - t) / 15 : Math.min(1, t / 12);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
     ctx.fillStyle = "rgba(0, 0, 0, 0.65)"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-    ctx.font = getPixelFont(24); ctx.textAlign = "center"; 
+    ctx.font = getPixelFont(24);
+    ctx.textAlign = "center"; 
     // ドロップシャドウ
     ctx.fillStyle = "#000"; ctx.fillText(state.endSplashText, cx + 2, cy + 2);
     ctx.fillStyle = state.endSplashColor || "#fff"; ctx.fillText(state.endSplashText, cx, cy);
-    ctx.font = getPixelFont(10); ctx.fillStyle = "#aaa"; ctx.fillText("MATCH END", cx, cy + 35); ctx.restore();
+    ctx.font = getPixelFont(10); ctx.fillStyle = "#aaa"; ctx.fillText("MATCH END", cx, cy + 35);
+    ctx.restore();
 }
 
 function drawIntroOrderSlip(ctx, cx, y, orderObj) {
@@ -1169,7 +1280,6 @@ function drawIntroOrderSlip(ctx, cx, y, orderObj) {
 
     ctx.fillStyle = "rgba(90, 74, 58, 0.2)";
     ctx.fillRect(splitX, cardY + 5 * scale, 2, cardH - 10 * scale);
-    
     if (orderObj.icon && orderObj.bonus) {
         const rewardX = splitX + (cardX + cardW - splitX) / 2;
         const centerY = cardY + cardH / 2;
@@ -1207,7 +1317,6 @@ function drawCompactOrderCard(ctx, cx, y, orderObj) {
         const iconScale = 2.2;
         drawDotIcon(ctx, orderObj.icon, splitX + 18, cardY + cardH / 2, orderObj.color || "#fff", iconScale);
         ctx.textAlign = "left";
-        
         // テキストシャドウ
         ctx.fillStyle = "#000";
         ctx.font = getPixelFont(12);
@@ -1235,17 +1344,17 @@ function drawBackgroundProps(ctx, w, h) {
     const lanternX = w * 0.95;
     const lanternY = h * 0.2;
     ctx.fillRect(lanternX - 40, lanternY - 75, 80, 150); // 本体
-    ctx.fillRect(lanternX - 25, lanternY - 85, 50, 10); // 上枠
-    ctx.fillRect(lanternX - 25, lanternY + 75, 50, 10); // 下枠
+    ctx.fillRect(lanternX - 25, lanternY - 85, 50, 10);  // 上枠
+    ctx.fillRect(lanternX - 25, lanternY + 75, 50, 10);  // 下枠
 
     // 焼酎ボトルや徳利
-    ctx.fillRect(w * 0.05, h * 0.65, 25, 80); 
+    ctx.fillRect(w * 0.05, h * 0.65, 25, 80);
     ctx.fillRect(w * 0.12, h * 0.72, 20, 73); 
-    ctx.fillRect(w * 0.22 - 15, h * 0.82, 30, 35); // 徳利本体
-    ctx.fillRect(w * 0.22 - 8, h * 0.82 - 50, 16, 50); // 徳利首
+    ctx.fillRect(w * 0.22 - 15, h * 0.82, 30, 35);       // 徳利本体
+    ctx.fillRect(w * 0.22 - 8, h * 0.82 - 50, 16, 50);   // 徳利首
 
     // 箸立てやジョッキ
-    ctx.fillRect(w * 0.88, h * 0.75, 40, 60); 
+    ctx.fillRect(w * 0.88, h * 0.75, 40, 60);
     ctx.fillRect(w * 0.82, h * 0.78, 35, 55); 
     ctx.fillRect(w * 0.82 - 10, h * 0.80, 10, 30); 
     
@@ -1254,21 +1363,17 @@ function drawBackgroundProps(ctx, w, h) {
 
 function drawCharcoal(ctx, lane, bounds, now, laneIndex) {
     const { x, y, w, h } = bounds;
-    
     // 炉の奥行き(底の暗がり)を表現する背景
     ctx.fillStyle = "#0a0a0c";
     ctx.fillRect(x, y + h * 0.4, w, h * 0.6);
-
     const numCoals = 14; 
     const startY = y + h * 0.55;
     const endY = y + h * 0.95;
-
     let baseRed = 0.15; 
     if (lane.type === "medium") baseRed = 0.35;
     else if (lane.type === "strong") baseRed = 0.65;
 
     ctx.save();
-
     // 先に薄い灰(Ash)を底に敷き詰める(ellipse廃止)
     for (let i = 0; i < 8; i++) {
         const pr1 = Math.abs(Math.sin(laneIndex * 5 + i * 7));
@@ -1288,12 +1393,10 @@ function drawCharcoal(ctx, lane, bounds, now, laneIndex) {
         const pr1 = Math.abs(Math.sin(laneIndex * 13 + i * 17));
         const pr2 = Math.abs(Math.cos(laneIndex * 19 + i * 23));
         const pr3 = Math.abs(Math.sin(laneIndex * 29 + i * 31));
-
         const cw = 10 + pr1 * 14; 
         const ch = 6 + pr2 * 8;
         const cx = x + pr3 * (w - cw);
         const cy = startY + pr1 * (endY - startY - ch);
-
         // 炭の外周(ブロック状)
         ctx.fillStyle = pr2 > 0.4 ? "#151515" : "#0a0a0a";
         ctx.fillRect(cx, cy, cw, ch); 
@@ -1306,7 +1409,6 @@ function drawCharcoal(ctx, lane, bounds, now, laneIndex) {
             // 中間の赤
             ctx.fillStyle = isBright ? "#881100" : "#550a00";
             ctx.fillRect(cx + 2, cy + 2, cw - 4, ch - 4);
-
             // 中心のもっとも熱い部分
             if (isBright && pr2 < baseRed * 0.7) {
                 ctx.fillStyle = "#dd4411";
@@ -1331,8 +1433,7 @@ function drawGrillDirt(ctx, bounds, laneIndex) {
         const pr2 = Math.abs(Math.cos(laneIndex * 12 + k * 23));
         const dirtX = x + pr1 * w;
         const dirtY = y + pr2 * h;
-        const dirtSize = 4 + Math.floor(pr1 * 3) * 4; 
-        
+        const dirtSize = 4 + Math.floor(pr1 * 3) * 4;
         ctx.fillStyle = pr2 > 0.5 ? "#221100" : "#111111";
         ctx.fillRect(dirtX, dirtY, dirtSize, dirtSize);
     }
@@ -1350,7 +1451,6 @@ function drawAmbientSmoke(ctx, w, h) {
         const offsetX = Math.sin(now / 2500 + i) * 40;
         const offsetY = ((now / 40) + i * 400) % (h * 0.6);
         const size = 70 + Math.sin(now / 2000 + i) * 20;
-
         // ピクセルブロックの塊として描く
         const blockSize = 20;
         const blocks = Math.floor(size / blockSize);
@@ -1368,7 +1468,6 @@ function drawAmbientSmoke(ctx, w, h) {
 function drawTableBackground(ctx) {
     const w = LAYOUT.CANVAS_WIDTH;
     const h = LAYOUT.CANVAS_HEIGHT;
-
     // ソリッドな帯で背景を描画(グラデーション廃止)
     ctx.fillStyle = "#130a08";
     ctx.fillRect(0, 0, w, h * 0.3);
@@ -1376,7 +1475,6 @@ function drawTableBackground(ctx) {
     ctx.fillRect(0, h * 0.3, w, h * 0.4);
     ctx.fillStyle = "#221510";
     ctx.fillRect(0, h * 0.7, w, h * 0.3);
-
     // ドット絵風の直線テーブルライン(ベクトル曲線の廃止)
     ctx.fillStyle = "#110a08";
     for (let y = 0; y < h; y += 45) {
@@ -1523,16 +1621,19 @@ function render(ctx) {
             if (state.screen === "stage_clear") {
                 ctx.globalAlpha = alpha * pulse;
                 ctx.fillStyle = "#000"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText("▶ NEXT STAGE", 2, 2);
-                ctx.fillStyle = "#fff"; ctx.fillText("▶ NEXT STAGE", 0, 0);
+                ctx.fillStyle = "#fff";
+                ctx.fillText("▶ NEXT STAGE", 0, 0);
                 ctx.globalAlpha = alpha; ctx.fillStyle = "#777";
                 ctx.font = getPixelFont(12); ctx.fillText("▶ RETRY", 0, 30);
             } else {
                 ctx.globalAlpha = alpha * pulse;
                 ctx.font = getPixelFont(14); ctx.textAlign = "center";
                 ctx.fillStyle = "#000";
-                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 2, 2); ctx.fillStyle = "#fff"; ctx.fillText("▶ RETRY", 0, 0);
+                if (state.gameMode === "ai") { ctx.fillText("▶ RETRY", 2, 2);
+                    ctx.fillStyle = "#fff"; ctx.fillText("▶ RETRY", 0, 0);
                 } 
-                else { ctx.fillText("▶ REMATCH", 2, 2); ctx.fillStyle = "#fff"; ctx.fillText("▶ REMATCH", 0, 0);
+                else { ctx.fillText("▶ REMATCH", 2, 2);
+                    ctx.fillStyle = "#fff"; ctx.fillText("▶ REMATCH", 0, 0);
                 }
             }
             ctx.restore();
@@ -1571,7 +1672,7 @@ function drawGameScreen(ctx) {
     drawBevelRect(ctx, cx - hudW / 2, safeTop + 2, hudW, 36, "#1a100c");
     
     ctx.fillStyle = "#e0d6c8";
-    ctx.textAlign = "center"; 
+    ctx.textAlign = "center";
     ctx.fillText(roundText, cx, safeTop + 26);
     
     if (state.gameMode === "ai") { 
@@ -1638,8 +1739,7 @@ function drawGameScreen(ctx) {
             }
         }
 
-        const heat = getBaseHeat(lane.type), boost = lane.uchiwaBoost ||
-            0, baseEndState = effectiveCookState + heat + boost, baseEndStatus = getCookLabel(lane.type, baseEndState);
+        const heat = getBaseHeat(lane.type), boost = lane.uchiwaBoost || 0, baseEndState = effectiveCookState + heat + boost, baseEndStatus = getCookLabel(lane.type, baseEndState);
         let isFlashable = false, isPerfectTarget = false;
         let uchiwaTargetState = baseEndState; let uchiwaTargetStatus = baseEndStatus;
         if (state.buildMode) {
@@ -1653,26 +1753,34 @@ function drawGameScreen(ctx) {
                 uchiwaTargetStatus = getCookLabel(lane.type, uchiwaTargetState); }
         }
 
-        // --- 焼き台のドット絵化 ---
-        const scale = 4; // ピクセルスケール
-        const gridColor = "#4a4a55"; // 暗い鉄の色
-        const gridHighlight = "#7a7a85"; // 鉄の反射
+        // --- 焼き台のドット絵化 (Old code commented out) ---
+        // const scale = 4;
+        // ctx.fillStyle = "#1a1a20"; ctx.fillRect(b.x - scale, b.y - scale, b.w + scale * 2, b.h + scale * 2);
+        // ctx.fillStyle = "#2a2a35"; ctx.fillRect(b.x, b.y, b.w, b.h);
+        // drawCharcoal(ctx, lane, b, now, i);
+        // for (let j = 1; j <= 5; j++) { ... }
+        // [0.2, 0.8].forEach(ratio => { ... });
+        // drawGrillDirt(ctx, b, i);
+        // ----------------------------------------------------
 
-        // 1. 焼き台の外枠(太いドットの鉄枠)
-        ctx.fillStyle = "#1a1a20";
-        ctx.fillRect(b.x - scale, b.y - scale, b.w + scale * 2, b.h + scale * 2);
-        ctx.fillStyle = "#2a2a35";
-        ctx.fillRect(b.x, b.y, b.w, b.h);
+        // ===== NEW: ピクセルアート焼き台の描画 =====
+        const spriteW = 32 * YAKITORI_PIXEL_UNIT;
+        const spriteH = 48 * YAKITORI_PIXEL_UNIT;
+        // 既存のレーン枠(b.x, b.y, b.w, b.h)の中央に配置
+        const gx = Math.round(b.x + b.w / 2 - spriteW / 2);
+        const gy = Math.round(b.y + b.h / 2 - spriteH / 2);
 
-        // ==== ここに炭火の追加描画 ====
-        drawCharcoal(ctx, lane, b, now, i);
-        // ==============================
+        drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_GRILL_PARTS.base);
+        drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_COAL_PATTERN, 0, 22);
+        drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_GRILL_PARTS.net);
+        // ===========================================
 
         const currentStatus = getCookLabel(lane.type, effectiveCookState);
         const isPrePerfect = (currentStatus !== "perfect" && currentStatus !== "burnt" && baseEndStatus === "perfect");
         const isPreBurnt = (currentStatus !== "burnt" && baseEndStatus === "burnt");
         if (lane.built) {
             if (currentStatus === "perfect") { const pulse = 0.5 + 0.5 * Math.sin(now / 300);
+                const scale = 4;
                 // ソリッドなハイライト線
                 ctx.fillStyle = `rgba(255, 230, 120, ${0.2 + pulse * 0.2})`;
                 ctx.fillRect(b.x - scale, b.y - scale, b.w + scale*2, scale);
@@ -1689,29 +1797,7 @@ function drawGameScreen(ctx) {
             }
         }
         
-        // 2. 金網(ピクセル単位の四角形として描画)
-        // 横線
-        for (let j = 1; j <= 5; j++) { 
-            const barY = Math.round(b.y + (b.h * j / 6));
-            ctx.fillStyle = gridColor;
-            ctx.fillRect(b.x, barY, b.w, scale);
-            ctx.fillStyle = gridHighlight;
-            ctx.fillRect(b.x, barY - 2, b.w, 2); // 1ピクセル風のハイライト
-        }
-        // 縦線
-        [0.2, 0.8].forEach(ratio => { 
-            const barX = Math.round(b.x + b.w * ratio);
-            ctx.fillStyle = gridColor;
-            ctx.fillRect(barX, b.y, scale, b.h);
-            ctx.fillStyle = gridHighlight;
-            ctx.fillRect(barX - 2, b.y, 2, b.h);
-        });
-
-        // ==== ここに金網の汚れの追加描画 ====
-        drawGrillDirt(ctx, b, i);
-        // ====================================
-        
-        let fireIntensity = lane.fire * 0.15; 
+        let fireIntensity = lane.fire * 0.15;
         const uchiwaTime = state.visuals.uchiwaGusts[lane.id];
         let gustWobble = 0; let fireSwayX = 0;
         if (uchiwaTime && now - uchiwaTime < 800) {
@@ -1740,7 +1826,7 @@ function drawGameScreen(ctx) {
                 let fillAlphaBase = 0.08, fillAlphaRange = 0.10, rgb = "255, 255, 255";
                 if (isPerfectTarget) rgb = "255, 230, 100";
                 else if (harvestStatus === "burnt") { if (lane.owner !== activePlayer) rgb = "180, 180, 180";
-                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04; 
+                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.04; fillAlphaRange = 0.04;
                     } 
                 } 
                 else if (harvestStatus === "early") { rgb = "255, 80, 80";
@@ -1748,7 +1834,8 @@ function drawGameScreen(ctx) {
                 const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
                 ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`; ctx.fillRect(b.x, b.y, b.w, b.h); 
                 // ベクター線の代わりに矩形の枠
-                ctx.fillRect(b.x, b.y, b.w, 3); ctx.fillRect(b.x, b.y, 3, b.h);
+                ctx.fillRect(b.x, b.y, b.w, 3);
+                ctx.fillRect(b.x, b.y, 3, b.h);
                 ctx.fillRect(b.x, b.y + b.h - 3, b.w, 3); ctx.fillRect(b.x + b.w - 3, b.y, 3, b.h);
             } else if (state.buildMode === "uchiwa") {
                 let fillAlphaBase = 0.08, fillAlphaRange = 0.10, rgb = "255, 255, 255";
@@ -1757,7 +1844,8 @@ function drawGameScreen(ctx) {
                 const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
                 ctx.fillStyle = `rgba(${rgb}, ${currentFillAlpha})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h);
-                ctx.fillRect(b.x, b.y, b.w, 3); ctx.fillRect(b.x, b.y, 3, b.h);
+                ctx.fillRect(b.x, b.y, b.w, 3);
+                ctx.fillRect(b.x, b.y, 3, b.h);
                 ctx.fillRect(b.x, b.y + b.h - 3, b.w, 3); ctx.fillRect(b.x + b.w - 3, b.y, 3, b.h);
             } else {
                 const currentFillAlpha = 0.08 + selectPulse * 0.10;
@@ -1770,8 +1858,7 @@ function drawGameScreen(ctx) {
         if (lane.built) {
             const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && isFlashable);
             const targetCookState = isUchiwaPreviewActive ? uchiwaTargetState : displayCookState;
-            const displayStatusUpper = getCookLabel(lane.type, targetCookState).toUpperCase();
-            const p = getVisualPalette(displayStatusUpper);
+            
             let targetAlpha = lane.justPlaced ? 0.6 : 1.0; let fallYOffset = 0; let currentAlpha = targetAlpha;
             const pTime = state.visuals.placedAt[lane.id];
             if (pTime && now - pTime < 220) {
@@ -1781,25 +1868,46 @@ function drawGameScreen(ctx) {
                 currentAlpha = 0.1 + (targetAlpha - 0.1) * easeOut;
             }
 
+            const displayStatusUpperForBreathe = getCookLabel(lane.type, targetCookState).toUpperCase();
             let breatheY = 0;
-            if (displayStatusUpper === "PERFECT" && !lane.justPlaced) { breatheY = Math.sin(now / 260) * 1.5;
+            if (displayStatusUpperForBreathe === "PERFECT" && !lane.justPlaced) { breatheY = Math.sin(now / 260) * 1.5;
             }
             if (isPrePerfect && !lane.justPlaced) { breatheY = Math.sin(now / 150) * 0.5;
             }
 
-            const stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + fallYOffset + breatheY;
+            const stickTop = b.y + b.h * 0.1 + fallYOffset + breatheY;
             const shakenLaneCx = laneCx + gustWobble;
 
+            // --- OLD SKEWER DRAWING (Commented out) ---
+            // ctx.globalAlpha = currentAlpha;
+            // ctx.fillStyle = "#111"; ctx.fillRect(shakenLaneCx - 1, stickTop, 4, stickH);
+            // ctx.fillStyle = LAYOUT.COLORS.STICK; ctx.fillRect(shakenLaneCx - 2, stickTop, 4, stickH);
+            // const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = shakenLaneCx - meatW / 2;
+            // drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
+            // drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
+            // drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
+            // ctx.globalAlpha = 1.0;
+            // ------------------------------------------
+
+            // ===== NEW: ピクセルアート串と肉の描画 =====
             ctx.globalAlpha = currentAlpha;
-            ctx.fillStyle = "#111"; ctx.fillRect(shakenLaneCx - 1, stickTop, 4, stickH);
-            ctx.fillStyle = LAYOUT.COLORS.STICK;
-            ctx.fillRect(shakenLaneCx - 2, stickTop, 4, stickH);
-            const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = shakenLaneCx - meatW / 2;
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, isDanger, displayStatusUpper, lane.type, now, isPreBurnt, isPrePerfect);
+            const displayStatusUpper = getCookLabel(lane.type, targetCookState).toUpperCase();
             
+            let spriteStage = "raw";
+            if (displayStatusUpper === "OKAY" || displayStatusUpper === "PERFECT") spriteStage = "cooked";
+            else if (displayStatusUpper === "BURNT") spriteStage = "burnt";
+
+            const skewerSprite = YAKITORI_SKEWER_SPRITES[spriteStage];
+            
+            // アニメーション用のオフセット(元の fallYOffset, breatheY, gustWobble をドット単位に変換して適用)
+            const skewerOffsetX = 10 + Math.round(gustWobble / YAKITORI_PIXEL_UNIT);
+            const skewerOffsetY = 8 + Math.round((fallYOffset + breatheY) / YAKITORI_PIXEL_UNIT);
+
+            drawYakitoriSolidShadow(ctx, gx, gy, skewerSprite, skewerOffsetX + 1, skewerOffsetY + 2);
+            drawYakitoriSpriteMap(ctx, gx, gy, skewerSprite, skewerOffsetX, skewerOffsetY);
             ctx.globalAlpha = 1.0;
+            // ===========================================
+            
             const markerY = b.y - 10, markerSize = 9; ctx.fillStyle = lane.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
             let markerXOffset = 0;
             if (state.visuals.aiTargetLane && state.visuals.aiTargetLane.laneId === lane.id) {
@@ -1811,7 +1919,6 @@ function drawGameScreen(ctx) {
             ctx.fillRect(laneCx - 2 + markerXOffset, markerY - 2, 4, 4);
             ctx.fillRect(laneCx - 4 + markerXOffset, markerY - 6, 8, 4);
             ctx.fillRect(laneCx - 6 + markerXOffset, markerY - 10, 12, 4);
-
             const isOwn = lane.owner === activePlayer, realCanSteal = !isOwn && currentStatus !== "early" && currentStatus !== "burnt" && pResources >= 1;
             if (!lane.justPlaced) {
                 const peakTime = state.visuals.peakFlashes[lane.id];
@@ -1843,8 +1950,10 @@ function drawGameScreen(ctx) {
             const dx = dotStartX + j * (dotSize + dotGap);
             if (j < cv) {
                 if (isCurrentPreviewLane && previewProg < 0.35 && j >= previewEventForThisLane.prevCookState && j < previewEventForThisLane.newCookState) {
-                    const flashAlpha = Math.sin(getTime() / 50) > 0 ? 1 : 0.5; // 点滅をソリッドに
-                    ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
+                    const flashAlpha = Math.sin(getTime() / 50) > 0 ?
+                        1 : 0.5; // 点滅をソリッドに
+                    ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+                    ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                 } else {
                     ctx.fillStyle = getVisualPalette(getCookLabel(lane.type, displayCookState).toUpperCase()).dot;
                     ctx.fillRect(dx, dotStartY, dotSize, dotSize); 
@@ -1863,8 +1972,10 @@ function drawGameScreen(ctx) {
                     // strokeRectの代わりにfillRect
                     ctx.fillStyle = strokeStyle;
                     ctx.fillRect(dx, dotStartY, dotSize, 1); ctx.fillRect(dx, dotStartY, 1, dotSize);
-                    ctx.fillRect(dx, dotStartY + dotSize - 1, dotSize, 1); ctx.fillRect(dx + dotSize - 1, dotStartY, 1, dotSize);
-                } else { ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; ctx.fillRect(dx, dotStartY, dotSize, dotSize);
+                    ctx.fillRect(dx, dotStartY + dotSize - 1, dotSize, 1);
+                    ctx.fillRect(dx + dotSize - 1, dotStartY, 1, dotSize);
+                } else { ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+                    ctx.fillRect(dx, dotStartY, dotSize, dotSize);
                 }
             } else { ctx.fillStyle = "rgba(10, 10, 15, 0.9)";
                 ctx.fillRect(dx, dotStartY, dotSize, dotSize); }
@@ -1878,14 +1989,18 @@ function drawGameScreen(ctx) {
                 ctx.fillStyle = `rgba(255, 230, 100, ${0.25 * textProgress})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h); 
                 ctx.font = getPixelFont(14);
-                ctx.fillStyle = "#000"; ctx.fillText("READY!", laneCx + 2, textY + 2); // シャドウ
-                ctx.fillStyle = "#e6d555"; ctx.fillText("READY!", laneCx, textY);
+                ctx.fillStyle = "#000"; ctx.fillText("READY!", laneCx + 2, textY + 2);
+                // シャドウ
+                ctx.fillStyle = "#e6d555";
+                ctx.fillText("READY!", laneCx, textY);
             } else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") { 
                 ctx.fillStyle = `rgba(255, 50, 50, ${0.25 * textProgress})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h); 
                 ctx.font = getPixelFont(16);
-                ctx.fillStyle = "#000"; ctx.fillText("BURNT!", laneCx + 2, textY + 2); // シャドウ
-                ctx.fillStyle = "#f33"; ctx.fillText("BURNT!", laneCx, textY);
+                ctx.fillStyle = "#000"; ctx.fillText("BURNT!", laneCx + 2, textY + 2);
+                // シャドウ
+                ctx.fillStyle = "#f33";
+                ctx.fillText("BURNT!", laneCx, textY);
             } else { 
                 ctx.fillStyle = `rgba(255, 255, 255, ${0.1 * textProgress})`;
                 ctx.fillRect(b.x, b.y, b.w, b.h); 
@@ -1911,7 +2026,8 @@ function drawGameScreen(ctx) {
                     `+${score}` : `${score}`; let color = score > 0 ? "#ffeb3b" : (score < 0 ? "#ff5555" : "#aaaaaa");
                 if (score === 0) color = "#aaaaaa";
                 ctx.globalAlpha = modeAlpha; ctx.font = getPixelFont(12); 
-                ctx.fillStyle = "#000"; ctx.fillText(scoreText, laneCx + 2, floatY + 2); 
+                ctx.fillStyle = "#000";
+                ctx.fillText(scoreText, laneCx + 2, floatY + 2); 
                 ctx.fillStyle = color; ctx.fillText(scoreText, laneCx, floatY);
             } else if (state.buildMode === "uchiwa") {
                 let statusText = uchiwaTargetStatus.toUpperCase();
@@ -1927,10 +2043,12 @@ function drawGameScreen(ctx) {
                 ctx.globalAlpha = textAlpha;
                 ctx.font = getPixelFont(10);
                 ctx.fillStyle = "#000"; ctx.fillText("NEXT", laneCx + 2, floatY - 14 + 2); 
-                ctx.fillStyle = "#aaaaaa"; ctx.fillText("NEXT", laneCx, floatY - 14); 
+                ctx.fillStyle = "#aaaaaa";
+                ctx.fillText("NEXT", laneCx, floatY - 14); 
                 
                 ctx.fillStyle = "#000"; ctx.fillText(statusText, laneCx + 2, floatY + 2);
-                ctx.fillStyle = color; ctx.fillText(statusText, laneCx, floatY);
+                ctx.fillStyle = color;
+                ctx.fillText(statusText, laneCx, floatY);
             }
             ctx.globalAlpha = 1.0;
         }
@@ -1968,7 +2086,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else {
             // Arcをブロック(fillRect)に置き換え
-            ctx.fillStyle = p.color || "#e0e0e0"; 
+            ctx.fillStyle = p.color ||
+                "#e0e0e0"; 
             const s = Math.max(2, Math.floor((p.size * (1 + ratio)) / 2));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         }
@@ -1982,8 +2101,10 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#a33", isPressed);
         const offset = isPressed ? 3 : 0; ctx.fillStyle = "#fff";
         ctx.font = getPixelFont(12); ctx.textAlign="center"; 
-        ctx.fillStyle = "#000"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset + 2, cb.y + cb.h/2 + 6 + offset + 2); // シャドウ
-        ctx.fillStyle = "#fff"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
+        ctx.fillStyle = "#000"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset + 2, cb.y + cb.h/2 + 6 + offset + 2);
+        // シャドウ
+        ctx.fillStyle = "#fff";
+        ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
     } else {
         LAYOUT.BUTTONS.forEach((btn, i) => {
             const b = getButtonBounds(i), boxId = i + 1; let canUse = false;
@@ -2009,7 +2130,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (harvestBreatheAlpha > 0 && !isPressed) {
                 ctx.globalAlpha = harvestBreatheAlpha;
                 ctx.fillStyle = "#fff";
-                ctx.fillRect(b.x + 4, b.y + 4, b.w - 8, 4); // 厚みのあるハイライト
+                ctx.fillRect(b.x + 4, b.y + 4, b.w - 8, 4);
+                // 厚みのあるハイライト
             }
             
             ctx.globalAlpha = btnAlpha;
@@ -2056,9 +2178,10 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             }
         } else if (state.introPhase === "fight") {
             const p_fight = state.fightSplashTimer / 25, elapsedP = 1 - p_fight, scale = 1.0 + elapsedP * 0.08, alpha = p_fight < 0.2 ?
-                p_fight * 5 : 1.0;
+            p_fight * 5 : 1.0;
             ctx.globalAlpha = alpha; ctx.save(); ctx.translate(cx, cy); ctx.scale(scale, scale); ctx.font = getPixelFont(32);
-            ctx.fillStyle = "#000"; ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
+            ctx.fillStyle = "#000";
+            ctx.fillText("FIGHT!!", 3, 3); ctx.fillStyle = "#ffeb3b"; ctx.fillText("FIGHT!!", 0, 0); ctx.restore(); ctx.globalAlpha = 1.0;
         } else if (state.introPhase === "order" && state.todaysOrder) {
             drawIntroOrderSlip(ctx, cx, cy - 30, state.todaysOrder);
         }
@@ -2079,15 +2202,39 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
   
         const yOffset = moveDist * (1 - Math.pow(1 - progress, 3)); ctx.globalAlpha = Math.max(0, 1 - alphaProg);
         
-        const b = getLaneBounds(g.laneIndex), laneCx = b.x + b.w / 2, p = getVisualPalette(g.status), stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + yOffset; 
+        const b = getLaneBounds(g.laneIndex), laneCx = b.x + b.w / 2;
+
+        // --- OLD GHOST DRAWING (Commented out) ---
+        // const p = getVisualPalette(g.status), stickH = b.h * 0.7, stickTop = b.y + b.h * 0.1 + yOffset; 
+        // if (g.cookState !== undefined) {
+        //     ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; 
+        //     ctx.fillRect(laneCx-2, stickTop, 4, stickH);
+        //     const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW/2;
+        //     const ghostStatusUpper = g.status.toUpperCase();
+        //     drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
+        //     drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, false, ghostStatusUpper, "medium", now);
+        //     drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
+        // -----------------------------------------
+
+        // ===== NEW: ピクセルアートGhostの描画 =====
         if (g.cookState !== undefined) {
-            ctx.fillStyle = "#111"; ctx.fillRect(laneCx-1, stickTop, 4, stickH); ctx.fillStyle = LAYOUT.COLORS.STICK; 
-            ctx.fillRect(laneCx-2, stickTop, 4, stickH);
-            const meatW = b.w * 0.6, meatH = stickH * 0.2, meatX = laneCx - meatW/2;
             const ghostStatusUpper = g.status.toUpperCase();
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.1, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.35, meatW, meatH, p.negi, true, false, ghostStatusUpper, "medium", now);
-            drawDeliciousYakitori(ctx, meatX, stickTop + stickH * 0.6, meatW, meatH, p.meat, false, false, ghostStatusUpper, "medium", now);
+            let spriteStage = "raw";
+            if (ghostStatusUpper === "OKAY" || ghostStatusUpper === "PERFECT") spriteStage = "cooked";
+            else if (ghostStatusUpper === "BURNT") spriteStage = "burnt";
+
+            const skewerSprite = YAKITORI_SKEWER_SPRITES[spriteStage];
+            const spriteW = 32 * YAKITORI_PIXEL_UNIT;
+            const spriteH = 48 * YAKITORI_PIXEL_UNIT;
+            const gx = Math.round(b.x + b.w / 2 - spriteW / 2);
+            const gy = Math.round(b.y + b.h / 2 - spriteH / 2);
+            
+            const ghostOffsetY = 8 + Math.round(yOffset / YAKITORI_PIXEL_UNIT);
+            
+            drawYakitoriSpriteMap(ctx, gx, gy, skewerSprite, 10, ghostOffsetY);
+        // ==========================================
+
+            const stickTop = b.y + b.h * 0.1 + yOffset; 
             ctx.fillStyle = g.owner === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; 
             // 矢印もドット絵化
             ctx.fillRect(laneCx - 2, stickTop - 10, 4, 4);
@@ -2183,11 +2330,10 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 let isResult = msg.type === "result";
                 let icon = isResult ? null : (msg.isBonus ? 'diamond' : null);
                 let text = msg.text ||
-                    (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
+                (msg.amount > 0 ? `+${msg.amount}` : `${msg.amount}`); 
                 let color = isResult ?
-                    "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
+                "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
                 ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
-                
                 // ドロップシャドウ
                 ctx.fillStyle = "#000";
                 if (icon) {
@@ -2230,7 +2376,6 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     
     // ピクセル枠のパネルとして描画
     drawBevelRect(ctx, x, y, w, h, baseColor);
-    
     if (active) { 
         // アクティブな枠線もソリッドなドット枠にする
         const scale = 4;
@@ -2241,9 +2386,11 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
         ctx.fillRect(x + w, y - scale, scale, h + scale*2);
     }
 
-    ctx.fillStyle = idx === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(12); ctx.textAlign = "left";
+    ctx.fillStyle = idx === 1 ?
+        LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2; ctx.font = getPixelFont(12); ctx.textAlign = "left";
     ctx.fillText(`P${idx}`, x + 10, y + 25);
-    ctx.fillStyle = "#ccc"; ctx.font = getPixelFont(10);
+    ctx.fillStyle = "#ccc";
+    ctx.font = getPixelFont(10);
     if (idx === 1) { ctx.fillText("PLAYER", x + 10, y + 42);
     } 
     else if (idx === 2) { const p2Text = state.gameMode === "ai" ?
