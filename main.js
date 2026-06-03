@@ -1349,6 +1349,7 @@ function drawCompactOrderCard(ctx, cx, y, orderObj) {
     ctx.restore();
 }
 
+```javascript
 function drawGameScreen(ctx) {
     const cx = LAYOUT.CANVAS_WIDTH / 2, safeTop = 15, panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25), now = getTime();
     const activePlayer = (state.startRouletteActive || state.startRouletteBlinkActive) ? (state.startRouletteBlinkActive ? state.startRouletteFinalPlayer : state.startRouletteIndex) : (state.pendingPlayer !== null ? state.pendingPlayer : state.currentPlayer);
@@ -1785,6 +1786,8 @@ function drawGameScreen(ctx) {
     }
 }
 
+```
+
 
 // --------------------------------------------------
 // ドット絵ルールの背景描画(ellipse廃止)
@@ -2113,6 +2116,7 @@ function render(ctx) {
 }
 
 // [PATCH: renderParticlesAndOverlay]
+```javascript
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
     for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
@@ -2148,6 +2152,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#8a3a3a", isPressed);
         const offset = isPressed ? 4 : 0; 
         
+        // 四隅の釘（道具札らしさ）
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
         ctx.fillRect(cb.x + 4, cb.y + 4, 4, 4);
         ctx.fillRect(cb.x + cb.w - 8, cb.y + 4, 4, 4);
@@ -2160,6 +2165,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.fillStyle = "#fff";
         ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
     } else {
+        // 世界観に合わせた道具札風のカラーリング（彩度を少し落とし和の染め色風に）
         const tagColors = ["#5c6e58", "#4e627d", "#8e6d4c", "#784b5c"];
         
         LAYOUT.BUTTONS.forEach((btn, i) => {
@@ -2174,7 +2180,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (isError) {
                 baseColor = "#7a3b3b";
             } else if (!canUse || isLocked) {
-                baseColor = "#4a4642"; 
+                baseColor = "#4a4642"; // 使用不可時は落ち着いた木のグレー色
             }
 
             let btnAlpha = 1.0; 
@@ -2189,6 +2195,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = btnAlpha;
             drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
             
+            // 木札としての彫り込みライン
             ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
             ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, 4);
             ctx.fillRect(b.x + 8, b.y + 12, 4, b.h - 24);
@@ -2196,6 +2203,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillRect(b.x + 8, b.y + b.h - 12, b.w - 16, 4);
             ctx.fillRect(b.x + b.w - 12, b.y + 12, 4, b.h - 24);
 
+            // 四隅の釘（留め具）
             ctx.fillStyle = (canUse && !isLocked) ? "rgba(30, 20, 10, 0.4)" : "rgba(10, 10, 10, 0.6)";
             ctx.fillRect(b.x + 4, b.y + 4, 4, 4);
             ctx.fillRect(b.x + b.w - 8, b.y + 4, 4, 4);
@@ -2205,11 +2213,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             if (harvestBreatheAlpha > 0 && !isPressed) {
                 ctx.globalAlpha = harvestBreatheAlpha;
                 ctx.fillStyle = "#fff";
-                ctx.fillRect(b.x + 12, b.y + 8, b.w - 24, 4); 
+                ctx.fillRect(b.x + 12, b.y + 8, b.w - 24, 4); // 上部の彫り込みラインに合わせて光らせる
             }
             
             ctx.globalAlpha = btnAlpha;
-            const offset = isPressed ? 4 : 0; 
+            const offset = isPressed ? 4 : 0; // ドット絵の4pxルールに合わせた沈み込み
 
             drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "#999", 4);
             
@@ -2218,6 +2226,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const textY = b.y + b.h - 10 + offset; 
             const textX = b.x + b.w/2 + offset;
             
+            // コスト・情報の背景に小さな「焼印 / 帯」のような座布団を敷いて可読性を上げる
             ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
             ctx.fillRect(textX - 24, textY - 9, 48, 14);
 
@@ -2241,6 +2250,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         });
     }
 }
+
+```
+
 
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
