@@ -2163,68 +2163,114 @@ function drawBackgroundProps(ctx, w, h) {
 }
 
 function drawCharcoal(ctx, lane, bounds, now, laneIndex) {
-    const { x, y, w, h } = bounds;
-    // 炉の奥行き(底の暗がり)を表現する背景
+    const x = bounds.x;
+    const y = bounds.y;
+    const w = bounds.w;
+    const h = bounds.h;
+
     ctx.fillStyle = "#0a0a0c";
     ctx.fillRect(x, y + h * 0.4, w, h * 0.6);
-    const numCoals = 14; 
+
     const startY = y + h * 0.55;
     const endY = y + h * 0.95;
-    let baseRed = 0.15; 
-    if (lane.type === "medium") baseRed = 0.35;
-    else if (lane.type === "strong") baseRed = 0.65;
+
+    let numAsh = 8;
+    let numCoals = 14;
+    let hotRatio = 0.15;
+    let coreRatio = 0.05;
+    let ashColor = "#333333";
+    let coalDark = "#0a0a0a";
+    let coalLight = "#151515";
+    let hotColorDark = "#550a00";
+    let hotColorLight = "#881100";
+    let coreColor = "#dd4411";
+
+    if (lane.type === "weak") {
+        numAsh = 12;
+        numCoals = 12;
+        hotRatio = 0.15;
+        coreRatio = 0.0;
+        ashColor = "#555555";
+        coalDark = "#1a1a1a";
+        coalLight = "#333333";
+        hotColorDark = "#441100";
+        hotColorLight = "#661100";
+    } else if (lane.type === "medium") {
+        numAsh = 8;
+        numCoals = 14;
+        hotRatio = 0.45;
+        coreRatio = 0.15;
+        ashColor = "#333333";
+        coalDark = "#0f0505";
+        coalLight = "#221111";
+        hotColorDark = "#661100";
+        hotColorLight = "#aa2200";
+        coreColor = "#ee5511";
+    } else if (lane.type === "strong") {
+        numAsh = 4;
+        numCoals = 16;
+        hotRatio = 0.80;
+        coreRatio = 0.45;
+        ashColor = "#221111";
+        coalDark = "#1a0502";
+        coalLight = "#330a05";
+        hotColorDark = "#aa2200";
+        hotColorLight = "#ee4400";
+        coreColor = "#ff8800";
+    }
 
     ctx.save();
-    // 先に薄い灰(Ash)を底に敷き詰める(ellipse廃止)
-    for (let i = 0; i < 8; i++) {
+
+    for (let i = 0; i < numAsh; i++) {
         const pr1 = Math.abs(Math.sin(laneIndex * 5 + i * 7));
         const pr2 = Math.abs(Math.cos(laneIndex * 3 + i * 11));
-        
-        ctx.fillStyle = `#333333`; // ソリッドな灰
+
+        ctx.fillStyle = ashColor;
         const ashX = x + pr1 * (w - 10);
         const ashY = startY + pr2 * (endY - startY);
-        
         const ashW = 20 + pr1 * 16;
         const ashH = 10 + pr2 * 12;
         ctx.fillRect(ashX, ashY, ashW, ashH);
     }
 
-    // 炭の塊を不規則に描画
     for (let i = 0; i < numCoals; i++) {
         const pr1 = Math.abs(Math.sin(laneIndex * 13 + i * 17));
         const pr2 = Math.abs(Math.cos(laneIndex * 19 + i * 23));
         const pr3 = Math.abs(Math.sin(laneIndex * 29 + i * 31));
-        const cw = 10 + pr1 * 14; 
+
+        const cw = 10 + pr1 * 14;
         const ch = 6 + pr2 * 8;
         const cx = x + pr3 * (w - cw);
         const cy = startY + pr1 * (endY - startY - ch);
-        // 炭の外周(ブロック状)
-        ctx.fillStyle = pr2 > 0.4 ? "#151515" : "#0a0a0a";
-        ctx.fillRect(cx, cy, cw, ch); 
 
-        // グラデーションを廃止し、ソリッドな四角形の重なりで熱を表現
-        if (pr2 < baseRed) {
-            const flickerSpeed = 800 + pr1 * 400;
-            const isBright = Math.sin(now / flickerSpeed) > 0; 
+        ctx.fillStyle = pr2 > 0.4 ? coalLight : coalDark;
+        ctx.fillRect(cx, cy, cw, ch);
 
-            // 中間の赤
-            ctx.fillStyle = isBright ? "#881100" : "#550a00";
+        if (pr2 < hotRatio) {
+            const flickerSpeed = 600 + pr1 * 400;
+            const isBright = Math.sin(now / flickerSpeed) > 0;
+
+            ctx.fillStyle = isBright ? hotColorLight : hotColorDark;
             ctx.fillRect(cx + 2, cy + 2, cw - 4, ch - 4);
-            // 中心のもっとも熱い部分
-            if (isBright && pr2 < baseRed * 0.7) {
-                ctx.fillStyle = "#dd4411";
+
+            if (isBright && pr2 < coreRatio) {
+                let currentCoreColor = coreColor;
+                if (lane.type === "strong" && Math.sin(now / 150 + i) > 0.6) {
+                    currentCoreColor = "#ffcc44";
+                }
+                ctx.fillStyle = currentCoreColor;
                 ctx.fillRect(cx + 4, cy + 4, cw - 8, ch - 8);
             }
         }
     }
 
-    // 炉の深さを出すためのシャドウ(グラデーションではなくソリッドな重ね)
     ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-    ctx.fillRect(x, startY - 10, w, 20); // 少し上の暗がり
-    ctx.fillRect(x, startY + 10, w, (y + h) - startY - 10); // 下半分の暗がり
+    ctx.fillRect(x, startY - 10, w, 20);
+    ctx.fillRect(x, startY + 10, w, (y + h) - startY - 10);
 
     ctx.restore();
 }
+
 
 function drawGrillDirt(ctx, bounds, laneIndex) {
     const { x, y, w, h } = bounds;
