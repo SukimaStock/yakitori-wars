@@ -150,25 +150,39 @@ function playSound(name) {
 // ==========================================
 // 2. render/layout.js - 定数とレイアウト設定
 // ==========================================
+// ==========================================
+// 2. render/layout.js - 定数とレイアウト設定 (夜の居酒屋風カラーパレットへ更新)
+// ==========================================
 let LAYOUT = {
     CANVAS_WIDTH: window.innerWidth, CANVAS_HEIGHT: window.innerHeight,
     COLORS: {
-        BG: "#1e1410", TEXT_MAIN: "#fff", TEXT_DIM: "#aaa", 
-        P1: "#3c96ff", P2: "#ff5078", NEUTRAL: "#333", PANEL_BG: "#2c1e16", OVERLAY_BG: "rgba(0, 0, 0, 0.7)",
-        STICK: "#dca", FIRE_BASE: "#e53", FIRE_BOOST: "#fa3", DOT_OFF: "#334", HIGHLIGHT: "rgba(255, 255, 255, 0.4)"
+        BG: "#0F0B0A",            // 画面最暗部
+        TEXT_MAIN: "#E8DDC8",     // メイン文字(生成り)
+        TEXT_DIM: "#C9B89C",      // サブ文字
+        P1: "#5B8FCB",            // P1系(くすんだ青)
+        P2: "#C85B63",            // P2系(くすんだ赤)
+        NEUTRAL: "#2A2A2E",       // 炭グレー
+        PANEL_BG: "#18110F",      // 背景の黒茶
+        OVERLAY_BG: "rgba(15, 11, 10, 0.8)", // 黒茶系の半透明
+        STICK: "#B79C7A",         // 明るい木札
+        FIRE_BASE: "#F07A2B",     // 中間炎
+        FIRE_BOOST: "#FFB347",    // 明るい炎
+        DOT_OFF: "#2B1D18",       // 暗い枠線
+        HIGHLIGHT: "rgba(232, 221, 200, 0.2)"
     },
     BUTTONS: [
-        { id: "meat", color: "#5a7a5a", icon: "meat" }, 
-        { id: "put", color: "#4a6fa5", icon: "put_skewer" },     
-        { id: "harvest", color: "#a57a4a", icon: "serve_plate" },  
-        { id: "uchiwa", color: "#8a4a6f", icon: "uchiwa" }    
+        { id: "meat", color: "#8B826B", icon: "meat" },           // カード1(肉)
+        { id: "put", color: "#6F7480", icon: "put_skewer" },      // カード2(串物)
+        { id: "harvest", color: "#8A675F", icon: "serve_plate" }, // カード3(野菜)
+        { id: "uchiwa", color: "#9A7B5D", icon: "uchiwa" }        // カード4(おまかせ)
     ]
 };
+
 const VISUAL_STATES = {
-    RAW: { meat: "#f09b9b", negi: "#eef7ee", dot: "#fff" },
-    OKAY: { meat: "#c88450", negi: "#dcedc8", dot: "#f90" },
-    PERFECT: { meat: "#9f5524", negi: "#7cb342", dot: "#ff4" },
-    BURNT: { meat: "#3c2a23", negi: "#303d32", dot: "#f33" }
+    RAW: { meat: "#D38A82", negi: "#B8C98A", dot: "#E8DDC8" },     // 明るい面, 明るい緑
+    OKAY: { meat: "#B96E67", negi: "#8FA167", dot: "#FFB347" },    // 中間色, 中間緑
+    PERFECT: { meat: "#9C5C3D", negi: "#66724D", dot: "#FFD36A" }, // 焼き色, 影
+    BURNT: { meat: "#1A1412", negi: "#312522", dot: "#8F3A22" }    // 炭の暗部, 炭の中間
 };
 const ICON_PALETTE = { 1:"#ffffff", 2:"#d95763", 3:"#8c3f5d", 4:"#df7126", 5:"#fbf236", 6:"#5fcde4", 7:"#8f563b", 8:"#ac3232", 9:"#e8ede7", 10:"#99e550", 11:"#ffcc66", 12:"#1a100c" };
 const ICON_DATA = {
