@@ -787,8 +787,10 @@ function placeWorker(boxId) {
     if (boxId === 1) { 
         p.resources += 1;
         playSound("meat_plus");
-        const b = getButtonBounds(0);
-        state.visuals.statusMessages.push({ type: "meat", amount: 1, player: state.currentPlayer, x: b.x + b.w / 2, y: b.y, startTime: performance.now(), duration: 800 }); consumeWorker();
+        const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
+        const px = state.currentPlayer === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
+        const py = 15 + 95 + 10;
+        state.visuals.statusMessages.push({ type: "meat", amount: 1, player: state.currentPlayer, x: px, y: py, startTime: performance.now(), duration: 800 }); consumeWorker();
     } else {
         state.isBusy = true;
         setTimeout(() => {
@@ -799,6 +801,7 @@ function placeWorker(boxId) {
         }, 150);
     }
 }
+
 
 function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
@@ -828,10 +831,12 @@ function tryHarvestNode(node) {
             if (p.resources < 1) return;
             p.resources -= 1;
             playSound("meat_minus"); 
-            state.visuals.statusMessages.push({ type: "meat", amount: -1, player: state.currentPlayer, x: msgX - 25, y: msgY + 15, startTime: performance.now(), duration: 800, isSteal: true });
+            state.visuals.statusMessages.push({ type: "meat", amount: -1, player: state.currentPlayer, x: msgX, y: msgY + 15, startTime: performance.now(), duration: 800, isSteal: true });
             if (stolenFrom !== null && state.players[stolenFrom - 1]) {
                 state.players[stolenFrom - 1].resources += 1;
-                state.visuals.statusMessages.push({ type: "meat", amount: 1, player: stolenFrom, x: msgX + 25, y: msgY + 15, startTime: performance.now() + 150, duration: 800, isSteal: true });
+                const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
+                const stolenPx = stolenFrom === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
+                state.visuals.statusMessages.push({ type: "meat", amount: 1, player: stolenFrom, x: stolenPx, y: 15 + 95 + 10, startTime: performance.now() + 150, duration: 800, isSteal: true });
             }
             state.hitStopTimer = 4;
         }
@@ -876,6 +881,7 @@ function tryHarvestNode(node) {
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
+
 
 function tryUchiwaNode(node) {
     if (node.built) { 
@@ -2119,6 +2125,7 @@ function drawGameScreen(ctx) {
             } else if (msg.type === "score") {
                 mainText = msg.amount > 0 ? "+" + msg.amount : "" + msg.amount;
                 mainColor = msg.amount > 0 ? "#ffeb3b" : (msg.amount < 0 ? "#ff5555" : "#aaaaaa");
+                if (msg.amount !== 0) icon = "diamond";
                 
                 if (msg.isPerfect) {
                     subText = "PERFECT!";
@@ -2182,6 +2189,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
