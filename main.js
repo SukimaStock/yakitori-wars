@@ -1708,19 +1708,24 @@ function drawGameScreen(ctx) {
         }
         let hoverGlow = 0;
         if (info.isFlashable) {
-            hoverGlow = 0.15 + 0.15 * Math.sin(now / 200 + i * 11);
+            // 実験：炭の明滅を少しだけ分かりやすく、自然な範囲で上げる
+            hoverGlow = 0.20 + 0.20 * Math.sin(now / 220 + i * 11);
         }
 
         if (cookFlashAlpha > 0 || hoverGlow > 0) {
             const heatFactor = lane.type === "strong" ? 0.8 : (lane.type === "medium" ? 0.5 : 0.3);
             const totalAlpha = Math.min(1.0, cookFlashAlpha + hoverGlow);
-            ctx.fillStyle = "rgba(200, 60, 10, " + (totalAlpha * heatFactor * 0.6) + ")";
+            // 実験：炭の赤みをほんの少し強くする (0.6 -> 0.7)
+            ctx.fillStyle = "rgba(200, 60, 10, " + (totalAlpha * heatFactor * 0.7) + ")";
             ctx.fillRect(info.gx + 6 * YAKITORI_PIXEL_UNIT, info.gy + 22 * YAKITORI_PIXEL_UNIT, 20 * YAKITORI_PIXEL_UNIT, 12 * YAKITORI_PIXEL_UNIT);
         }
 
         if (lane.type === "strong" || lane.type === "medium") {
             let glowSin = Math.sin(now / 500 + i * 13);
-            if (info.isFlashable) glowSin = Math.max(glowSin, Math.sin(now / 250 + i * 13));
+            if (info.isFlashable) {
+                // 実験：選択中はドットの明滅も少し分かりやすく
+                glowSin = Math.max(glowSin, Math.sin(now / 200 + i * 13)); 
+            }
             if (glowSin > 0) {
                 ctx.fillStyle = lane.type === "strong" ? "rgba(216, 90, 16, " + (glowSin * 0.5) + ")" : "rgba(168, 74, 16, " + (glowSin * 0.5) + ")";
                 const dotX = info.gx + (lane.type === "strong" ? 14 : 12) * YAKITORI_PIXEL_UNIT;
@@ -1756,12 +1761,13 @@ function drawGameScreen(ctx) {
         const lane = state.lanes[i];
         if (info.isFlashable) {
             const selectPulse = 0.5 + 0.5 * Math.sin(now / 350);
-            let fillAlphaBase = 0.04, fillAlphaRange = 0.06, rgb = "255, 255, 255";
+            // 実験：枠のベース変動幅も半分にし、限りなく弱くする
+            let fillAlphaBase = 0.02, fillAlphaRange = 0.03, rgb = "255, 255, 255";
             if (state.buildMode === "harvest") {
                 if (info.isPerfectTarget) rgb = "255, 230, 100";
                 else if (info.currentStatus === "burnt") {
                     if (lane.owner !== activePlayer) rgb = "180, 180, 180";
-                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.02; fillAlphaRange = 0.03; }
+                    else { rgb = "100, 100, 100"; fillAlphaBase = 0.01; fillAlphaRange = 0.015; }
                 }
                 else if (info.currentStatus === "early") rgb = "255, 80, 80";
             } else if (state.buildMode === "uchiwa") {
@@ -1769,7 +1775,8 @@ function drawGameScreen(ctx) {
                 else if (info.uchiwaTargetStatus === "perfect" && info.baseEndStatus !== "perfect") rgb = "255, 230, 100";
             }
             const currentFillAlpha = fillAlphaBase + selectPulse * fillAlphaRange;
-            ctx.fillStyle = "rgba(" + rgb + ", " + (currentFillAlpha + 0.3) + ")";
+            // 実験：不透明度をさらに50%下げる (0.3 -> 0.15)
+            ctx.fillStyle = "rgba(" + rgb + ", " + (currentFillAlpha + 0.15) + ")";
             ctx.fillRect(info.b.x, info.b.y, info.b.w, 2);
             ctx.fillRect(info.b.x, info.b.y, 2, info.b.h);
             ctx.fillRect(info.b.x, info.b.y + info.b.h - 2, info.b.w, 2);
@@ -2136,6 +2143,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
