@@ -1315,20 +1315,30 @@ function drawSkewerCloth(ctx, x, y, player) {
     const baseColor = isP1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
     const darkColor = isP1 ? "#1e4b80" : "#80283c";
     
-    const cx = x + 5 * YAKITORI_PIXEL_UNIT; 
-    const cy = y + 29 * YAKITORI_PIXEL_UNIT;
+    // 串のドット絵の中心軸を正確に計算（1文字=4px、持ち手は左から5〜6文字目にあたるため、x+24が中心）
+    const cx = Math.round(x + 6 * YAKITORI_PIXEL_UNIT); 
+    const cy = Math.round(y + 29 * YAKITORI_PIXEL_UNIT);
 
+    // 布の巻き部分（串の幅8pxに対し、10pxで巻くことで少しだけ重なり食い込むようにする）
     ctx.fillStyle = baseColor;
-    ctx.fillRect(cx - 6, cy, 12, 6);
+    ctx.fillRect(cx - 5, cy, 10, 4);
     ctx.fillStyle = darkColor;
-    ctx.fillRect(cx - 6, cy + 6, 12, 4);
+    ctx.fillRect(cx - 5, cy + 4, 10, 2);
 
-    const sideDir = isP1 ? -1 : 1;
-    ctx.fillStyle = baseColor;
-    ctx.fillRect(cx + sideDir * 6, cy + 2, sideDir * 6, 6);
-    ctx.fillStyle = darkColor;
-    ctx.fillRect(cx + sideDir * 6, cy + 8, sideDir * 6, 2);
+    // 結び目（串に食い込みつつ、1〜2ドットだけ外側にはみ出す）
+    if (isP1) {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(cx - 8, cy + 1, 3, 3);
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(cx - 8, cy + 4, 3, 2);
+    } else {
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(cx + 5, cy + 1, 3, 3);
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(cx + 5, cy + 4, 3, 2);
+    }
 }
+
 
 
 function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false) {
@@ -1874,7 +1884,7 @@ function drawGameScreen(ctx) {
                 ctx.fillRect(info.gx + 14 * YAKITORI_PIXEL_UNIT, info.gy + 12 * YAKITORI_PIXEL_UNIT, 4 * YAKITORI_PIXEL_UNIT, 14 * YAKITORI_PIXEL_UNIT);
             }
 
-            // プレイヤー所有者表示（小布案）に変更
+            // プレイヤー所有者表示（串との一体感を高めた小布）
             drawSkewerCloth(ctx, info.gx + skewerOffsetX * YAKITORI_PIXEL_UNIT, info.gy + skewerOffsetY * YAKITORI_PIXEL_UNIT, lane.owner);
 
             const isOwn = lane.owner === activePlayer;
@@ -1977,24 +1987,22 @@ function drawGameScreen(ctx) {
             const elapsedMode = now - (state.buildModeStartTime || now);
             const modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
 
-            // --- 選択対象表示：焼印風の小札 (案4-3) ---
+            // --- 選択対象表示：素朴な串アイコン風の小札 ---
             const tagFloatY = Math.sin(now / 200) * 3;
-            const ty = info.b.y - 12 + tagFloatY;
-            const baseColor = "#906b4d"; 
-            const markColor = "#3a1d10";
+            const ty = info.b.y - 10 + tagFloatY;
+            const baseColor = "#a07b5a"; // 渋い木札色
+            const markColor = "#4a2818"; // 焼印色
             
             ctx.globalAlpha = modeAlpha;
             ctx.fillStyle = "#1a1a1a";
-            ctx.fillRect(info.laneCx - 1, ty - 35, 2, 13);
+            ctx.fillRect(info.laneCx - 1, ty - 32, 2, 10); // 控えめな紐
             
-            drawBevelRect(ctx, info.laneCx - 14, ty - 22, 28, 30, baseColor);
+            drawBevelRect(ctx, info.laneCx - 12, ty - 22, 24, 28, baseColor); // 札
             
             ctx.fillStyle = markColor;
-            ctx.fillRect(info.laneCx - 6, ty - 15, 12, 12);
-            ctx.fillStyle = baseColor;
-            ctx.fillRect(info.laneCx - 4, ty - 13, 8, 8);
-            ctx.fillStyle = markColor;
-            ctx.fillRect(info.laneCx - 2, ty - 11, 4, 4);
+            ctx.fillRect(info.laneCx - 1, ty - 18, 2, 18); // 串棒
+            ctx.fillRect(info.laneCx - 4, ty - 14, 8, 4); // 肉上
+            ctx.fillRect(info.laneCx - 4, ty - 8, 8, 4);  // 肉下
             ctx.globalAlpha = 1.0;
             // ---------------------------------
 
@@ -2164,6 +2172,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
