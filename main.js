@@ -148,41 +148,40 @@ function playSound(name) {
 }
 
 // ==========================================
-// 2. render/layout.js - 定数とレイアウト設定
-// ==========================================
-// ==========================================
-// 2. render/layout.js - 定数とレイアウト設定 (夜の居酒屋風カラーパレットへ更新)
+// 2. render/layout.js - 定数とレイアウト設定 (メリハリ強化版)
 // ==========================================
 let LAYOUT = {
     CANVAS_WIDTH: window.innerWidth, CANVAS_HEIGHT: window.innerHeight,
     COLORS: {
-        BG: "#0F0B0A",            // 画面最暗部
-        TEXT_MAIN: "#E8DDC8",     // メイン文字(生成り)
-        TEXT_DIM: "#C9B89C",      // サブ文字
-        P1: "#5B8FCB",            // P1系(くすんだ青)
-        P2: "#C85B63",            // P2系(くすんだ赤)
-        NEUTRAL: "#2A2A2E",       // 炭グレー
-        PANEL_BG: "#18110F",      // 背景の黒茶
-        OVERLAY_BG: "rgba(15, 11, 10, 0.8)", // 黒茶系の半透明
-        STICK: "#B79C7A",         // 明るい木札
-        FIRE_BASE: "#F07A2B",     // 中間炎
-        FIRE_BOOST: "#FFB347",    // 明るい炎
-        DOT_OFF: "#2B1D18",       // 暗い枠線
-        HIGHLIGHT: "rgba(232, 221, 200, 0.2)"
+        BG: "#0F0B0A",            
+        TEXT_MAIN: "#E8DDC8",     // メイン文字
+        TEXT_DIM: "#BFAE94",      // 弱い文字
+        TEXT_STRONG: "#F3E6CC",   // 強調文字 (新設)
+        TEXT_DARK: "#2A1A14",     // 濃い文字 (新設)
+        P1: "#6EA6D8",            // P1:少し明るい青
+        P2: "#D66A70",            // P2:少し明るい赤
+        NEUTRAL: "#2A2A2E",       
+        PANEL_BG: "#18110F",      
+        OVERLAY_BG: "rgba(15, 11, 10, 0.8)", 
+        STICK: "#B79C7A",         
+        FIRE_BASE: "#E85F24",     // 中間炎
+        FIRE_BOOST: "#FF9F2E",    // 明るい橙
+        DOT_OFF: "#2B1D18",       
+        HIGHLIGHT: "rgba(243, 230, 204, 0.2)"
     },
     BUTTONS: [
-        { id: "meat", color: "#8B826B", icon: "meat" },           // カード1(肉)
-        { id: "put", color: "#6F7480", icon: "put_skewer" },      // カード2(串物)
-        { id: "harvest", color: "#8A675F", icon: "serve_plate" }, // カード3(野菜)
-        { id: "uchiwa", color: "#9A7B5D", icon: "uchiwa" }        // カード4(おまかせ)
+        { id: "meat", color: "#8B826B", icon: "meat" },           
+        { id: "put", color: "#6F7480", icon: "put_skewer" },      
+        { id: "harvest", color: "#8A675F", icon: "serve_plate" }, 
+        { id: "uchiwa", color: "#9A7B5D", icon: "uchiwa" }        
     ]
 };
 
 const VISUAL_STATES = {
-    RAW: { meat: "#D38A82", negi: "#B8C98A", dot: "#E8DDC8" },     // 明るい面, 明るい緑
-    OKAY: { meat: "#B96E67", negi: "#8FA167", dot: "#FFB347" },    // 中間色, 中間緑
-    PERFECT: { meat: "#9C5C3D", negi: "#66724D", dot: "#FFD36A" }, // 焼き色, 影
-    BURNT: { meat: "#1A1412", negi: "#312522", dot: "#8F3A22" }    // 炭の暗部, 炭の中間
+    RAW: { meat: "#E69A8A", negi: "#CFEA8A", dot: "#E8DDC8" },     // 肉ハイライト, ネギ明部
+    OKAY: { meat: "#C86F62", negi: "#8FBF5F", dot: "#FF9F2E" },    // 肉中間, ネギ中間
+    PERFECT: { meat: "#8F443C", negi: "#506B3A", dot: "#FFD15A" }, // 肉影, ネギ影
+    BURNT: { meat: "#6A2F22", negi: "#312522", dot: "#A93A22" }    // 焼き目, 赤熱
 };
 const ICON_PALETTE = { 1:"#ffffff", 2:"#d95763", 3:"#8c3f5d", 4:"#df7126", 5:"#fbf236", 6:"#5fcde4", 7:"#8f563b", 8:"#ac3232", 9:"#e8ede7", 10:"#99e550", 11:"#ffcc66", 12:"#1a100c" };
 const ICON_DATA = {
@@ -2275,7 +2274,6 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
     const tagH = 16;
     const tx = Math.round(cx - tagW / 2);
     const ty = Math.round(cy - tagH / 2);
-
     const isActive = (canUse && !isLocked);
 
     const baseColor = isActive ? "#3a2d24" : "#241f1c";
@@ -2284,18 +2282,15 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
 
     ctx.save();
     
+    // タグの背景とドット絵風の枠線
     ctx.fillStyle = baseColor;
     ctx.fillRect(tx + 1, ty + 1, tagW - 2, tagH - 2);
-
     ctx.fillStyle = lightColor;
     ctx.fillRect(tx + 1, ty, tagW - 2, 1);
     ctx.fillRect(tx, ty + 1, 1, tagH - 2);
-
     ctx.fillStyle = darkColor;
     ctx.fillRect(tx + 1, ty + tagH - 1, tagW - 2, 1);
     ctx.fillRect(tx + tagW - 1, ty + 1, 1, tagH - 2);
-
-    ctx.fillStyle = darkColor;
     ctx.fillRect(tx + 2, ty + 2, 1, 1);
     ctx.fillRect(tx + tagW - 3, ty + 2, 1, 1);
     ctx.fillRect(tx + 2, ty + tagH - 3, 1, 1);
@@ -2303,7 +2298,6 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
 
     const textY = ty + tagH / 2 + 1;
     const iconY = ty + tagH / 2;
-
     ctx.font = getPixelFont(9);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -2311,23 +2305,25 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
     let iconName = "";
     let iconColor = "";
     let labelText = "";
-    let textColor = isActive ? "#e8d5b7" : "#777777";
+    // テキストに新しい強調色を適用
+    let textColor = isActive ? LAYOUT.COLORS.TEXT_STRONG : LAYOUT.COLORS.TEXT_DIM;
 
+    // ボタンの役割ごとにアイコンの色味を調整
     if (boxId === 1) {
         iconName = "meat";
-        iconColor = isActive ? "#e87a7a" : "disabled";
+        iconColor = isActive ? "#D66A70" : "disabled"; // 暖色アクセント
         labelText = "+1";
     } else if (boxId === 2) {
         iconName = "meat";
-        iconColor = isActive ? "#e87a7a" : "disabled";
+        iconColor = isActive ? "#8F443C" : "disabled"; // 暗赤アクセント
         labelText = "-1";
     } else if (boxId === 3) {
         iconName = "put_skewer";
-        iconColor = isActive ? "#dddddd" : "disabled";
+        iconColor = isActive ? "#E8DDC8" : "disabled"; // 少し明るい白系
         labelText = "↑";
     } else if (boxId === 4) {
         iconName = "fire";
-        iconColor = isActive ? "#e8a040" : "disabled";
+        iconColor = isActive ? "#FF9F2E" : "disabled"; // 炎のアクセントを強調
         labelText = "+1";
     }
 
@@ -2337,8 +2333,6 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
     
     ctx.restore();
 }
-
-
 
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
