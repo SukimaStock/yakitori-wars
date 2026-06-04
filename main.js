@@ -432,16 +432,16 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
     const stickTop = b.y + b.h * 0.1;
-    // 肉の中心より少し上から出す
-    const meatY = stickTop + (b.h * 0.7) * 0.3;
+    // 肉の中心付近
+    const meatCenterY = stickTop + (b.h * 0.7) * 0.3;
     
     if (status === "burnt") {
         // 暗い茶色の小さい焦げカスを少量
         const numCrumbs = 2 + Math.floor(amount / 2);
         for (let i = 0; i < numCrumbs; i++) {
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 12, 
-                y: meatY + (Math.random() - 0.5) * 12,  
+                x: laneCx + (Math.random() - 0.5) * 20, 
+                y: meatCenterY + (Math.random() - 0.5) * 20,  
                 vx: (Math.random() - 0.5) * 0.05, 
                 vy: -0.2 - Math.random() * 0.3,
                 life: 0, maxLife: 15 + Math.random() * 10, 
@@ -454,19 +454,26 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         return;
     }
 
+    // 肉の上下（2箇所）を発生源として、串全体から湯気が出るようにする
+    const steamSources = [
+        { x: laneCx, y: meatCenterY - 18 },
+        { x: laneCx, y: meatCenterY + 16 }
+    ];
+
     const spawnBurst = function(burstIndex) {
         // 1. もわっと立ち上がる美味しそうな薄い湯気の塊（主役）
         const numLargeSteam = 3 + Math.floor(Math.random() * 3); // 3〜5個
         for (let i = 0; i < numLargeSteam; i++) {
+            const src = steamSources[Math.floor(Math.random() * steamSources.length)];
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 16, 
-                y: meatY - 4 + (Math.random() - 0.5) * 8,  
-                vx: (Math.random() - 0.5) * 0.3, // 横に少し広がる
-                vy: -0.15 - Math.random() * 0.2, // 上昇は遅め           
-                life: 0, maxLife: 45 + Math.random() * 25, // 寿命を長く（45〜70）
-                size: 8 + Math.random() * 8, // 大きめの塊（8〜16）
-                color: Math.random() > 0.5 ? "#f0ebe1" : "#e6e0d3", // hex指定で色を固定
-                baseAlpha: 0.28 + Math.random() * 0.1, // 0.28〜0.38の確実な透明度
+                x: src.x + (Math.random() - 0.5) * 40, // 横に広く（±20px）
+                y: src.y + (Math.random() - 0.5) * 16,  
+                vx: (Math.random() - 0.5) * 0.4, // 横への広がりを少し強める
+                vy: -0.15 - Math.random() * 0.25, // 上昇は遅め           
+                life: 0, maxLife: 45 + Math.random() * 25, // 寿命（45〜70）
+                size: 10 + Math.random() * 8, // 大きな塊（10〜18）
+                color: Math.random() > 0.5 ? "#f0ebe1" : "#e6e0d3", // 薄いベージュ〜白
+                baseAlpha: 0.25 + Math.random() * 0.1, // 0.25〜0.35の透明度
                 isSteam: true,
                 isLargeSteam: true // 膨らませるためのフラグ
             });
@@ -475,9 +482,10 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         // 2. 補助的な小さい白湯気（少しだけ）
         const numSteam = 1 + Math.floor(amount / 2);
         for (let i = 0; i < numSteam; i++) {
+            const src = steamSources[Math.floor(Math.random() * steamSources.length)];
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 12, 
-                y: meatY + (Math.random() - 0.5) * 8,  
+                x: src.x + (Math.random() - 0.5) * 24, 
+                y: src.y + (Math.random() - 0.5) * 16,  
                 vx: (Math.random() - 0.5) * 0.1, 
                 vy: -0.4 - Math.random() * 0.3,             
                 life: 0, maxLife: 15 + Math.random() * 10, 
@@ -492,9 +500,10 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         if (burstIndex === 0) {
             const sizzleCount = 1 + Math.floor(Math.random() * 2); // 1〜2個
             for (let i = 0; i < sizzleCount; i++) {
+                const src = steamSources[Math.floor(Math.random() * steamSources.length)];
                 state.visuals.particles.push({
-                    x: laneCx + (Math.random() - 0.5) * 10, 
-                    y: meatY + (Math.random() - 0.5) * 10,  
+                    x: src.x + (Math.random() - 0.5) * 16, 
+                    y: src.y + (Math.random() - 0.5) * 12,  
                     vx: (Math.random() - 0.5) * 0.3, 
                     vy: -0.8 - Math.random() * 0.4,             
                     life: 0, maxLife: 10 + Math.random() * 5, 
@@ -507,11 +516,12 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         }
     };
 
-    // 焼ける瞬間に、短時間で3回に分けて湯気を出す（もわっと感を強調）
+    // 焼ける瞬間に、短時間で3回に分けて湯気を出す
     spawnBurst(0);
     setTimeout(function() { spawnBurst(1); }, 100);
     setTimeout(function() { spawnBurst(2); }, 200);
 }
+
 
 
 
@@ -2264,15 +2274,14 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else if (p.isSteam) {
-            // baseAlphaが設定されていれば反映し、徐々に透明にする
             const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 0.5;
             ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
             
             let s = p.size;
             if (p.isLargeSteam) {
-                // 大きな湯気は時間とともに少し膨らむ（最大約1.6倍）
-                s = Math.floor(p.size * (1 + ratio * 0.6));
+                // 大きな湯気の塊は、時間経過とともに約1.8倍までふわっと広がる
+                s = Math.floor(p.size * (1 + ratio * 0.8));
             } else {
                 s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
             }
@@ -2302,7 +2311,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         }
     }
-    // 描画後は必ずリセット
     ctx.globalAlpha = 1.0;
 
     if (state.buildMode) {
@@ -2392,6 +2400,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
