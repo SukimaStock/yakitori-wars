@@ -367,14 +367,14 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     const meatY = stickTop + (b.h * 0.7) * 0.4;
     
     if (status === "burnt") {
-        const numParticles = 5 + amount;
+        const numParticles = 1 + Math.floor(amount / 2);
         for (let i = 0; i < numParticles; i++) {
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 24, 
-                y: meatY + (Math.random() - 0.5) * 16,  
-                vx: (Math.random() - 0.5) * 0.6, 
-                vy: -0.5 - Math.random() * 0.8,             
-                life: 0, maxLife: 25 + Math.random() * 15, size: 2 + Math.random() * 4, 
+                x: laneCx + (Math.random() - 0.5) * 12, 
+                y: meatY + (Math.random() - 0.5) * 12,  
+                vx: (Math.random() - 0.5) * 0.1, 
+                vy: -0.1 - Math.random() * 0.2,             
+                life: 0, maxLife: 15 + Math.random() * 10, size: 1 + Math.random() * 1.5, 
                 color: Math.random() > 0.5 ? "#2a2220" : "#1a1514",
                 isSmoke: true
             });
@@ -383,11 +383,11 @@ function spawnSmokeEffect(laneIndex, amount, status) {
         const numSteam = 2 + Math.floor(amount / 2);
         for (let i = 0; i < numSteam; i++) {
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 20, 
+                x: laneCx + (Math.random() - 0.5) * 16, 
                 y: meatY + (Math.random() - 0.5) * 10,  
-                vx: (Math.random() - 0.5) * 0.4, 
-                vy: -0.6 - Math.random() * 0.5,             
-                life: 0, maxLife: 30 + Math.random() * 20, size: 4 + Math.random() * 4, 
+                vx: (Math.random() - 0.5) * 0.1, 
+                vy: -0.3 - Math.random() * 0.4,             
+                life: 0, maxLife: 20 + Math.random() * 10, size: 2 + Math.random() * 1.5, 
                 color: Math.random() > 0.5 ? "#f4f0e6" : "#ffffff",
                 isSteam: true
             });
@@ -397,10 +397,10 @@ function spawnSmokeEffect(laneIndex, amount, status) {
         for (let i = 0; i < numSizzle; i++) {
             state.visuals.particles.push({
                 x: laneCx + (Math.random() - 0.5) * 16, 
-                y: meatY + (Math.random() - 0.5) * 20,  
-                vx: (Math.random() - 0.5) * 1.5, 
-                vy: -1.2 - Math.random() * 1.5,             
-                life: 0, maxLife: 12 + Math.random() * 8, size: 2 + Math.random() * 2, 
+                y: meatY + (Math.random() - 0.5) * 16,  
+                vx: (Math.random() - 0.5) * 0.5, 
+                vy: -0.6 - Math.random() * 1.0,             
+                life: 0, maxLife: 10 + Math.random() * 6, size: 1 + Math.random() * 1.5, 
                 color: Math.random() > 0.5 ? "#ffaa33" : "#ffcc55",
                 isSizzle: true
             });
@@ -409,17 +409,18 @@ function spawnSmokeEffect(laneIndex, amount, status) {
         const numAroma = 1 + Math.floor(amount / 2);
         for (let i = 0; i < numAroma; i++) {
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 24, 
-                y: meatY + (Math.random() - 0.5) * 24,  
-                vx: (Math.random() - 0.5) * 0.2, 
-                vy: -0.2 - Math.random() * 0.3,             
-                life: 0, maxLife: 20 + Math.random() * 10, size: 2 + Math.random() * 2, 
+                x: laneCx + (Math.random() - 0.5) * 20, 
+                y: meatY + (Math.random() - 0.5) * 20,  
+                vx: (Math.random() - 0.5) * 0.1, 
+                vy: -0.2 - Math.random() * 0.2,             
+                life: 0, maxLife: 15 + Math.random() * 10, size: 1 + Math.random() * 1, 
                 color: "#e6c8a0",
                 isAroma: true
             });
         }
     }
 }
+
 
 
 function spawnPerfectHarvestEffect(laneIndex) {
@@ -2144,30 +2145,29 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const size = p.size * (1 - ratio * 0.5); ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else if (p.isSteam) {
-            ctx.globalAlpha = 0.5 * (1 - ratio);
+            ctx.globalAlpha = 0.6 * (1 - ratio);
             ctx.fillStyle = p.color;
-            const s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
+            const s = Math.max(1, Math.floor(p.size));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isAroma) {
             ctx.globalAlpha = 0.8 * (1 - ratio);
             ctx.fillStyle = p.color;
-            const s = Math.floor(p.size);
+            const s = Math.max(1, Math.floor(p.size));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isSizzle) {
             ctx.globalAlpha = 1 - ratio;
             ctx.fillStyle = p.color;
-            const s = Math.floor(p.size);
+            const s = Math.max(1, Math.floor(p.size));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isSmoke) {
-            ctx.globalAlpha = 0.5 * (1 - ratio);
+            ctx.globalAlpha = 0.7 * (1 - ratio);
             ctx.fillStyle = p.color;
-            const s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
+            const s = Math.max(1, Math.floor(p.size));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else {
             ctx.globalAlpha = 0.6 * (1 - ratio);
-            ctx.fillStyle = p.color ||
-            "#e0e0e0";
-            const s = Math.max(2, Math.floor((p.size * (1 + ratio)) / 2));
+            ctx.fillStyle = p.color || "#e0e0e0";
+            const s = Math.max(1, Math.floor((p.size * (1 + ratio)) / 2));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         }
     }
@@ -2248,7 +2248,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.globalAlpha = btnAlpha;
                 const offset = isPressed ? 4 : 0; 
 
-                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "disabled", 4);
+                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "#666", 4);
                 let textAlpha = isPressed ? 1.0 : 0.85; 
                 ctx.globalAlpha = textAlpha;
                 
@@ -2262,6 +2262,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
