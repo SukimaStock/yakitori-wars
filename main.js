@@ -1687,18 +1687,16 @@ function drawGameScreen(ctx) {
         if (isCurrentPreviewLane && previewProg >= 0.2 && previewProg <= 0.5) {
             let p = 1.0 - (Math.abs(previewProg - 0.35) / 0.15);
             p = Math.max(0, Math.min(1, p));
-            // じわっと立ち上がって戻る
             cookFlashAlpha = Math.sin(p * Math.PI / 2);
         }
         if (cookFlashAlpha > 0) {
             const heatFactor = lane.type === "strong" ? 0.8 : (lane.type === "medium" ? 0.5 : 0.3);
-            // globalAlphaを重ねず、rgbaで直接色を乗せることで透けを防止
             ctx.fillStyle = "rgba(200, 60, 10, " + (cookFlashAlpha * heatFactor * 0.6) + ")";
             ctx.fillRect(gx + 6 * YAKITORI_PIXEL_UNIT, gy + 22 * YAKITORI_PIXEL_UNIT, 20 * YAKITORI_PIXEL_UNIT, 12 * YAKITORI_PIXEL_UNIT);
         }
 
         if (lane.type === "strong" || lane.type === "medium") {
-            const glowSin = Math.sin(now / 500 + i * 13); // 周期を長く穏やかに
+            const glowSin = Math.sin(now / 500 + i * 13); 
             if (glowSin > 0) {
                 ctx.fillStyle = lane.type === "strong" ? "rgba(216, 90, 16, " + (glowSin * 0.5) + ")" : "rgba(168, 74, 16, " + (glowSin * 0.5) + ")";
                 const dotX = gx + (lane.type === "strong" ? 14 : 12) * YAKITORI_PIXEL_UNIT;
@@ -1765,9 +1763,67 @@ function drawGameScreen(ctx) {
             drawYakitoriSpriteMap(ctx, gx, gy, skewerSprite, skewerOffsetX, skewerOffsetY);
             ctx.globalAlpha = 1.0;
 
+            // --- PERFECT専用の香ばしい焦げと脂の照り ---
+            if (displayStatusUpper === "PERFECT") {
+                const seedVal = pTime || 0;
+
+                // 濃い茶色〜赤茶色の焦げ色 (黒煙・BURNTとは明確に区別)
+                const charColors = ["#6b2c12", "#5c240c", "#4a1906"];
+                const parts = [
+                    { r: 6, c: 4, w: 4, h: 4, isNegi: false }, // 上肉 (中央付近)
+                    { r: 13, c: 4, w: 3, h: 3, isNegi: true }, // ネギ
+                    { r: 19, c: 4, w: 4, h: 4, isNegi: false } // 下肉 (中央付近)
+                ];
+
+                parts.forEach((p, pIdx) => {
+                    const s1 = Math.abs(Math.sin(seedVal + pIdx * 10));
+                    const s2 = Math.abs(Math.sin(seedVal + pIdx * 20));
+                    
+                    // 1. 中央付近に小さな焦げ島
+                    const numChars = p.isNegi ? Math.floor(s1 * 2) : 1 + Math.floor(s1 * 3);
+                    for (let c = 0; c < numChars; c++) {
+                        const rs = Math.abs(Math.sin(seedVal + pIdx * 30 + c * 10));
+                        const cs = Math.abs(Math.cos(seedVal + pIdx * 40 + c * 10));
+                        
+                        const dr = p.r + Math.floor(rs * p.h);
+                        const dc = p.c + Math.floor(cs * p.w);
+                        
+                        const color = charColors[Math.floor(rs * charColors.length)];
+                        ctx.fillStyle = color;
+                        ctx.fillRect(
+                            gx + (dc + skewerOffsetX) * YAKITORI_PIXEL_UNIT,
+                            gy + (dr + skewerOffsetY) * YAKITORI_PIXEL_UNIT,
+                            YAKITORI_PIXEL_UNIT,
+                            YAKITORI_PIXEL_UNIT
+                        );
+                    }
+
+                    // 2. 脂の照り (白〜薄黄色のハイライト)
+                    const numGloss = p.isNegi ? 1 : 1 + Math.floor(s2 * 2);
+                    for (let g = 0; g < numGloss; g++) {
+                        const rs = Math.abs(Math.cos(seedVal + pIdx * 50 + g * 10));
+                        const cs = Math.abs(Math.sin(seedVal + pIdx * 60 + g * 10));
+                        
+                        // ツヤは少し左上寄りに配置
+                        const dr = p.r - 1 + Math.floor(rs * (p.h * 0.6)); 
+                        const dc = p.c - 1 + Math.floor(cs * (p.w * 0.6));
+                        
+                        // 静かに呼吸するように明滅する脂のツヤ
+                        const shimmer = 0.5 + 0.5 * Math.sin(now / 200 + pIdx * 5 + g * 3);
+                        ctx.fillStyle = "rgba(255, 250, 235, " + (shimmer * 0.75) + ")";
+                        ctx.fillRect(
+                            gx + (dc + skewerOffsetX) * YAKITORI_PIXEL_UNIT,
+                            gy + (dr + skewerOffsetY) * YAKITORI_PIXEL_UNIT,
+                            YAKITORI_PIXEL_UNIT,
+                            Math.max(1, Math.floor(YAKITORI_PIXEL_UNIT * 0.6)) // 少し細いハイライト
+                        );
+                    }
+                });
+            }
+
             // --- 焼き進行時の本体リアクション（肉のツヤ） ---
             if (cookFlashAlpha > 0 && displayStatusUpper !== "BURNT") {
-                const shineAlpha = cookFlashAlpha * 0.2; // 透けないように薄くソリッドに乗せる
+                const shineAlpha = cookFlashAlpha * 0.2; 
                 ctx.fillStyle = "rgba(240, 230, 220, " + shineAlpha + ")";
                 ctx.fillRect(gx + 14 * YAKITORI_PIXEL_UNIT, gy + 12 * YAKITORI_PIXEL_UNIT, 4 * YAKITORI_PIXEL_UNIT, 14 * YAKITORI_PIXEL_UNIT);
             }
@@ -2149,6 +2205,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
