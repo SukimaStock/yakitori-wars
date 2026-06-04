@@ -2205,10 +2205,13 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.globalAlpha = btnAlpha;
                 const offset = isPressed ? 4 : 0; 
 
-                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "#999", 4);
+                // 非活性時の色を #999 から #666 へ落とし、グレーの主張を控えめにしました
+                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "#666", 4);
                 let textAlpha = isPressed ? 1.0 : 0.85; 
                 ctx.globalAlpha = textAlpha;
-                const textY = b.y + b.h - 10 + offset; 
+                
+                // ヒント札の位置を4px上に調整（-10 から -14 に変更）
+                const textY = b.y + b.h - 14 + offset; 
                 const textX = b.x + b.w/2 + offset;
                 
                 drawActionHintTag(ctx, boxId, textX, textY, canUse, isLocked);
@@ -2218,6 +2221,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 // --------------------------------------------------
