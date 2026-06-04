@@ -367,50 +367,57 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     const meatY = stickTop + (b.h * 0.7) * 0.4;
     
     if (status === "burnt") {
-        const numParticles = 1 + Math.floor(amount / 2);
+        // BURNTの場合：大粒の黒煙をやめ、小さな焦げカスを少しだけ飛ばす
+        const numParticles = 2 + Math.floor(amount / 2);
         for (let i = 0; i < numParticles; i++) {
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 12, 
-                y: meatY + (Math.random() - 0.5) * 12,  
-                vx: (Math.random() - 0.5) * 0.1, 
-                vy: -0.1 - Math.random() * 0.2,             
-                life: 0, maxLife: 15 + Math.random() * 10, size: 1 + Math.random() * 1.5, 
-                color: Math.random() > 0.5 ? "#2a2220" : "#1a1514",
+                x: laneCx + (Math.random() - 0.5) * 16, 
+                y: meatY + (Math.random() - 0.5) * 16,  
+                vx: (Math.random() - 0.5) * 0.1, // 横方向への移動をほぼなくす
+                vy: -0.3 - Math.random() * 0.4,  // 上昇も控えめに
+                life: 0, maxLife: 15 + Math.random() * 10, 
+                size: 1 + Math.random() * 1,     // サイズを極小(1〜2)に
+                color: Math.random() > 0.5 ? "#3c2a23" : "#2a1c18", // 真っ黒ではなく暗い焦げ茶
                 isSmoke: true
             });
         }
     } else {
+        // 通常の焼き進行：美味しそうな湯気・油・香りのみにする
+        
+        // 1. 白〜クリーム色の小さな湯気
         const numSteam = 2 + Math.floor(amount / 2);
         for (let i = 0; i < numSteam; i++) {
             state.visuals.particles.push({
                 x: laneCx + (Math.random() - 0.5) * 16, 
                 y: meatY + (Math.random() - 0.5) * 10,  
-                vx: (Math.random() - 0.5) * 0.1, 
-                vy: -0.3 - Math.random() * 0.4,             
-                life: 0, maxLife: 20 + Math.random() * 10, size: 2 + Math.random() * 1.5, 
+                vx: (Math.random() - 0.5) * 0.1, // 横揺れを抑える
+                vy: -0.4 - Math.random() * 0.4,             
+                life: 0, maxLife: 20 + Math.random() * 15, size: 2 + Math.random() * 2, 
                 color: Math.random() > 0.5 ? "#f4f0e6" : "#ffffff",
                 isSteam: true
             });
         }
         
+        // 2. 小さな黄色〜橙色の油はぜ
         const numSizzle = 1 + amount;
         for (let i = 0; i < numSizzle; i++) {
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 16, 
+                x: laneCx + (Math.random() - 0.5) * 12, 
                 y: meatY + (Math.random() - 0.5) * 16,  
-                vx: (Math.random() - 0.5) * 0.5, 
-                vy: -0.6 - Math.random() * 1.0,             
-                life: 0, maxLife: 10 + Math.random() * 6, size: 1 + Math.random() * 1.5, 
+                vx: (Math.random() - 0.5) * 0.4, 
+                vy: -0.8 - Math.random() * 0.8,             
+                life: 0, maxLife: 10 + Math.random() * 6, size: 1.5 + Math.random() * 1.5, 
                 color: Math.random() > 0.5 ? "#ffaa33" : "#ffcc55",
                 isSizzle: true
             });
         }
         
+        // 3. 薄ベージュの香り粒子（目立たない程度に）
         const numAroma = 1 + Math.floor(amount / 2);
         for (let i = 0; i < numAroma; i++) {
             state.visuals.particles.push({
-                x: laneCx + (Math.random() - 0.5) * 20, 
-                y: meatY + (Math.random() - 0.5) * 20,  
+                x: laneCx + (Math.random() - 0.5) * 16, 
+                y: meatY + (Math.random() - 0.5) * 16,  
                 vx: (Math.random() - 0.5) * 0.1, 
                 vy: -0.2 - Math.random() * 0.2,             
                 life: 0, maxLife: 15 + Math.random() * 10, size: 1 + Math.random() * 1, 
@@ -420,6 +427,7 @@ function spawnSmokeEffect(laneIndex, amount, status) {
         }
     }
 }
+
 
 
 
@@ -2142,32 +2150,34 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         } else if (p.isSparkle) {
             ctx.globalAlpha = 0.6 * (1 - ratio);
             ctx.fillStyle = p.color;
-            const size = p.size * (1 - ratio * 0.5); ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
+            const size = p.size * (1 - ratio * 0.5);
+            ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else if (p.isSteam) {
-            ctx.globalAlpha = 0.6 * (1 - ratio);
+            ctx.globalAlpha = 0.5 * (1 - ratio);
             ctx.fillStyle = p.color;
-            const s = Math.max(1, Math.floor(p.size));
+            const s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isAroma) {
             ctx.globalAlpha = 0.8 * (1 - ratio);
             ctx.fillStyle = p.color;
-            const s = Math.max(1, Math.floor(p.size));
+            const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isSizzle) {
             ctx.globalAlpha = 1 - ratio;
             ctx.fillStyle = p.color;
-            const s = Math.max(1, Math.floor(p.size));
+            const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isSmoke) {
-            ctx.globalAlpha = 0.7 * (1 - ratio);
+            ctx.globalAlpha = 0.5 * (1 - ratio);
             ctx.fillStyle = p.color;
-            const s = Math.max(1, Math.floor(p.size));
+            // 焦げカスが時間とともに巨大化するのを防ぐため、サイズを一定に保つ
+            const s = Math.floor(p.size); 
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else {
             ctx.globalAlpha = 0.6 * (1 - ratio);
             ctx.fillStyle = p.color || "#e0e0e0";
-            const s = Math.max(1, Math.floor((p.size * (1 + ratio)) / 2));
+            const s = Math.max(2, Math.floor((p.size * (1 + ratio)) / 2));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         }
     }
@@ -2201,23 +2211,22 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 if (boxId === 1) canUse = canUseMeat(state.currentPlayer);  if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); 
                 if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
         
-                
                 const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
                 const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); 
                 
-                let baseColor = tagColors[i];
+            let baseColor = tagColors[i];
  
                 if (isError) {
                     baseColor = "#7a3b3b";
                 } else if (!canUse || isLocked) {
                     baseColor = "#4a4642"; 
-                
                 }
 
                 let btnAlpha = 1.0; 
                 let harvestBreatheAlpha = 0;
         
-                if (boxId === 3 && canUse && !isLocked && state.buildMode === null) { 
+                if (boxId === 3 && canUse && !isLocked && state.buildMode === null) 
+                { 
                     const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
                     baseColor = brightenColor(tagColors[i], isPerfect ? 0.2 : 0.0); 
                     harvestBreatheAlpha = isPerfect ?
@@ -2248,13 +2257,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.globalAlpha = btnAlpha;
                 const offset = isPressed ? 4 : 0; 
 
-                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "#666", 4);
+                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "disabled", 4);
                 let textAlpha = isPressed ? 1.0 : 0.85; 
                 ctx.globalAlpha = textAlpha;
-                
                 const textY = b.y + b.h - 14 + offset; 
                 const textX = b.x + b.w/2 + offset;
-                
                 drawActionHintTag(ctx, boxId, textX, textY, canUse, isLocked);
                 
                 ctx.globalAlpha = 1.0;
@@ -2262,6 +2269,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
