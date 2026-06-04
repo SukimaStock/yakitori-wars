@@ -1552,11 +1552,13 @@ function drawGameScreen(ctx) {
             previewEventForThisLane = state.cookPreviewEvents.find(e => e.laneIndex === i);
             const activeEvent = state.cookPreviewEvents[state.cookPreviewIndex];
  
+ 
             if (activeEvent && activeEvent.laneIndex === i) {
                 isCurrentPreviewLane = true; previewProg = 1.0 - (state.cookPreviewPhaseTimer / COOK_PREVIEW_DUR);
                 if (previewProg < 0.35) { displayCookState = activeEvent.prevCookState; gaugeCookState = activeEvent.prevCookState; }
                 else { displayCookState = activeEvent.newCookState; gaugeCookState = activeEvent.newCookState; }
        
+ 
                  effectiveCookState = displayCookState;
             } else if (previewEventForThisLane) {
                 const eventIndex = state.cookPreviewEvents.indexOf(previewEventForThisLane);
@@ -1583,13 +1585,12 @@ function drawGameScreen(ctx) {
         const gx = Math.round(b.x + b.w / 2 - spriteW / 2);
         const gy = Math.round(b.y + b.h / 2 - spriteH / 2) + 15;
         drawYakitoriSpriteMap(ctx, gx, gy, YAKITORI_GRILL_PARTS.base);
-        
         const coalPattern = YAKITORI_COAL_PATTERNS[lane.type] || YAKITORI_COAL_PATTERNS.medium;
         drawYakitoriSpriteMap(ctx, gx, gy, coalPattern, 0, 22);
-
         if (lane.type === "strong" || lane.type === "medium") {
             if (Math.sin(now / 100 + i * 13) > 0.5) {
-                ctx.fillStyle = lane.type === "strong" ? "#ffcc44" : "#f0a13a";
+                ctx.fillStyle = lane.type === "strong" ?
+                "#ffcc44" : "#f0a13a";
                 const dotX = gx + (lane.type === "strong" ? 14 : 12) * YAKITORI_PIXEL_UNIT;
                 const dotY = gy + 26 * YAKITORI_PIXEL_UNIT;
                 ctx.fillRect(dotX, dotY, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
@@ -1691,7 +1692,6 @@ function drawGameScreen(ctx) {
         
         const dotStartY = b.y + b.h + 12;
         drawCookGauge(ctx, laneCx, dotStartY, cv, uchiwaPreviewNextCv, uchiwaDotIndex, uchiwaTargetStatus, baseEndStatus, isCurrentPreviewLane, previewProg, previewEventForThisLane);
-
         const fireScale = 2.5, fireSize = 8 * fireScale, totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1)), startFireX = laneCx - totalFireW / 2 + fireSize / 2;
         for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, b.y + b.h + 40, "#fa3", fireScale);
         if (lane.uchiwaBoost > 0) { ctx.globalAlpha = 0.6; drawDotIcon(ctx, "fire", b.x + b.w - 18, b.y + b.h - 18, "#f85", 2);
@@ -1704,12 +1704,14 @@ function drawGameScreen(ctx) {
         if (state.cookPreviewActive) {
             previewEventForThisLane = state.cookPreviewEvents.find(e => e.laneIndex === i);
             const activeEvent = 
+ 
             state.cookPreviewEvents[state.cookPreviewIndex];
             if (activeEvent && activeEvent.laneIndex === i) {
                 isCurrentPreviewLane = true; previewProg = 1.0 - (state.cookPreviewPhaseTimer / COOK_PREVIEW_DUR);
                 effectiveCookState = (previewProg < 0.35) ? activeEvent.prevCookState : activeEvent.newCookState;
             } else if (previewEventForThisLane) {
-                const 
+     
+               const 
                 eventIndex = state.cookPreviewEvents.indexOf(previewEventForThisLane);
                 effectiveCookState = (eventIndex > state.cookPreviewIndex) ? previewEventForThisLane.prevCookState : previewEventForThisLane.newCookState;
             }
@@ -1822,38 +1824,30 @@ function drawGameScreen(ctx) {
             const textProgress = Math.min(1, (previewProg - 0.35) / 0.65);
             const textY = b.y + b.h * 0.1 - 15; ctx.textAlign = "center";
             ctx.globalAlpha = textProgress;
-            
             if (previewEventForThisLane.prevStatus !== "perfect" && previewEventForThisLane.newStatus === "perfect") {
                 const msgW = ctx.measureText("READY!").width + 16;
                 drawBevelRect(ctx, laneCx - msgW/2, textY - 14, msgW, 20, "#e6d555");
                 
-                ctx.font = getPixelFont(14); ctx.fillStyle = "#000"; ctx.fillText("READY!", laneCx + 2, textY + 2);
+                ctx.font = getPixelFont(14); ctx.fillStyle = "#000";
+                ctx.fillText("READY!", laneCx + 2, textY + 2);
                 ctx.fillStyle = "#fff";
                 ctx.fillText("READY!", laneCx, textY);
             } else if (previewEventForThisLane.prevStatus !== "burnt" && previewEventForThisLane.newStatus === "burnt") {
                 const msgW = ctx.measureText("BURNT!").width + 16;
                 drawBevelRect(ctx, laneCx - msgW/2, textY - 16, msgW, 24, "#8a3a3a");
                 
-                ctx.font = getPixelFont(16); ctx.fillStyle = "#000"; ctx.fillText("BURNT!", laneCx + 2, textY + 2);
+                ctx.font = getPixelFont(16); ctx.fillStyle = "#000";
+                ctx.fillText("BURNT!", laneCx + 2, textY + 2);
                 ctx.fillStyle = "#ffaa88";
                 ctx.fillText("BURNT!", laneCx, textY);
             }
             ctx.globalAlpha = 1.0;
         }
         drawLaneHint(ctx, lane, i, state.buildMode, activePlayer, pResources);
-        
         if (state.cookPreviewActive && !isCurrentPreviewLane) {
-            ctx.fillStyle = "rgba(15, 10, 8, 0.4)";
+            // 背景を少し暗く落とすだけの演出に変更し、黒い煙ブロック（まっくろくろすけ）を削除しました
+            ctx.fillStyle = "rgba(15, 10, 8, 0.55)";
             ctx.fillRect(b.x - 8, b.y - 8, b.w + 16, b.h + 80);
-            
-            ctx.fillStyle = "rgba(40, 35, 30, 0.6)";
-            for(let s = 0; s < 5; s++) {
-                let sy = b.y + b.h - ((now / 40 + s * 30 + i * 50) % (b.h + 40));
-                let sx = b.x + 10 + (Math.sin(now / 400 + s) * (b.w - 20));
-                ctx.fillRect(sx, sy, 16, 16);
-                ctx.fillRect(sx - 4, sy + 4, 8, 8);
-                ctx.fillRect(sx + 12, sy + 4, 8, 8);
-            }
         }
     });
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
@@ -1889,13 +1883,15 @@ function drawGameScreen(ctx) {
         if (g.status === "BURNT") { moveDist = -40; alphaProg = Math.min(1, elapsed / 500); }
         const yOffset = moveDist * (1 - Math.pow(1 - progress, 3)); ctx.globalAlpha = Math.max(0, 1 - alphaProg);
         const b = 
+ 
         getLaneBounds(g.laneIndex), laneCx = b.x + b.w / 2;
         if (g.cookState !== undefined) {
             const ghostStatusUpper = g.status.toUpperCase();
             let spriteStage = "raw";
             if (ghostStatusUpper === "OKAY" || ghostStatusUpper === "PERFECT") spriteStage = "cooked";
             else if (ghostStatusUpper === "BURNT") spriteStage = "burnt";
-          
+  
+         
             const skewerSprite = YAKITORI_SKEWER_SPRITES[spriteStage];
             const spriteW = 32 * YAKITORI_PIXEL_UNIT;
             const spriteH = 48 * YAKITORI_PIXEL_UNIT;
@@ -1921,18 +1917,21 @@ function drawGameScreen(ctx) {
         const fadeInDuration = 100;
         if (isHint) {
          
+ 
             const p = Math.min(1, elapsed / duration);
             alpha = 1 - p;
             yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
         } else {
             const p = Math.min(1, Math.max(0, elapsed / duration));
-            if (msg.type === "meat" && msg.targetPlayerPanel) {
+            if (msg.type === "meat" 
+&& msg.targetPlayerPanel) {
        
                 const ease = Math.pow(p, 0.55);
                 const moveDist = 18;
                 const dir = msg.amount >= 0 ? -1 : 1;
                 yAnimOffset = dir * moveDist * ease;
-            } else {
+     
+           } else {
        
                 yAnimOffset = -30 * Math.pow(p, 0.5);
             }
@@ -2032,6 +2031,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
@@ -2521,19 +2521,18 @@ function drawGrillDirt(ctx, bounds, laneIndex) {
 }
 
 function drawAmbientSmoke(ctx, w, h) {
+    // もし背景の環境煙演出も無効化したい場合は、下の行のコメントアウト(//)を外してreturnを有効にしてください。
+    // return;
+
     const now = getTime();
     ctx.save();
-    // 半透明にしてUI領域の可読性を上げる
-    ctx.fillStyle = "rgba(34, 29, 27, 0.4)"; 
+    ctx.fillStyle = "rgba(34, 29, 27, 0.4)";
     for(let i = 0; i < 3; i++) {
         const cx = w * 0.35 + (w * 0.15 * i);
-        // 発生源を少し下げる (0.6 -> 0.7)
-        const cy = h * 0.7; 
+        const cy = h * 0.7;
         const offsetX = Math.sin(now / 2500 + i) * 40;
-        // 上昇範囲を狭めて上部UIへの干渉を減らす (0.6 -> 0.45)
-        const offsetY = ((now / 40) + i * 400) % (h * 0.45); 
-        const size = 60 + Math.sin(now / 2000 + i) * 15; // 煙を少し小さく
-        // ピクセルブロックの塊として描く
+        const offsetY = ((now / 40) + i * 400) % (h * 0.45);
+        const size = 60 + Math.sin(now / 2000 + i) * 15;
         const blockSize = 20;
         const blocks = Math.floor(size / blockSize);
         for (let bx = -blocks; bx <= blocks; bx++) {
@@ -2546,6 +2545,7 @@ function drawAmbientSmoke(ctx, w, h) {
     }
     ctx.restore();
 }
+
 
 function drawTableBackground(ctx) {
     const w = LAYOUT.CANVAS_WIDTH;
