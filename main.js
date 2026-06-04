@@ -2034,6 +2034,75 @@ function shouldShowActionButtons() {
     return true;
 }
 
+function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
+    const tagW = 48;
+    const tagH = 16;
+    const tx = Math.round(cx - tagW / 2);
+    const ty = Math.round(cy - tagH / 2);
+
+    const isActive = (canUse && !isLocked);
+
+    const baseColor = isActive ? "#3a2d24" : "#241f1c";
+    const lightColor = isActive ? "#5c4a3d" : "#352e2a";
+    const darkColor = isActive ? "#1a120e" : "#14110f";
+
+    ctx.save();
+    
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(tx + 1, ty + 1, tagW - 2, tagH - 2);
+
+    ctx.fillStyle = lightColor;
+    ctx.fillRect(tx + 1, ty, tagW - 2, 1);
+    ctx.fillRect(tx, ty + 1, 1, tagH - 2);
+
+    ctx.fillStyle = darkColor;
+    ctx.fillRect(tx + 1, ty + tagH - 1, tagW - 2, 1);
+    ctx.fillRect(tx + tagW - 1, ty + 1, 1, tagH - 2);
+
+    ctx.fillStyle = darkColor;
+    ctx.fillRect(tx + 2, ty + 2, 1, 1);
+    ctx.fillRect(tx + tagW - 3, ty + 2, 1, 1);
+    ctx.fillRect(tx + 2, ty + tagH - 3, 1, 1);
+    ctx.fillRect(tx + tagW - 3, ty + tagH - 3, 1, 1);
+
+    const textY = ty + tagH / 2 + 1;
+    const iconY = ty + tagH / 2;
+
+    ctx.font = getPixelFont(9);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    let iconName = "";
+    let iconColor = "";
+    let labelText = "";
+    let textColor = isActive ? "#e8d5b7" : "#777777";
+
+    if (boxId === 1) {
+        iconName = "meat";
+        iconColor = isActive ? "#e87a7a" : "#777777";
+        labelText = "+1";
+    } else if (boxId === 2) {
+        iconName = "meat";
+        iconColor = isActive ? "#e87a7a" : "#777777";
+        labelText = "-1";
+    } else if (boxId === 3) {
+        iconName = "put_skewer";
+        iconColor = isActive ? "#dddddd" : "#777777";
+        labelText = "↑";
+    } else if (boxId === 4) {
+        iconName = "fire";
+        iconColor = isActive ? "#e8a040" : "#777777";
+        labelText = "+1";
+    }
+
+    ctx.fillStyle = textColor;
+    drawDotIcon(ctx, iconName, cx - 10, iconY, iconColor, 1.5);
+    ctx.fillText(labelText, cx + 10, textY);
+    
+    ctx.restore();
+}
+
+
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
     for (let i = state.visuals.particles.length - 1; i >= 0; i--) {
@@ -2053,13 +2122,13 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const size = p.size * (1 - ratio * 0.5); ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else {
-            ctx.fillStyle = p.color || "#e0e0e0";
+            ctx.fillStyle = p.color ||
+            "#e0e0e0";
             const s = Math.max(2, Math.floor((p.size * (1 + ratio)) / 2));
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         }
     }
     ctx.globalAlpha = 1.0;
-
     if (state.buildMode) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
         if (selectedIcon) { 
@@ -2077,7 +2146,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         ctx.fillRect(cb.x + cb.w - 8, cb.y + cb.h - 8, 4, 4);
 
         ctx.font = getPixelFont(12); ctx.textAlign="center";
-        ctx.fillStyle = "#000"; ctx.fillText("CANCEL", cb.x + cb.w/2 + offset + 2, cb.y + cb.h/2 + 6 + offset + 2);
+        ctx.fillStyle = "#000";
+        ctx.fillText("CANCEL", cb.x + cb.w/2 + offset + 2, cb.y + cb.h/2 + 6 + offset + 2);
         ctx.fillStyle = "#fff";
         ctx.fillText("CANCEL", cb.x + cb.w/2 + offset, cb.y + cb.h/2 + 6 + offset);
     } else {
@@ -2087,15 +2157,18 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 const b = getButtonBounds(i), boxId = i + 1; let canUse = false;
                 if (boxId === 1) canUse = canUseMeat(state.currentPlayer);  if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); 
                 if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
+        
                 
                 const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
                 const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); 
                 
                 let baseColor = tagColors[i];
+ 
                 if (isError) {
                     baseColor = "#7a3b3b";
                 } else if (!canUse || isLocked) {
                     baseColor = "#4a4642"; 
+                
                 }
 
                 let btnAlpha = 1.0; 
@@ -2104,7 +2177,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 if (boxId === 3 && canUse && !isLocked && state.buildMode === null) { 
                     const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
                     baseColor = brightenColor(tagColors[i], isPerfect ? 0.2 : 0.0); 
-                    harvestBreatheAlpha = isPerfect ? 0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
+                    harvestBreatheAlpha = isPerfect ?
+                    0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
                 }
                 
                 ctx.globalAlpha = btnAlpha;
@@ -2116,12 +2190,12 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
                 ctx.fillRect(b.x + 8, b.y + b.h - 12, b.w - 16, 4);
                 ctx.fillRect(b.x + b.w - 12, b.y + 12, 4, b.h - 24);
-                ctx.fillStyle = (canUse && !isLocked) ? "rgba(30, 20, 10, 0.4)" : "rgba(10, 10, 10, 0.6)";
+                ctx.fillStyle = (canUse && !isLocked) ?
+                "rgba(30, 20, 10, 0.4)" : "rgba(10, 10, 10, 0.6)";
                 ctx.fillRect(b.x + 4, b.y + 4, 4, 4);
                 ctx.fillRect(b.x + b.w - 8, b.y + 4, 4, 4);
                 ctx.fillRect(b.x + 4, b.y + b.h - 8, 4, 4);
                 ctx.fillRect(b.x + b.w - 8, b.y + b.h - 8, 4, 4);
-                
                 if (harvestBreatheAlpha > 0 && !isPressed) {
                     ctx.globalAlpha = harvestBreatheAlpha;
                     ctx.fillStyle = "#fff";
@@ -2136,31 +2210,15 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.globalAlpha = textAlpha;
                 const textY = b.y + b.h - 10 + offset; 
                 const textX = b.x + b.w/2 + offset;
-                ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-                ctx.fillRect(textX - 24, textY - 9, 48, 14);
-
-                ctx.fillStyle = (canUse && !isLocked) ? "#f4e6d0" : "#999"; 
-                ctx.font = getPixelFont(9);
-                ctx.textAlign = "center";
                 
-                if (boxId === 1) { 
-                    drawDotIcon(ctx, "meat", textX - 10, textY - 3, (canUse && !isLocked) ? "#ffbaba" : "#999", 1.5);
-                    ctx.fillText("+1", textX + 10, textY); 
-                } else if (boxId === 2) { 
-                    drawDotIcon(ctx, "meat", textX - 10, textY - 3, (canUse && !isLocked) ? "#ffbaba" : "#999", 1.5);
-                    ctx.fillText("-1", textX + 10, textY); 
-                } else if (boxId === 3) { 
-                    drawDotIcon(ctx, "put_skewer", textX - 10, textY - 3, (canUse && !isLocked) ? "#fff" : "#999", 1.5);
-                    ctx.fillText("↑", textX + 10, textY); 
-                } else if (boxId === 4) { 
-                    drawDotIcon(ctx, "fire", textX - 10, textY - 3, (canUse && !isLocked) ? "#fa3" : "#999", 1.5);
-                    ctx.fillText("+1", textX + 10, textY); 
-                }
+                drawActionHintTag(ctx, boxId, textX, textY, canUse, isLocked);
+                
                 ctx.globalAlpha = 1.0;
             });
         }
     }
 }
+
 
 // --------------------------------------------------
 // ドット絵ルールの背景描画(ellipse廃止)
