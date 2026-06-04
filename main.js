@@ -1638,7 +1638,7 @@ function drawGameScreen(ctx) {
         drawCompactOrderCard(ctx, cx, orderYOffset, state.todaysOrder);
     }
 
-    // --- 0. レーン状態の事前計算（重なり問題を完全に防ぐため） ---
+    // --- 0. レーン状態の事前計算 ---
     const laneInfos = state.lanes.map((lane, i) => {
         const b = getLaneBounds(i);
         const laneCx = b.x + b.w / 2;
@@ -1694,7 +1694,7 @@ function drawGameScreen(ctx) {
         return { b, laneCx, gx, gy, effectiveCookState, displayCookState, gaugeCookState, isCurrentPreviewLane, previewEventForThisLane, previewProg, baseEndState, baseEndStatus, currentStatus, isFlashable, uchiwaTargetStatus, isPerfectTarget };
     });
 
-    // --- レイヤー1: 焼き台・炭・網 ---
+    // --- レイヤー1: 焼き台・炭・網・火力ゲージ・火アイコン ---
     laneInfos.forEach((info, i) => {
         const lane = state.lanes[i];
         drawYakitoriSpriteMap(ctx, info.gx, info.gy, YAKITORI_GRILL_PARTS.base);
@@ -1732,20 +1732,28 @@ function drawGameScreen(ctx) {
             }
         }
         drawYakitoriSpriteMap(ctx, info.gx, info.gy, YAKITORI_GRILL_PARTS.net);
+
+        let cv = 0, uchiwaDotIndex = -1, uchiwaPreviewNextCv = 0, baseEndHeatCv = Math.min(6, info.baseEndState);
+        if (lane.built) {
+            cv = Math.min(info.gaugeCookState || 0, 6);
+            uchiwaPreviewNextCv = baseEndHeatCv;
+            if (state.buildMode === "uchiwa" && info.isFlashable) { uchiwaDotIndex = Math.min(5, info.baseEndState); uchiwaPreviewNextCv = Math.min(6, info.baseEndState + 1); }
+        }
+        const dotStartY = info.b.y + info.b.h + 12;
+        drawCookGauge(ctx, info.laneCx, dotStartY, cv, uchiwaPreviewNextCv, uchiwaDotIndex, info.uchiwaTargetStatus, info.baseEndStatus, info.isCurrentPreviewLane, info.previewProg, info.previewEventForThisLane);
+        
+        const uchiwaTime = state.visuals.uchiwaGusts[lane.id];
+        let fireSwayX = 0;
+        if (uchiwaTime && now - uchiwaTime < 800) fireSwayX = Math.sin(now / 40) * 2 * (1 - ((now - uchiwaTime) / 800));
+
+        const fireScale = 2.5, fireSize = 8 * fireScale, totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1)), startFireX = info.laneCx - totalFireW / 2 + fireSize / 2;
+        for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, info.b.y + info.b.h + 40, "#fa3", fireScale);
+        if (lane.uchiwaBoost > 0) { ctx.globalAlpha = 0.6; drawDotIcon(ctx, "fire", info.b.x + info.b.w - 18, info.b.y + info.b.h - 18, "#f85", 2); ctx.globalAlpha = 1.0; }
     });
 
-    // --- レイヤー2: 選択枠（完全に焼き台の上・肉の下） ---
+    // --- レイヤー2: 選択枠 ---
     laneInfos.forEach((info, i) => {
         const lane = state.lanes[i];
-        if (lane.built && info.currentStatus === "perfect") {
-            const pulse = 0.5 + 0.5 * Math.sin(now / 300);
-            const scale = 2; 
-            ctx.fillStyle = "rgba(255, 230, 120, " + (0.1 + pulse * 0.15) + ")";
-            ctx.fillRect(info.b.x - scale, info.b.y - scale, info.b.w + scale*2, scale);
-            ctx.fillRect(info.b.x - scale, info.b.y - scale, scale, info.b.h + scale*2);
-            ctx.fillRect(info.b.x - scale, info.b.y + info.b.h, info.b.w + scale*2, scale);
-            ctx.fillRect(info.b.x + info.b.w, info.b.y - scale, scale, info.b.h + scale*2);
-        }
         if (info.isFlashable) {
             const selectPulse = 0.5 + 0.5 * Math.sin(now / 350);
             let fillAlphaBase = 0.04, fillAlphaRange = 0.06, rgb = "255, 255, 255";
@@ -1769,7 +1777,7 @@ function drawGameScreen(ctx) {
         }
     });
 
-    // --- レイヤー3: 串・肉・焦げ・ツヤ ---
+    // --- レイヤー3: 串・肉・ツヤ・焦げ ---
     laneInfos.forEach((info, i) => {
         const lane = state.lanes[i];
         if (lane.built) {
@@ -1910,6 +1918,14 @@ function drawGameScreen(ctx) {
         }
     });
 
+    // --- レイヤー3.5: プレビュー時の非アクティブレーン暗転 ---
+    laneInfos.forEach((info, i) => {
+        if (state.cookPreviewActive && !info.isCurrentPreviewLane) {
+            ctx.fillStyle = "rgba(15, 10, 8, 0.55)";
+            ctx.fillRect(info.b.x - 8, info.b.y - 8, info.b.w + 16, info.b.h + 80);
+        }
+    });
+
     if (state.startRouletteActive || state.startRouletteBlinkActive) {
         drawRouletteBanner(ctx, cx, cy, state);
     } else if (state.introSequenceActive && state.introPhase !== "pause") {
@@ -1961,10 +1977,10 @@ function drawGameScreen(ctx) {
         }
     });
 
-    // --- レイヤー4: 湯気・パーティクル（必ずUIの下敷きにするためここで描画） ---
+    // --- レイヤー4: 湯気・パーティクル ---
     renderParticlesAndOverlay(ctx, now, activePlayer);
 
-    // --- レイヤー5: UIテキスト・暗転・ゲージ類 ---
+    // --- レイヤー5: UIテキスト・ゲージ類・ポップアップ ---
     laneInfos.forEach((info, i) => {
         const lane = state.lanes[i];
         
@@ -2017,29 +2033,6 @@ function drawGameScreen(ctx) {
         }
 
         drawLaneHint(ctx, lane, i, state.buildMode, activePlayer, pResources);
-
-        let cv = 0, uchiwaDotIndex = -1, uchiwaPreviewNextCv = 0, baseEndHeatCv = Math.min(6, info.baseEndState);
-        if (lane.built) {
-            cv = Math.min(info.gaugeCookState || 0, 6);
-            uchiwaPreviewNextCv = baseEndHeatCv;
-            if (state.buildMode === "uchiwa" && info.isFlashable) { uchiwaDotIndex = Math.min(5, info.baseEndState); uchiwaPreviewNextCv = Math.min(6, info.baseEndState + 1); }
-        }
-        const dotStartY = info.b.y + info.b.h + 12;
-        drawCookGauge(ctx, info.laneCx, dotStartY, cv, uchiwaPreviewNextCv, uchiwaDotIndex, info.uchiwaTargetStatus, info.baseEndStatus, info.isCurrentPreviewLane, info.previewProg, info.previewEventForThisLane);
-        
-        let fireIntensity = lane.fire * 0.15;
-        const uchiwaTime = state.visuals.uchiwaGusts[lane.id];
-        let fireSwayX = 0;
-        if (uchiwaTime && now - uchiwaTime < 800) fireSwayX = Math.sin(now / 40) * 2 * (1 - ((now - uchiwaTime) / 800));
-
-        const fireScale = 2.5, fireSize = 8 * fireScale, totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1)), startFireX = info.laneCx - totalFireW / 2 + fireSize / 2;
-        for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, info.b.y + info.b.h + 40, "#fa3", fireScale);
-        if (lane.uchiwaBoost > 0) { ctx.globalAlpha = 0.6; drawDotIcon(ctx, "fire", info.b.x + info.b.w - 18, info.b.y + info.b.h - 18, "#f85", 2); ctx.globalAlpha = 1.0; }
-
-        if (state.cookPreviewActive && !info.isCurrentPreviewLane) {
-            ctx.fillStyle = "rgba(15, 10, 8, 0.55)";
-            ctx.fillRect(info.b.x - 8, info.b.y - 8, info.b.w + 16, info.b.h + 80);
-        }
     });
 
     let p1MsgCount = 0, p2MsgCount = 0;
@@ -2143,6 +2136,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
