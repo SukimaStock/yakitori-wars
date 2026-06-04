@@ -428,6 +428,48 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     }
 }
 
+function spawnJuwaSmoke(laneIndex, amount, status) {
+    const b = getLaneBounds(laneIndex);
+    const laneCx = b.x + b.w / 2;
+    const stickTop = b.y + b.h * 0.1;
+    const meatY = stickTop + (b.h * 0.7) * 0.4;
+    
+    // 大量に出すぎないよう、ベースの発生量を少し抑えます
+    const count = Math.min(amount * 2, 6);
+    
+    // 1. 食欲をそそる白〜薄いベージュの湯気
+    for (let i = 0; i < count; i++) {
+        state.visuals.particles.push({
+            x: laneCx + (Math.random() - 0.5) * 12, 
+            y: meatY + (Math.random() - 0.5) * 8,  
+            vx: (Math.random() - 0.5) * 0.1, // 横方向への揺らぎはごくわずかに
+            vy: -0.6 - Math.random() * 0.5,  // ふわっと上へ向かって立ち上がる
+            life: 0, 
+            maxLife: 15 + Math.random() * 15, // 寿命を短くしてスッと消えるように
+            size: 2 + Math.random() * 2, 
+            color: Math.random() > 0.5 ? "#f4f0e6" : "#ffffff",
+            isSteam: true
+        });
+    }
+    
+    // 2. 脂のはぜる感じを表現する、オレンジや薄い黄土色の小粒をごく少量
+    const sizzleCount = 1 + Math.floor(amount / 2);
+    for (let i = 0; i < sizzleCount; i++) {
+        state.visuals.particles.push({
+            x: laneCx + (Math.random() - 0.5) * 10, 
+            y: meatY + (Math.random() - 0.5) * 10,  
+            vx: (Math.random() - 0.5) * 0.2, 
+            vy: -1.0 - Math.random() * 0.6, // 湯気より少し勢いよくはぜる             
+            life: 0, 
+            maxLife: 10 + Math.random() * 5, // さらに短命
+            size: 1 + Math.random() * 1.5, // 非常に小さい粒
+            color: Math.random() > 0.5 ? "#ffaa33" : "#e6c8a0",
+            isSizzle: true
+        });
+    }
+}
+
+
 
 
 
@@ -472,7 +514,8 @@ function updateCookPreview() {
         const event = state.cookPreviewEvents[state.cookPreviewIndex];
         if (event) {
             let smokeAmount = event.newCookState - event.prevCookState;
-            spawnSmokeEffect(event.laneIndex, smokeAmount, event.newStatus); 
+            // 以前の spawnSmokeEffect の代わりに、新しい美味しそうな湯気関数を呼び出します
+            spawnJuwaSmoke(event.laneIndex, smokeAmount, event.newStatus); 
             playSound("sizzle"); 
             if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
                 playSound("perfect");
@@ -488,6 +531,7 @@ function updateCookPreview() {
         else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; }
     }
 }
+
 
 function tryEndRound() {
     advanceAllSkewersAtRoundEnd();
