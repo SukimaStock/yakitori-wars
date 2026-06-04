@@ -447,57 +447,72 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
                 life: 0, maxLife: 15 + Math.random() * 10, 
                 size: 1 + Math.random() * 1.5,
                 color: Math.random() > 0.5 ? "#3c2a23" : "#2a1c18", 
+                baseAlpha: 1.0,
                 isSmoke: true
             });
         }
         return;
     }
 
-    // --- もわっと立ち上がる美味しそうな薄い湯気の塊（主役） ---
-    const numLargeSteam = 2 + Math.floor(Math.random() * 3); // 2〜4個程度
-    for (let i = 0; i < numLargeSteam; i++) {
-        state.visuals.particles.push({
-            x: laneCx + (Math.random() - 0.5) * 16, 
-            y: meatY + (Math.random() - 0.5) * 8,  
-            vx: (Math.random() - 0.5) * 0.2, // 横に少しだけ広がる
-            vy: -0.2 - Math.random() * 0.2,  // 上昇は遅め           
-            life: 0, maxLife: 35 + Math.random() * 20, // 寿命長め
-            size: 6 + Math.random() * 6, // 6〜12程度の大きな塊
-            color: Math.random() > 0.5 ? "rgba(240, 235, 225, 0.15)" : "rgba(220, 215, 205, 0.15)", // かなり薄いベージュ〜白
-            isSteam: true
-        });
-    }
+    const spawnBurst = function(burstIndex) {
+        // 1. もわっと立ち上がる美味しそうな薄い湯気の塊（主役）
+        const numLargeSteam = 3 + Math.floor(Math.random() * 3); // 3〜5個
+        for (let i = 0; i < numLargeSteam; i++) {
+            state.visuals.particles.push({
+                x: laneCx + (Math.random() - 0.5) * 16, 
+                y: meatY - 4 + (Math.random() - 0.5) * 8,  
+                vx: (Math.random() - 0.5) * 0.3, // 横に少し広がる
+                vy: -0.15 - Math.random() * 0.2, // 上昇は遅め           
+                life: 0, maxLife: 45 + Math.random() * 25, // 寿命を長く（45〜70）
+                size: 8 + Math.random() * 8, // 大きめの塊（8〜16）
+                color: Math.random() > 0.5 ? "#f0ebe1" : "#e6e0d3", // hex指定で色を固定
+                baseAlpha: 0.28 + Math.random() * 0.1, // 0.28〜0.38の確実な透明度
+                isSteam: true,
+                isLargeSteam: true // 膨らませるためのフラグ
+            });
+        }
 
-    // --- 補助的な小さい白湯気（少しだけ） ---
-    const numSteam = 1 + Math.floor(amount / 2);
-    for (let i = 0; i < numSteam; i++) {
-        state.visuals.particles.push({
-            x: laneCx + (Math.random() - 0.5) * 12, 
-            y: meatY + (Math.random() - 0.5) * 8,  
-            vx: (Math.random() - 0.5) * 0.1, 
-            vy: -0.4 - Math.random() * 0.3,             
-            life: 0, maxLife: 15 + Math.random() * 10, 
-            size: 2 + Math.random() * 2, 
-            color: "#e8e4d8",
-            isSteam: true
-        });
-    }
-    
-    // --- 脂のはぜる小粒（ごく少量） ---
-    const sizzleCount = 1 + Math.floor(Math.random() * 2); // 1〜2個
-    for (let i = 0; i < sizzleCount; i++) {
-        state.visuals.particles.push({
-            x: laneCx + (Math.random() - 0.5) * 10, 
-            y: meatY + (Math.random() - 0.5) * 10,  
-            vx: (Math.random() - 0.5) * 0.3, 
-            vy: -0.8 - Math.random() * 0.4,             
-            life: 0, maxLife: 8 + Math.random() * 6, 
-            size: 1 + Math.random() * 1, 
-            color: Math.random() > 0.5 ? "#d88a30" : "#d8a840", // 落ち着いたオレンジ〜黄土色
-            isSizzle: true
-        });
-    }
+        // 2. 補助的な小さい白湯気（少しだけ）
+        const numSteam = 1 + Math.floor(amount / 2);
+        for (let i = 0; i < numSteam; i++) {
+            state.visuals.particles.push({
+                x: laneCx + (Math.random() - 0.5) * 12, 
+                y: meatY + (Math.random() - 0.5) * 8,  
+                vx: (Math.random() - 0.5) * 0.1, 
+                vy: -0.4 - Math.random() * 0.3,             
+                life: 0, maxLife: 15 + Math.random() * 10, 
+                size: 2 + Math.random() * 2, 
+                color: "#e8e4d8",
+                baseAlpha: 0.6,
+                isSteam: true
+            });
+        }
+        
+        // 3. 脂のはぜる小粒（最初の1回だけごく少量出す）
+        if (burstIndex === 0) {
+            const sizzleCount = 1 + Math.floor(Math.random() * 2); // 1〜2個
+            for (let i = 0; i < sizzleCount; i++) {
+                state.visuals.particles.push({
+                    x: laneCx + (Math.random() - 0.5) * 10, 
+                    y: meatY + (Math.random() - 0.5) * 10,  
+                    vx: (Math.random() - 0.5) * 0.3, 
+                    vy: -0.8 - Math.random() * 0.4,             
+                    life: 0, maxLife: 10 + Math.random() * 5, 
+                    size: 1 + Math.random() * 1, 
+                    color: Math.random() > 0.5 ? "#d88a30" : "#d8a840", 
+                    baseAlpha: 1.0,
+                    isSizzle: true
+                });
+            }
+        }
+    };
+
+    // 焼ける瞬間に、短時間で3回に分けて湯気を出す（もわっと感を強調）
+    spawnBurst(0);
+    setTimeout(function() { spawnBurst(1); }, 100);
+    setTimeout(function() { spawnBurst(2); }, 200);
 }
+
 
 
 
@@ -2249,25 +2264,36 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else if (p.isSteam) {
-            ctx.globalAlpha = 0.5 * (1 - ratio);
+            // baseAlphaが設定されていれば反映し、徐々に透明にする
+            const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 0.5;
+            ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
-            const s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
+            
+            let s = p.size;
+            if (p.isLargeSteam) {
+                // 大きな湯気は時間とともに少し膨らむ（最大約1.6倍）
+                s = Math.floor(p.size * (1 + ratio * 0.6));
+            } else {
+                s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
+            }
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isAroma) {
-            ctx.globalAlpha = 0.8 * (1 - ratio);
+            const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 0.8;
+            ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
             const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isSizzle) {
-            ctx.globalAlpha = 1 - ratio;
+            const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 1.0;
+            ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
             const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isSmoke) {
-            ctx.globalAlpha = 0.5 * (1 - ratio);
+            const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 0.5;
+            ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
-            // 焦げカスが時間とともに巨大化するのを防ぐため、サイズを一定に保つ
-            const s = Math.floor(p.size); 
+            const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else {
             ctx.globalAlpha = 0.6 * (1 - ratio);
@@ -2276,7 +2302,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         }
     }
+    // 描画後は必ずリセット
     ctx.globalAlpha = 1.0;
+
     if (state.buildMode) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
         if (selectedIcon) { 
@@ -2309,7 +2337,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
                 const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); 
                 
-            let baseColor = tagColors[i];
+                let baseColor = tagColors[i];
  
                 if (isError) {
                     baseColor = "#7a3b3b";
@@ -2364,6 +2392,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
