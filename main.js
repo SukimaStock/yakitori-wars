@@ -934,12 +934,17 @@ function handleCanvasClick(event, canvas) {
     const rect = canvas.getBoundingClientRect(), x = event.clientX - rect.left, y = event.clientY - rect.top;
     if (state.screen === "title") {
         if (state.isBusy || (state.transition && state.transition.active)) return;
-        const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2, buttonOffsetY = 85;
-        const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 }, btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
-        if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) { state.visuals.titleClick = "ai";
+        const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
+        const btnW = 240, btnH = 56, gapY = 76, btnStartY = cy + 90;
+        const btnAi = { x: cx - btnW/2, y: btnStartY, w: btnW, h: btnH };
+        const btnPvp = { x: cx - btnW/2, y: btnStartY + gapY, w: btnW, h: btnH };
+
+        if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) { 
+            state.visuals.titleClick = "ai";
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "ai" };
         } 
-        else if (x >= btnPvp.x && x <= btnPvp.x + btnPvp.w && y >= btnPvp.y && y <= btnPvp.y + btnPvp.h) { state.visuals.titleClick = "pvp";
+        else if (x >= btnPvp.x && x <= btnPvp.x + btnPvp.w && y >= btnPvp.y && y <= btnPvp.y + btnPvp.h) { 
+            state.visuals.titleClick = "pvp";
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "pvp" };
         }
         return;
@@ -1004,6 +1009,7 @@ function handleCanvasClick(event, canvas) {
         }
     }
 }
+
 
 
 // ==========================================
@@ -1266,6 +1272,121 @@ const YAKITORI_SKEWER_SPRITES = {
         ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....66.....", ".....66....."  
     ]
 };
+const TITLE_LOGO_PALETTE = {
+    ".": null, "A": "#000000", "B": "#ffda00", "C": "rgba(13,3,0,0.86)", 
+    "D": "#ff6f00", "E": "#d44600", "F": "#380400", "G": "#ffa100", "H": "#f81b00"
+};
+
+const TITLE_LOGO_DATA = [
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    ".....................................................................................................A..........................",
+    "....................................................................................................ABA.........................",
+    "....................................................................................................ABA.........................",
+    "..........................AAAA....CCCC..............................................................ADA.........................",
+    ".........................CBBEFA..CBBDFC.CCCCC....CCCFC..CCCC.CFFFFCA.FFFFFFFC...CCCCCA..CFCCFCC...CCFFFCC.......................",
+    ".........................CBBBCCCABBBBFCCFBBBBC..CFBBBA.CFBBCCCBGBBBAFBBBBBBBBF.CFBBBBFCCFBBBBBBF.CGGEDEECA......................",
+    ".........................CBGBBFCBBGBBFCCBBGGGCC.CFBGGCCFBGGFACBGBBBAFDBGBGGBBFCFBBBBBBFAFGGBGGBBFCFGGEEFFA......................",
+    ".........................CFGGGGCBBGBFFCFBGBGDDCCCFBBBFFBGBFFACBDDGBCFBBBGGBBBFFBGGGBBBFCFGGBFBGBBAFFEFEFCC......................",
+    "..........................CGGGBFBBGGFFCBBGGBGBFAAFGGGCBBGEFAAAFBGGACFFFEGGCFFCFGGBFGGGGCCGBFCFBBBAFFFFFFCC......................",
+    "..........................CFGGGGBBBAFCFBBBFBGBFCCFBGDGGBEFAACAFDGGACCFCBBDFCCCBGBFCFGGBFABDFFFGGGACCCCCCCC......................",
+    "...........................CGEGBBDDFCCFGDDFBDGDCAFGGDDDECCCCCAFBGGACCCCBGDCCCCGGDCCCGDGFABGGFBBGGACCFGFFC.......................",
+    "...........................CCGDDDGFFCCFGGFCCDGGCCFDDDGDACCAACAFEDBCCCCCBEDCCCCGGDFCCGGDFABDDDGDECCCFCFCC........................",
+    "............................CDDDDDFCCFDDGFCFDDGFCFDGGDGDCCCAAAFDDDCCCCCBDDCCCCGGDFCCDDGFADEDDDDFCCFFBEBEF.......................",
+    "............................CEDDDGCAFFEDDDDEDDEFCFDEGFGDDCCCCAFDDDACCFCBDDCCAAEEEGCFDDBFAEDDGEDFCCFBEFFCFC......................",
+    "............................ADDDEDCCCEEEEEEDEEEDFFDDGFCGDECCCCFEEEAACACBEEACCADDEDDDEEDFADDDCEDDCCCFBEBECA......................",
+    "............................ADEEGGCCFEEECFFFEDDEFFDEEECDEEEECFEEEEGAFCEEEEEFAAFEDEEEDDFCFEEDCFEEFCFEFFFFFC......................",
+    "............................FEEEEECCEEEEACACEEEEFCDEEECDDEEEFFEEEEEACCEEEEEFCCCEEEEEEEFCFEEDDFEEDCFEEDDFFC......................",
+    "............................CEEEEECAEEEEECAEEEEEFCEEEDAEEEEDFFEEEEEACCEEEEEFCCCFEEEEEFCAFEEDDFEEECFGEFFEFC......................",
+    "............................CEEEEECCCCCCCCAFFFCFCCFFFFCCFFFFFFFFFFFACCFFFFFCAFFCFFFFFCAAFFFFFCCFFCCFFFFFFC......................",
+    "............................CCCCCCCCFFFFFFAACCCCCCCCCCACACCCCCCCCACACCCCCCCCACCCCCCCCACAACCCCACFFFFCCEACC.......................",
+    "............................CFFFFFFCCCCFFCCCDDDCCCDCCFDDDCCGDDDDGCCCHDDDDDDFCCCEDDDDDDCACCCCCACFFCCAADC.........................",
+    ".............................ACCAACCA.....CCHHEFCCHFCFHHECCEHHHHECCCHHHEDDHHECEHHDDHHHEC......AAAAA.CDC.........................",
+    "..........................................ACHHHHCHHHCHHHCCCHHDDHHHCCCHHACCHHHCHHHCCFHHHA............ADA.........................",
+    "...........................................CFHHHFHHHCHHHFCHHHCCHHHACCHHACFHHHCHHHHDCCCCA.............A..........................",
+    "...........................................CFHHHHHEHHHHHCCHHHCCHHHHCCHHHHHHHCCCHHHHHHHFA........................................",
+    "............................................FHHHHHFHHHHFCCHHHHHHHHHCCHHHHHHFCCCCCCCHHHHAA.......................................",
+    "........................................AAAACCHHHHFHHHHACHHHHHHHHHHCCHHACFHHCCHHHHCFHHHCCCCCAA..................................",
+    "...................................AAAAACCCCCCHHHCCFHHHAFHHHHCCHHHHCHHHHCHHHHCHHHHHHHHHAFFFFCCAAA...............................",
+    "................................AAACCFCFFFFFFCHHHFCCHEHCCHEHHCCHHHECHHHEFHEHHCCHHHHEEHCCFFFFFFCCCA..............................",
+    "...............................AACCCFFFFFFFFFCCCCCCCCCCCCCFCCCCCFFFFFFFFCCFCCCCCCCCCCCCAFFFFFFFCCAA.............................",
+    "................................AAAACFFFFFFFFFFCCFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCFFFFFFCCAA..............................",
+    ".....................................AACCFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFCCAAA................................",
+    "...........................................AAAAACCCFFFFFFFFFFFFFFCFFFFFFFFFFFFFCFCCCCAAAAAA.....................................",
+    ".....................................................AAAACAACAAAAACAAAAAAAAAA...................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................",
+    "................................................................................................................................"
+];
 
 function drawYakitoriSpriteMap(ctx, x, y, spriteArray, offsetX = 0, offsetY = 0) {
     for (let row = 0; row < spriteArray.length; row++) {
@@ -1376,15 +1497,109 @@ function drawSkewerCloth(ctx, x, y, player) {
 
 
 function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false) {
-    // 完全にピクセル化されたボタンスタイルに変更
-    drawBevelRect(ctx, x, y, w, h, isPressed ? "#2a2a2a" : "#3a3a40", isPressed);
     const offset = isPressed ? 2 : 0;
-    // シャドウ
-    ctx.fillStyle = "#000"; ctx.font = getPixelFont(14);
-    ctx.textAlign = "center"; ctx.fillText(label, x + w / 2 + 2, y + h / 2 + 6 + offset + 2);
-    // メインテキスト
-    ctx.fillStyle = "#f4e6d0"; ctx.fillText(label, x + w / 2, y + h / 2 + 6 + offset);
+    const baseColor = isPressed ? "#422e20" : "#322216";
+    const borderColor = "#1c110a"; 
+
+    if (!isPressed) {
+        ctx.fillStyle = "#080503";
+        ctx.fillRect(x + 2, y + 4, w, h);
+    }
+
+    ctx.fillStyle = borderColor;
+    ctx.fillRect(x, y + offset, w, h);
+    ctx.fillStyle = baseColor;
+    ctx.fillRect(x + 2, y + 2 + offset, w - 4, h - 4);
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+    ctx.fillRect(x + 2, y + 2 + offset, w - 4, 2);
+
+    ctx.font = getPixelFont(14);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; 
+    ctx.fillText(label, x + w / 2 + 2, y + h / 2 + 2 + offset);
+    
+    ctx.fillStyle = isPressed ? "#e4d9c5" : "#c4b69e"; 
+    ctx.fillText(label, x + w / 2, y + h / 2 + offset);
+    
+    return { x, y, w, h };
 }
+
+function drawPixelLogo(ctx, logoData, x, y, scale) {
+    const rows = logoData.length;
+    const cols = logoData[0].length;
+    const startX = Math.floor(x - (cols * scale) / 2);
+    const startY = Math.floor(y - (rows * scale) / 2);
+
+    for (let r = 0; r < rows; r++) {
+        const rowStr = logoData[r];
+        for (let c = 0; c < cols; c++) {
+            const val = rowStr[c];
+            if (val !== "." && TITLE_LOGO_PALETTE[val]) {
+                ctx.fillStyle = TITLE_LOGO_PALETTE[val];
+                ctx.fillRect(startX + c * scale, startY + r * scale, scale, scale);
+            }
+        }
+    }
+}
+
+function drawQuietCharcoal(ctx, cx, cy) {
+    const w = 240;
+    const h = 26; 
+    const startX = Math.round(cx - w / 2);
+    const startY = Math.round(cy - h / 2);
+
+    ctx.fillStyle = "rgba(12, 8, 6, 0.8)";
+    ctx.fillRect(startX - 10, startY - 10, w + 20, h + 20);
+
+    const now = performance.now();
+
+    for (let i = 0; i < 24; i++) {
+        const pr1 = Math.abs(Math.sin(i * 13));
+        const pr2 = Math.abs(Math.cos(i * 17));
+        
+        const cw = 12 + pr1 * 16;
+        const ch = 6 + pr2 * 10;
+        const x = startX + (i / 24) * (w - 20) + Math.sin(i) * 10;
+        const y = startY + pr1 * (h - ch);
+        
+        ctx.fillStyle = pr2 > 0.5 ? "#110a08" : "#0a0504";
+        ctx.fillRect(x, y, cw, ch);
+
+        if (pr1 < 0.6) {
+            const heat = (Math.sin(now / 800 + i * 2) * 0.5 + 0.5);
+            const emberW = cw - 4;
+            const emberH = ch - 4;
+            
+            if (emberW > 0 && emberH > 0) {
+                ctx.fillStyle = "rgba(140, 20, 0, " + (heat * 0.9) + ")"; 
+                ctx.fillRect(x + 2, y + 2, emberW, emberH);
+                
+                if (heat > 0.7 && pr2 < 0.4) {
+                    ctx.fillStyle = "rgba(200, 60, 0, " + (heat * 0.7) + ")"; 
+                    ctx.fillRect(x + 4, y + 4, emberW - 4, emberH - 4);
+                }
+            }
+        }
+    }
+
+    if (Math.random() < 0.05) {
+        state.visuals.particles.push({
+            x: cx + (Math.random() - 0.5) * w * 0.8,
+            y: startY + 10 + (Math.random() - 0.5) * 10,
+            vx: (Math.random() - 0.5) * 0.3,
+            vy: -0.3 - Math.random() * 0.5,
+            life: 0,
+            maxLife: 30 + Math.random() * 20,
+            size: 1.5 + Math.random() * 1.5,
+            isTitleSpark: true
+        });
+    }
+}
+
+
 
 function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay = false, status = "RAW", laneType = "medium", now = 0, isPreBurnt = false, isPrePerfect = false) {
     let finalBaseColor = baseColor;
@@ -2343,6 +2558,9 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         if (p.isSizzle) {
             p.vy += 0.15;
         }
+        if (p.isTitleSpark) {
+            p.vx += (Math.random() - 0.5) * 0.2; 
+        }
         
         p.x += p.vx;
         p.y += p.vy; const ratio = p.life / p.maxLife; 
@@ -2367,7 +2585,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             
             let s = p.size;
             if (p.isLargeSteam) {
-                // 大きな湯気の塊は、時間経過とともに約1.8倍までふわっと広がる
                 s = Math.floor(p.size * (1 + ratio * 0.8));
             } else {
                 s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
@@ -2391,6 +2608,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillStyle = p.color;
             const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
+        } else if (p.isTitleSpark) {
+            const alpha = Math.min(1, 1.5 * (1 - ratio));
+            ctx.globalAlpha = 1.0; 
+            ctx.fillStyle = "rgba(255, 120, 30, " + alpha + ")";
+            ctx.fillRect(Math.round(p.x), Math.round(p.y), Math.round(p.size), Math.round(p.size));
         } else {
             ctx.globalAlpha = 0.6 * (1 - ratio);
             ctx.fillStyle = p.color || "#e0e0e0";
@@ -2434,19 +2656,22 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 
                 let baseColor = tagColors[i];
  
+        
                 if (isError) {
                     baseColor = "#7a3b3b";
                 } else if (!canUse || isLocked) {
                     baseColor = "#4a4642"; 
                 }
 
+       
                 let btnAlpha = 1.0; 
                 let harvestBreatheAlpha = 0;
         
                 if (boxId === 3 && canUse && !isLocked && state.buildMode === null) 
                 { 
+               
                     const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
-                    baseColor = brightenColor(tagColors[i], isPerfect ? 0.2 : 0.0); 
+                    baseColor = brightenColor(tagColors[i], isPerfect ? 0.2 : 0.0);
                     harvestBreatheAlpha = isPerfect ?
                     0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
                 }
@@ -2487,6 +2712,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
@@ -2791,230 +3017,246 @@ function drawTableBackground(ctx) {
 
 
 function render(ctx) {
-const now = getTime();
-state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
-state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { 
-    const life = m.duration || 1000;
-    return now - m.startTime < life; 
-});
-state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
+    const now = getTime();
+    state.visuals.ghosts = state.visuals.ghosts.filter(g => now - g.startTime < 1000);
+    state.visuals.statusMessages = state.visuals.statusMessages.filter(m => { 
+        const life = m.duration || 1000;
+        return now - m.startTime < life; 
+    });
+    state.visuals.traces = state.visuals.traces.filter(t => now - t.time < 2000);
 
-if (state.screen === "game") {
-    drawTableBackground(ctx);
-} else {
-    ctx.fillStyle = LAYOUT.COLORS.BG; 
-    ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-}
-
-const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
-if (state.screen === "title") {
-    const logoOffsetY = -205, buttonOffsetY = 85;
-    if (logoImage.complete && logoImage.naturalWidth > 0) { 
-        const logoMaxW = Math.min(320, LAYOUT.CANVAS_WIDTH * 0.82);
-        const ratio = logoImage.naturalHeight / logoImage.naturalWidth, logoW = logoMaxW, logoH = logoW * ratio;
-        ctx.drawImage(logoImage, cx - logoW / 2, cy + logoOffsetY, logoW, logoH);
-    }
-    const btnAi = { x: cx - 120, y: cy - 30 + buttonOffsetY, w: 240, h: 60 }, btnPvp = { x: cx - 120, y: cy + 50 + buttonOffsetY, w: 240, h: 60 };
-    drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI", "rgba(255, 150, 60, 0.45)", state.visuals.titleClick === "ai");
-    drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", "rgba(255, 80, 60, 0.45)", state.visuals.titleClick === "pvp");
-} else if (state.screen === "game") { 
-    drawGameScreen(ctx); drawEndSplash(ctx);
-} else if (state.screen === "clear") {
-    state.resultScreenTimer++; const timer = state.resultScreenTimer;
-    const alphaOverlay = Math.min(0.85, timer / 90);
-    ctx.fillStyle = "rgba(30, 15, 10, " + alphaOverlay + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-    if (timer % 6 === 0) { 
-        state.visuals.floaters.push({ x: Math.random() * LAYOUT.CANVAS_WIDTH, y: LAYOUT.CANVAS_HEIGHT + 10, vx: (Math.random() - 0.5) * 0.4, vy: -0.4 - Math.random() * 0.6, life: 0, maxLife: 200 + Math.random() * 150, size: 2 + Math.random() * 4 });
-    }
-    for (let i = state.visuals.floaters.length - 1; i >= 0; i--) {
-        let f = state.visuals.floaters[i];
-        f.life++; if (f.life >= f.maxLife) { state.visuals.floaters.splice(i, 1); continue; }
-        f.x += f.vx;
-        f.y += f.vy; const ratio = f.life / f.maxLife; ctx.globalAlpha = Math.max(0, 1 - ratio);
-        ctx.fillStyle = "rgba(255, " + (100 + Math.random() * 50) + ", 50, 0.8)"; ctx.fillRect(f.x, f.y, f.size, f.size);
-    }
-    ctx.globalAlpha = 1.0; ctx.textAlign = "center";
-    if (timer > 60) { 
-        ctx.globalAlpha = Math.min(1, (timer - 60) / 45);
-        const bw = 280, bh = 220;
-        const bx = Math.round(cx - bw/2), by = Math.round(cy - 120);
-        drawBevelRect(ctx, bx, by, bw, bh, "#241e1a", false);
-        ctx.fillStyle = "rgba(255,255,255,0.05)";
-        ctx.fillRect(bx+8, by+8, bw-16, 2);
-        ctx.fillRect(bx+8, by+bh-10, bw-16, 2);
-        ctx.font = getPixelFont(20); ctx.fillStyle = "#000";
-        ctx.fillText("SURVIVAL CLEAR", cx + 2, cy - 80 + 2); 
-        ctx.fillStyle = "#ffeb3b";
-        ctx.fillText("SURVIVAL CLEAR", cx, cy - 80); 
-    }
-    if (timer > 140) { 
-        ctx.globalAlpha = Math.min(1, (timer - 140) / 45);
-        ctx.font = getPixelFont(12); ctx.fillStyle = "#000"; ctx.fillText("You mastered the grill.", cx + 1, cy - 30 + 1);
-        ctx.fillStyle = "#e0e0e0"; ctx.fillText("You mastered the grill.", cx, cy - 30);
-    }
-    if (timer > 220) { 
-        ctx.globalAlpha = Math.min(1, (timer - 220) / 45);
-        ctx.font = getPixelFont(12); ctx.fillStyle = "#000"; ctx.fillText("THANK YOU FOR PLAYING", cx + 1, cy + 20 + 1);
-        ctx.fillStyle = "#fa3"; ctx.fillText("THANK YOU FOR PLAYING", cx, cy + 20);
-    }
-    if (timer > 300) { 
-        const pulse = 0.85 + 0.15 * Math.sin(getTime() / 600);
-        ctx.globalAlpha = Math.min(1, (timer - 300) / 45) * pulse;
-        drawBevelRect(ctx, cx - 110, cy + 76, 220, 36, "#3a3a40", false);
-        
-        ctx.font = getPixelFont(12); ctx.fillStyle = "#000";
-        ctx.fillText("▶ BACK TO TITLE", cx + 1, cy + 100 + 1); 
-        ctx.fillStyle = "#fff";
-        ctx.fillText("▶ BACK TO TITLE", cx, cy + 100); 
-    }
-    ctx.globalAlpha = 1.0;
-} else if (state.screen === "gameover" || state.screen === "stage_clear") {
-    state.resultScreenTimer++;
-    const timer = state.resultScreenTimer;
-    if (timer >= 10) {
-        let titleText = state.winnerText;
-        let titleColor = "#fff";
-        if (state.screen === "gameover") { 
-            if (titleText.includes("P1")) titleColor = LAYOUT.COLORS.P1;
-            else if (titleText.includes("DRAW")) titleColor = "#888";
-            else titleColor = LAYOUT.COLORS.P2; 
-        } else { titleColor = "#ffeb3b";
-        }
-        
-        if (!state.visuals.resultComment) {
-            const diff = Math.abs((state.players[0].finalScore || state.players[0].score) - (state.players[1].finalScore || state.players[1].score));
-            let comment = "Good game.";
-            if (state.screen === "gameover" && !state.winnerText.includes("DRAW") && diff <= 2) comment = "So close.";
-            else if (state.players[0].stats.perfect >= 3 || state.players[1].stats.perfect >= 3) comment = "Nice timing.";
-            else if (state.players[0].stats.burnt >= 3 || state.players[1].stats.burnt >= 3) comment = "Still counts.";
-            else if (state.players[0].stats.steal >= 2 || state.players[1].stats.steal >= 2) comment = "Nice steal.";
-            state.visuals.resultComment = comment;
-        }
-        
-        const alpha = Math.min(1, (timer - 10) / 10);
-        ctx.globalAlpha = alpha;
-        if (timer === 10 || timer === 11) { 
-            ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-            ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); 
-        }
-        
-        ctx.fillStyle = "rgba(20, 16, 14, 0.85)";
+    if (state.screen === "game") {
+        drawTableBackground(ctx);
+    } else {
+        ctx.fillStyle = LAYOUT.COLORS.BG; 
         ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-
-        const bw = 260, bh = 270;
-        const bx = Math.round(cx - bw/2), by = Math.round(cy - 145);
-        drawBevelRect(ctx, bx, by, bw, bh, "#2a221c", false);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
-        ctx.fillRect(bx + 6, by + 6, bw - 12, 2);
-        ctx.fillRect(bx + 6, by + bh - 8, bw - 12, 2);
-
-        ctx.font = getPixelFont(22);
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#000"; ctx.fillText(titleText, cx + 2, cy - 110 + 2);
-        ctx.fillStyle = titleColor; ctx.fillText(titleText, cx, cy - 110);
-        ctx.font = getPixelFont(10); 
-        ctx.fillStyle = "#000"; ctx.fillText(state.visuals.resultComment, cx + 1, cy - 80 + 1);
-        ctx.fillStyle = "#a89f91";
-        ctx.fillText(state.visuals.resultComment, cx, cy - 80); 
-        ctx.globalAlpha = 1.0;
     }
-    if (timer >= 30) {
-        const alpha = Math.min(1, (timer - 30) / 10);
-        const p1Score = state.players[0].finalScore || state.players[0].score;
-        const p2Score = state.players[1].finalScore || state.players[1].score;
-        const p2Name = state.gameMode === "ai" ? state.enemyName : "P2";
-        let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-        if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
-        } 
-        else if (p2Score > p1Score) { p1Color = "#555";
-        p1Alpha = 0.5; } 
-        
-        ctx.globalAlpha = alpha;
-        drawBevelRect(ctx, cx - 110, cy - 50, 220, 70, "#1c1410", false);
 
-        ctx.globalAlpha = alpha * p1Alpha;
-        ctx.textAlign = "left";
-        ctx.fillStyle = p1Color; ctx.font = getPixelFont(16); ctx.fillText("P1", cx - 90, cy - 25);
-        ctx.textAlign = "right";
-        ctx.fillText("" + p1Score, cx + 90, cy - 25);
+    const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
+    if (state.screen === "title") {
+        const logoScale = Math.max(3, Math.floor(LAYOUT.CANVAS_WIDTH / 110)); 
+        const logoY = cy - 130; 
+        drawPixelLogo(ctx, TITLE_LOGO_DATA, cx, logoY, logoScale);
+
+        const grillY = cy - 10; 
+        drawQuietCharcoal(ctx, cx, grillY);
+
+        renderParticlesAndOverlay(ctx, now, null);
+
+        const btnW = 240;
+        const btnH = 56; 
+        const gapY = 76;
+        const btnStartY = cy + 90; 
+
+        const btnAi = { x: cx - btnW/2, y: btnStartY, w: btnW, h: btnH };
+        const btnPvp = { x: cx - btnW/2, y: btnStartY + gapY, w: btnW, h: btnH };
+
+        drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI", null, state.visuals.titleClick === "ai");
+        drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", null, state.visuals.titleClick === "pvp");
         
-        ctx.globalAlpha = alpha * p2Alpha; ctx.textAlign = "left"; ctx.fillStyle = p2Color;
-        ctx.fillText(p2Name, cx - 90, cy + 5);
-        ctx.textAlign = "right"; ctx.fillText("" + p2Score, cx + 90, cy + 5);
-    }
-    if (timer >= 55) {
-        const alpha = Math.min(1, (timer - 55) / 10);
-        const p1Score = state.players[0].finalScore || state.players[0].score;
-        const p2Score = state.players[1].finalScore || state.players[1].score;
-        let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
-        if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
-        } 
-        else if (p2Score > p1Score) { p1Color = "#555";
-        p1Alpha = 0.5; } 
-        
-        ctx.font = getPixelFont(10);
-        const statsLabels = ["PERFECT", "BURNT", "STEAL"];
-        statsLabels.forEach((label, i) => {
-            const statKey = label.toLowerCase();
-            const y = cy + 45 + i * 18;
-            
-            ctx.globalAlpha = alpha; ctx.textAlign = "left"; ctx.fillStyle = "#888";
-            ctx.fillText(label, cx - 80, y);
-       
-             
-            ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right";
-            ctx.fillText(state.players[0].stats[statKey], cx + 15, y);
-            
-            ctx.globalAlpha = alpha; ctx.fillStyle = "#555"; ctx.textAlign = "center";
-            ctx.fillText("-", cx + 35, y);
-         
-            
-            ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left";
-            ctx.fillText(state.players[1].stats[statKey], cx + 55, y);
-        });
-        const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500);
-        ctx.globalAlpha = alpha; 
-        const btnY = cy + 120;
-        drawBevelRect(ctx, cx - 90, btnY - 22, 180, 36, "#3a3a40", false);
-        
-        ctx.save();
-        ctx.translate(cx, btnY);
-        if (state.screen === "stage_clear") {
-            ctx.globalAlpha = alpha * pulse;
-            ctx.fillStyle = "#000"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText("▶ NEXT STAGE", 2, 2);
-            ctx.fillStyle = "#fff";
-            ctx.fillText("▶ NEXT STAGE", 0, 0);
-            
-            ctx.globalAlpha = alpha; ctx.fillStyle = "#777";
-            ctx.font = getPixelFont(12); ctx.fillText("▶ RETRY", 0, 30);
-        } else {
-            ctx.globalAlpha = alpha * pulse;
-            ctx.font = getPixelFont(14); ctx.textAlign = "center";
-            ctx.fillStyle = "#000";
-            if (state.gameMode === "ai") { 
-                ctx.fillText("▶ RETRY", 2, 2);
-                ctx.fillStyle = "#fff"; ctx.fillText("▶ RETRY", 0, 0);
-            } 
-            else { 
-                ctx.fillText("▶ REMATCH", 2, 2);
-                ctx.fillStyle = "#fff"; ctx.fillText("▶ REMATCH", 0, 0);
-            }
+    } else if (state.screen === "game") { 
+        drawGameScreen(ctx); drawEndSplash(ctx);
+    } else if (state.screen === "clear") {
+        state.resultScreenTimer++; const timer = state.resultScreenTimer;
+        const alphaOverlay = Math.min(0.85, timer / 90);
+        ctx.fillStyle = "rgba(30, 15, 10, " + alphaOverlay + ")";
+        ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+        if (timer % 6 === 0) { 
+            state.visuals.floaters.push({ x: Math.random() * LAYOUT.CANVAS_WIDTH, y: LAYOUT.CANVAS_HEIGHT + 10, vx: (Math.random() - 0.5) * 0.4, vy: -0.4 - Math.random() * 0.6, life: 0, maxLife: 200 + Math.random() * 150, size: 2 + Math.random() * 4 });
         }
-        ctx.restore();
+        for (let i = state.visuals.floaters.length - 1; i >= 0; i--) {
+            let f = state.visuals.floaters[i];
+            f.life++; if (f.life >= f.maxLife) { state.visuals.floaters.splice(i, 1); continue; }
+            f.x += f.vx;
+            f.y += f.vy; const ratio = f.life / f.maxLife; ctx.globalAlpha = Math.max(0, 1 - ratio);
+            ctx.fillStyle = "rgba(255, " + (100 + Math.random() * 50) + ", 50, 0.8)"; ctx.fillRect(f.x, f.y, f.size, f.size);
+        }
+        ctx.globalAlpha = 1.0; ctx.textAlign = "center";
+        if (timer > 60) { 
+            ctx.globalAlpha = Math.min(1, (timer - 60) / 45);
+            const bw = 280, bh = 220;
+            const bx = Math.round(cx - bw/2), by = Math.round(cy - 120);
+            drawBevelRect(ctx, bx, by, bw, bh, "#241e1a", false);
+            ctx.fillStyle = "rgba(255,255,255,0.05)";
+            ctx.fillRect(bx+8, by+8, bw-16, 2);
+            ctx.fillRect(bx+8, by+bh-10, bw-16, 2);
+            ctx.font = getPixelFont(20); ctx.fillStyle = "#000";
+            ctx.fillText("SURVIVAL CLEAR", cx + 2, cy - 80 + 2); 
+            ctx.fillStyle = "#ffeb3b";
+            ctx.fillText("SURVIVAL CLEAR", cx, cy - 80); 
+        }
+        if (timer > 140) { 
+            ctx.globalAlpha = Math.min(1, (timer - 140) / 45);
+            ctx.font = getPixelFont(12); ctx.fillStyle = "#000"; ctx.fillText("You mastered the grill.", cx + 1, cy - 30 + 1);
+            ctx.fillStyle = "#e0e0e0"; ctx.fillText("You mastered the grill.", cx, cy - 30);
+        }
+        if (timer > 220) { 
+            ctx.globalAlpha = Math.min(1, (timer - 220) / 45);
+            ctx.font = getPixelFont(12); ctx.fillStyle = "#000"; ctx.fillText("THANK YOU FOR PLAYING", cx + 1, cy + 20 + 1);
+            ctx.fillStyle = "#fa3"; ctx.fillText("THANK YOU FOR PLAYING", cx, cy + 20);
+        }
+        if (timer > 300) { 
+            const pulse = 0.85 + 0.15 * Math.sin(getTime() / 600);
+            ctx.globalAlpha = Math.min(1, (timer - 300) / 45) * pulse;
+            drawBevelRect(ctx, cx - 110, cy + 76, 220, 36, "#3a3a40", false);
+            
+            ctx.font = getPixelFont(12); ctx.fillStyle = "#000";
+            ctx.fillText("▶ BACK TO TITLE", cx + 1, cy + 100 + 1); 
+            ctx.fillStyle = "#fff";
+            ctx.fillText("▶ BACK TO TITLE", cx, cy + 100); 
+        }
         ctx.globalAlpha = 1.0;
+    } else if (state.screen === "gameover" || state.screen === "stage_clear") {
+        state.resultScreenTimer++;
+        const timer = state.resultScreenTimer;
+        if (timer >= 10) {
+            let titleText = state.winnerText;
+            let titleColor = "#fff";
+            if (state.screen === "gameover") { 
+                if (titleText.includes("P1")) titleColor = LAYOUT.COLORS.P1;
+                else if (titleText.includes("DRAW")) titleColor = "#888";
+                else titleColor = LAYOUT.COLORS.P2; 
+            } else { titleColor = "#ffeb3b";
+            }
+            
+            if (!state.visuals.resultComment) {
+                const diff = Math.abs((state.players[0].finalScore || state.players[0].score) - (state.players[1].finalScore || state.players[1].score));
+                let comment = "Good game.";
+                if (state.screen === "gameover" && !state.winnerText.includes("DRAW") && diff <= 2) comment = "So close.";
+                else if (state.players[0].stats.perfect >= 3 || state.players[1].stats.perfect >= 3) comment = "Nice timing.";
+                else if (state.players[0].stats.burnt >= 3 || state.players[1].stats.burnt >= 3) comment = "Still counts.";
+                else if (state.players[0].stats.steal >= 2 || state.players[1].stats.steal >= 2) comment = "Nice steal.";
+                state.visuals.resultComment = comment;
+            }
+            
+            const alpha = Math.min(1, (timer - 10) / 10);
+            ctx.globalAlpha = alpha;
+            if (timer === 10 || timer === 11) { 
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+                ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); 
+            }
+            
+            ctx.fillStyle = "rgba(20, 16, 14, 0.85)";
+            ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+
+            const bw = 260, bh = 270;
+            const bx = Math.round(cx - bw/2), by = Math.round(cy - 145);
+            drawBevelRect(ctx, bx, by, bw, bh, "#2a221c", false);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+            ctx.fillRect(bx + 6, by + 6, bw - 12, 2);
+            ctx.fillRect(bx + 6, by + bh - 8, bw - 12, 2);
+
+            ctx.font = getPixelFont(22);
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#000"; ctx.fillText(titleText, cx + 2, cy - 110 + 2);
+            ctx.fillStyle = titleColor; ctx.fillText(titleText, cx, cy - 110);
+            ctx.font = getPixelFont(10); 
+            ctx.fillStyle = "#000"; ctx.fillText(state.visuals.resultComment, cx + 1, cy - 80 + 1);
+            ctx.fillStyle = "#a89f91";
+            ctx.fillText(state.visuals.resultComment, cx, cy - 80); 
+            ctx.globalAlpha = 1.0;
+        }
+        if (timer >= 30) {
+            const alpha = Math.min(1, (timer - 30) / 10);
+            const p1Score = state.players[0].finalScore || state.players[0].score;
+            const p2Score = state.players[1].finalScore || state.players[1].score;
+            const p2Name = state.gameMode === "ai" ?
+    state.enemyName : "P2";
+            let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
+            } 
+            else if (p2Score > p1Score) { p1Color = "#555";
+    p1Alpha = 0.5; } 
+            
+            ctx.globalAlpha = alpha;
+            drawBevelRect(ctx, cx - 110, cy - 50, 220, 70, "#1c1410", false);
+
+            ctx.globalAlpha = alpha * p1Alpha;
+            ctx.textAlign = "left";
+            ctx.fillStyle = p1Color; ctx.font = getPixelFont(16); ctx.fillText("P1", cx - 90, cy - 25);
+            ctx.textAlign = "right";
+            ctx.fillText("" + p1Score, cx + 90, cy - 25);
+            
+            ctx.globalAlpha = alpha * p2Alpha; ctx.textAlign = "left"; ctx.fillStyle = p2Color;
+            ctx.fillText(p2Name, cx - 90, cy + 5);
+            ctx.textAlign = "right"; ctx.fillText("" + p2Score, cx + 90, cy + 5);
+        }
+        if (timer >= 55) {
+            const alpha = Math.min(1, (timer - 55) / 10);
+            const p1Score = state.players[0].finalScore || state.players[0].score;
+            const p2Score = state.players[1].finalScore || state.players[1].score;
+            let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
+            if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
+            } 
+            else if (p2Score > p1Score) { p1Color = "#555";
+    p1Alpha = 0.5; } 
+            
+            ctx.font = getPixelFont(10);
+            const statsLabels = ["PERFECT", "BURNT", "STEAL"];
+            statsLabels.forEach((label, i) => {
+                const statKey = label.toLowerCase();
+                const y = cy + 45 + i * 18;
+                
+                ctx.globalAlpha = alpha; ctx.textAlign = "left"; ctx.fillStyle = "#888";
+                ctx.fillText(label, cx - 80, y);
+           
+    
+                 
+                ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right";
+                ctx.fillText(state.players[0].stats[statKey], cx + 15, y);
+                
+                ctx.globalAlpha = alpha; ctx.fillStyle = "#555"; ctx.textAlign = "center";
+                ctx.fillText("-", cx + 35, y);
+     
+            
+                
+                ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left";
+                ctx.fillText(state.players[1].stats[statKey], cx + 55, y);
+            });
+            const pulse = 0.88 + 0.12 * Math.sin(getTime() / 500);
+            ctx.globalAlpha = alpha; 
+            const btnY = cy + 120;
+            drawBevelRect(ctx, cx - 90, btnY - 22, 180, 36, "#3a3a40", false);
+            
+            ctx.save();
+            ctx.translate(cx, btnY);
+            if (state.screen === "stage_clear") {
+                ctx.globalAlpha = alpha * pulse;
+                ctx.fillStyle = "#000"; ctx.font = getPixelFont(14); ctx.textAlign = "center"; ctx.fillText("▶ NEXT STAGE", 2, 2);
+                ctx.fillStyle = "#fff";
+                ctx.fillText("▶ NEXT STAGE", 0, 0);
+                
+                ctx.globalAlpha = alpha; ctx.fillStyle = "#777";
+                ctx.font = getPixelFont(12); ctx.fillText("▶ RETRY", 0, 30);
+            } else {
+                ctx.globalAlpha = alpha * pulse;
+                ctx.font = getPixelFont(14); ctx.textAlign = "center";
+                ctx.fillStyle = "#000";
+                if (state.gameMode === "ai") { 
+                    ctx.fillText("▶ RETRY", 2, 2);
+                    ctx.fillStyle = "#fff"; ctx.fillText("▶ RETRY", 0, 0);
+                } 
+                else { 
+                    ctx.fillText("▶ REMATCH", 2, 2);
+                    ctx.fillStyle = "#fff"; ctx.fillText("▶ REMATCH", 0, 0);
+                }
+            }
+            ctx.restore();
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    if (state.transition && state.transition.active) {
+        let t = state.transition.timer, d = state.transition.duration;
+        let alpha = (t < d) ? (t / d) : (1 - (t - d) / d);
+        alpha = Math.max(0, Math.min(1, alpha)); ctx.fillStyle = "rgba(22, 22, 32, " + alpha + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
+    }
+    if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
+        const alpha = (state.visuals.perfectFlash.timer / 15) * 0.15;
+        ctx.fillStyle = "rgba(255, 255, 200, " + alpha + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); state.visuals.perfectFlash.timer--;
     }
 }
 
-if (state.transition && state.transition.active) {
-    let t = state.transition.timer, d = state.transition.duration;
-    let alpha = (t < d) ? (t / d) : (1 - (t - d) / d);
-    alpha = Math.max(0, Math.min(1, alpha)); ctx.fillStyle = "rgba(22, 22, 32, " + alpha + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
-}
-if (state.visuals.perfectFlash && state.visuals.perfectFlash.timer > 0) {
-    const alpha = (state.visuals.perfectFlash.timer / 15) * 0.15;
-    ctx.fillStyle = "rgba(255, 255, 200, " + alpha + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); state.visuals.perfectFlash.timer--;
-}
-}
 
 
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
