@@ -2044,16 +2044,23 @@ function drawGameScreen(ctx) {
         }
 
         if (info.isCurrentPreviewLane && info.previewEventForThisLane && info.previewProg >= 0.35) {
-            const textProgress = Math.min(1, (info.previewProg - 0.35) / 0.65);
-            const textY = info.b.y + info.b.h * 0.1 - 15; ctx.textAlign = "center"; ctx.globalAlpha = textProgress;
+            const p_prog = Math.min(1, (info.previewProg - 0.35) / 0.65);
+            let textAlpha = 1;
+            if (p_prog < 0.2) textAlpha = p_prog / 0.2;
+            else if (p_prog > 0.8) textAlpha = 1 - ((p_prog - 0.8) / 0.2);
+
+            const easeOut = 1 - Math.pow(1 - p_prog, 2);
+            const textY = info.b.y + info.b.h * 0.1 - 5 - 15 * easeOut;
+
+            ctx.textAlign = "center"; ctx.globalAlpha = textAlpha;
             if (info.previewEventForThisLane.prevStatus !== "perfect" && info.previewEventForThisLane.newStatus === "perfect") {
-                const msgW = ctx.measureText("READY!").width + 16;
-                drawBevelRect(ctx, info.laneCx - msgW/2, textY - 14, msgW, 20, "#e6d555");
+                const msgW = ctx.measureText("READY!").width + 24;
+                drawBevelRect(ctx, info.laneCx - msgW/2, textY - 18, msgW, 26, "#e6d555");
                 ctx.font = getPixelFont(14); ctx.fillStyle = "#000";
                 ctx.fillText("READY!", info.laneCx + 2, textY + 2); ctx.fillStyle = "#fff"; ctx.fillText("READY!", info.laneCx, textY);
             } else if (info.previewEventForThisLane.prevStatus !== "burnt" && info.previewEventForThisLane.newStatus === "burnt") {
-                const msgW = ctx.measureText("BURNT!").width + 16;
-                drawBevelRect(ctx, info.laneCx - msgW/2, textY - 16, msgW, 24, "#8a3a3a");
+                const msgW = ctx.measureText("BURNT!").width + 24;
+                drawBevelRect(ctx, info.laneCx - msgW/2, textY - 20, msgW, 30, "#8a3a3a");
                 ctx.font = getPixelFont(16); ctx.fillStyle = "#000";
                 ctx.fillText("BURNT!", info.laneCx + 2, textY + 2); ctx.fillStyle = "#ffaa88"; ctx.fillText("BURNT!", info.laneCx, textY);
             }
@@ -2072,13 +2079,15 @@ function drawGameScreen(ctx) {
         const p = Math.max(0, Math.min(1, elapsed / duration));
         
         let alpha = 1;
-        if (p < 0.1) alpha = p / 0.1;
-        else if (p > 0.7) alpha = 1 - ((p - 0.7) / 0.3);
+        if (p < 0.15) alpha = p / 0.15;
+        else if (p > 0.8) alpha = 1 - ((p - 0.8) / 0.2);
         
-        let floatDist = -30;
-        if (msg.type === "hint") floatDist = -15; 
+        let floatDist = -25;
+        if (msg.type === "hint") floatDist = -10; 
         
-        const yAnimOffset = floatDist * Math.pow(p, 0.6);
+        const easeOut = 1 - Math.pow(1 - p, 2);
+        const yAnimOffset = floatDist * easeOut;
+        
         const fx = Math.round(msg.x || cx);
         const fy = Math.round((msg.y || cy) + yAnimOffset);
         
@@ -2087,9 +2096,9 @@ function drawGameScreen(ctx) {
         
         if (msg.type === "hint") {
             ctx.font = getPixelFont(10);
-            const txtW = Math.round(ctx.measureText(msg.text).width + 16);
+            const txtW = Math.round(ctx.measureText(msg.text).width + 24);
             ctx.fillStyle = "rgba(20, 15, 10, 0.85)";
-            ctx.fillRect(Math.round(fx - txtW/2), Math.round(fy - 12), txtW, 18);
+            ctx.fillRect(Math.round(fx - txtW/2), Math.round(fy - 14), txtW, 22);
             ctx.fillStyle = "#ff5555";
             ctx.fillText(msg.text, fx, fy);
         } else {
@@ -2173,6 +2182,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
