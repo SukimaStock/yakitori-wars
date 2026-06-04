@@ -1315,17 +1315,14 @@ function drawSkewerCloth(ctx, x, y, player) {
     const baseColor = isP1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
     const darkColor = isP1 ? "#1e4b80" : "#80283c";
     
-    // 串のドット絵の中心軸を正確に計算（1文字=4px、持ち手は左から5〜6文字目にあたるため、x+24が中心）
     const cx = Math.round(x + 6 * YAKITORI_PIXEL_UNIT); 
     const cy = Math.round(y + 29 * YAKITORI_PIXEL_UNIT);
 
-    // 布の巻き部分（串の幅8pxに対し、10pxで巻くことで少しだけ重なり食い込むようにする）
     ctx.fillStyle = baseColor;
     ctx.fillRect(cx - 5, cy, 10, 4);
     ctx.fillStyle = darkColor;
     ctx.fillRect(cx - 5, cy + 4, 10, 2);
 
-    // 結び目（串に食い込みつつ、1〜2ドットだけ外側にはみ出す）
     if (isP1) {
         ctx.fillStyle = baseColor;
         ctx.fillRect(cx - 8, cy + 1, 3, 3);
@@ -1338,6 +1335,7 @@ function drawSkewerCloth(ctx, x, y, player) {
         ctx.fillRect(cx + 5, cy + 4, 3, 2);
     }
 }
+
 
 
 
@@ -1669,7 +1667,6 @@ function drawGameScreen(ctx) {
         drawCompactOrderCard(ctx, cx, orderYOffset, state.todaysOrder);
     }
 
-    // --- 0. レーン状態の事前計算 ---
     const laneInfos = state.lanes.map((lane, i) => {
         const b = getLaneBounds(i);
         const laneCx = b.x + b.w / 2;
@@ -1727,7 +1724,6 @@ function drawGameScreen(ctx) {
         return { b, laneCx, gx, gy, effectiveCookState, displayCookState, gaugeCookState, isCurrentPreviewLane, previewEventForThisLane, previewProg, baseEndState, baseEndStatus, currentStatus, isFlashable, uchiwaTargetStatus, isPerfectTarget };
     });
 
-    // --- レイヤー1: 焼き台・炭・網・火力ゲージ・火アイコン ---
     laneInfos.forEach((info, i) => {
         const lane = state.lanes[i];
         drawYakitoriSpriteMap(ctx, info.gx, info.gy, YAKITORI_GRILL_PARTS.base);
@@ -1786,9 +1782,6 @@ function drawGameScreen(ctx) {
         ctx.globalAlpha = 1.0; }
     });
 
-    // --- レイヤー2: 選択枠は廃止 ---
-
-    // --- レイヤー3: 串・肉・ツヤ・焦げ ---
     laneInfos.forEach((info, i) => {
         const lane = state.lanes[i];
         if (lane.built) {
@@ -1884,7 +1877,6 @@ function drawGameScreen(ctx) {
                 ctx.fillRect(info.gx + 14 * YAKITORI_PIXEL_UNIT, info.gy + 12 * YAKITORI_PIXEL_UNIT, 4 * YAKITORI_PIXEL_UNIT, 14 * YAKITORI_PIXEL_UNIT);
             }
 
-            // プレイヤー所有者表示（串との一体感を高めた小布）
             drawSkewerCloth(ctx, info.gx + skewerOffsetX * YAKITORI_PIXEL_UNIT, info.gy + skewerOffsetY * YAKITORI_PIXEL_UNIT, lane.owner);
 
             const isOwn = lane.owner === activePlayer;
@@ -1919,7 +1911,6 @@ function drawGameScreen(ctx) {
         }
     });
 
-    // --- レイヤー3.5: プレビュー時の非アクティブレーン暗転 ---
     laneInfos.forEach((info, i) => {
         if (state.cookPreviewActive && !info.isCurrentPreviewLane) {
             ctx.fillStyle = "rgba(15, 10, 8, 0.55)";
@@ -1973,13 +1964,12 @@ function drawGameScreen(ctx) {
             const ghostOffsetY = 8 + Math.round(yOffset / YAKITORI_PIXEL_UNIT);
             drawYakitoriSpriteMap(ctx, gx, gy, skewerSprite, 10, ghostOffsetY);
             
-            // ゴーストのプレイヤー所有者表示（小布案）
             drawSkewerCloth(ctx, gx + 10 * YAKITORI_PIXEL_UNIT, gy + ghostOffsetY * YAKITORI_PIXEL_UNIT, g.owner);
         }
     });
-    // --- レイヤー4: 湯気・パーティクル ---
+
     renderParticlesAndOverlay(ctx, now, activePlayer);
-    // --- レイヤー5: UIテキスト・ゲージ類・ポップアップ ---
+
     laneInfos.forEach((info, i) => {
         const lane = state.lanes[i];
         
@@ -1987,26 +1977,23 @@ function drawGameScreen(ctx) {
             const elapsedMode = now - (state.buildModeStartTime || now);
             const modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
 
-            // --- 選択対象表示：素朴な串アイコン風の小札 ---
             const tagFloatY = Math.sin(now / 200) * 3;
             const ty = info.b.y - 10 + tagFloatY;
-            const baseColor = "#a07b5a"; // 渋い木札色
-            const markColor = "#4a2818"; // 焼印色
+            const baseColor = "#a07b5a"; 
+            const markColor = "#4a2818"; 
             
             ctx.globalAlpha = modeAlpha;
             ctx.fillStyle = "#1a1a1a";
-            ctx.fillRect(info.laneCx - 1, ty - 32, 2, 10); // 控えめな紐
+            ctx.fillRect(info.laneCx - 1, ty - 32, 2, 10); 
             
-            drawBevelRect(ctx, info.laneCx - 12, ty - 22, 24, 28, baseColor); // 札
+            drawBevelRect(ctx, info.laneCx - 12, ty - 22, 24, 28, baseColor);
             
             ctx.fillStyle = markColor;
-            ctx.fillRect(info.laneCx - 1, ty - 18, 2, 18); // 串棒
-            ctx.fillRect(info.laneCx - 4, ty - 14, 8, 4); // 肉上
-            ctx.fillRect(info.laneCx - 4, ty - 8, 8, 4);  // 肉下
+            ctx.fillRect(info.laneCx - 1, ty - 18, 2, 18); 
+            ctx.fillRect(info.laneCx - 4, ty - 14, 8, 4); 
+            ctx.fillRect(info.laneCx - 4, ty - 8, 8, 4);  
             ctx.globalAlpha = 1.0;
-            // ---------------------------------
 
-            // テキスト位置を上にずらして札と干渉させない
             const floatY = info.b.y - 55 - (1 - modeAlpha) * 10;
             ctx.textAlign = "center";
             if (state.buildMode === "harvest") {
@@ -2078,20 +2065,17 @@ function drawGameScreen(ctx) {
         const fadeOutStart = duration * 0.7;
         const fadeInDuration = 100;
         if (isHint) {
-          
             const p = Math.min(1, elapsed / duration);
             alpha = 1 - p;
             yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
         } else {
             const p = Math.min(1, Math.max(0, elapsed / duration));
             if (msg.type === "meat" && msg.targetPlayerPanel) {
-        
                 const ease = Math.pow(p, 0.55);
                 const moveDist = 18;
                 const dir = msg.amount >= 0 ? -1 : 1;
                 yAnimOffset = dir * moveDist * ease;
            } else {
-         
                 yAnimOffset = -30 * Math.pow(p, 0.5);
             }
             if (elapsed < fadeInDuration) alpha = elapsed / fadeInDuration;
@@ -2172,6 +2156,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
