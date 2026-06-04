@@ -787,7 +787,8 @@ function placeWorker(boxId) {
     if (boxId === 1) { 
         p.resources += 1;
         playSound("meat_plus");
-        state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now(), duration: 800 }); consumeWorker();
+        const b = getButtonBounds(0);
+        state.visuals.statusMessages.push({ type: "meat", amount: 1, player: state.currentPlayer, x: b.x + b.w / 2, y: b.y, startTime: performance.now(), duration: 800 }); consumeWorker();
     } else {
         state.isBusy = true;
         setTimeout(() => {
@@ -798,31 +799,39 @@ function placeWorker(boxId) {
         }, 150);
     }
 }
+
 function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
     if (p.resources >= 1 && !node.built) {
         p.resources -= 1;
         playSound("meat_minus");
-        state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now(), duration: 800 });
+        const b = getLaneBounds(state.lanes.indexOf(node));
+        state.visuals.statusMessages.push({ type: "meat", amount: -1, player: state.currentPlayer, x: b.x + b.w / 2, y: b.y + b.h / 2, startTime: performance.now(), duration: 800 });
         node.built = true; node.owner = state.currentPlayer;
         playSound("put_skewer"); 
         node.cookState = 0; node.justPlaced = true;
         state.visuals.placedAt[node.id] = performance.now(); consumeWorker();
     }
 }
+
 function tryHarvestNode(node) {
     const p = state.players[state.currentPlayer - 1]; if (!node.built) return;
     const stolenFrom = node.owner, isSteal = (stolenFrom !== null && stolenFrom !== state.currentPlayer), status = getCookLabel(node.type, node.cookState);
+    const laneIndex = state.lanes.indexOf(node);
+    const b = getLaneBounds(laneIndex);
+    const msgX = b.x + b.w / 2;
+    const msgY = b.y + b.h * 0.2;
+
     if (isSteal) {
         if (status === "early") return;
         if (status !== "burnt") {
             if (p.resources < 1) return;
             p.resources -= 1;
             playSound("meat_minus"); 
-            state.visuals.statusMessages.push({ type: 'meat', amount: -1, player: state.currentPlayer, targetPlayerPanel: state.currentPlayer, startTime: performance.now(), duration: 800, isSteal: true });
+            state.visuals.statusMessages.push({ type: "meat", amount: -1, player: state.currentPlayer, x: msgX - 25, y: msgY + 15, startTime: performance.now(), duration: 800, isSteal: true });
             if (stolenFrom !== null && state.players[stolenFrom - 1]) {
                 state.players[stolenFrom - 1].resources += 1;
-                state.visuals.statusMessages.push({ type: 'meat', amount: 1, player: stolenFrom, targetPlayerPanel: stolenFrom, startTime: performance.now() + 150, duration: 800, isSteal: true });
+                state.visuals.statusMessages.push({ type: "meat", amount: 1, player: stolenFrom, x: msgX + 25, y: msgY + 15, startTime: performance.now() + 150, duration: 800, isSteal: true });
             }
             state.hitStopTimer = 4;
         }
@@ -835,23 +844,20 @@ function tryHarvestNode(node) {
     let isBonus = false; let bonusText = "";
     const order = state.todaysOrder ? state.todaysOrder.id : null;
     if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true;
-        bonusText = "ORDER!"; }
+    bonusText = "ORDER!"; }
     if (order === "steal" && isSteal && scoreGained > 0) { isBonus = true;
-        bonusText = "ORDER!"; }
+    bonusText = "ORDER!"; }
     if (order === "burnt" && status === "burnt") { isBonus = true;
-        bonusText = "ORDER!"; }
+    bonusText = "ORDER!"; }
 
-    const laneIndex = state.lanes.indexOf(node);
-    const b = getLaneBounds(laneIndex);
-    const msgX = b.x + b.w / 2;
-    const msgY = b.y + b.h * 0.2;
-    if (scoreGained !== 0) { 
+    if (scoreGained !== 0 || status === "burnt" || status === "early") { 
         let duration = 1000;
         if (status === "perfect") duration = 1500;
         else if (isBonus) duration = 1300;
         state.visuals.statusMessages.push({ 
-            type: 'score', amount: scoreGained, player: state.currentPlayer, 
+            type: "score", amount: scoreGained, player: state.currentPlayer, 
             startTime: performance.now(), duration: duration, isPerfect: status === "perfect",
+            status: status,
             isBonus: isBonus, bonusText: bonusText, x: msgX, y: msgY
         });
     }
@@ -870,6 +876,7 @@ function tryHarvestNode(node) {
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
+
 function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1;
@@ -2055,98 +2062,108 @@ function drawGameScreen(ctx) {
 
         drawLaneHint(ctx, lane, i, state.buildMode, activePlayer, pResources);
     });
-    let p1MsgCount = 0, p2MsgCount = 0;
+    
     ctx.textBaseline = "alphabetic";
     state.visuals.statusMessages.forEach((msg, idx) => {
         const elapsed = now - msg.startTime;
         const duration = msg.duration || 1000;
-        let alpha = 1, yAnimOffset = 0;
-        let isHint = msg.type === "hint";
-        const fadeOutStart = duration * 0.7;
-        const fadeInDuration = 100;
-        if (isHint) {
-            const p = Math.min(1, elapsed / duration);
-            alpha = 1 - p;
-            yAnimOffset = -15 * (1 - Math.pow(1 - p, 3));
+        if (elapsed > duration) return;
+        
+        const p = Math.max(0, Math.min(1, elapsed / duration));
+        
+        let alpha = 1;
+        if (p < 0.1) alpha = p / 0.1;
+        else if (p > 0.7) alpha = 1 - ((p - 0.7) / 0.3);
+        
+        let floatDist = -30;
+        if (msg.type === "hint") floatDist = -15; 
+        
+        const yAnimOffset = floatDist * Math.pow(p, 0.6);
+        const fx = Math.round(msg.x || cx);
+        const fy = Math.round((msg.y || cy) + yAnimOffset);
+        
+        ctx.globalAlpha = alpha;
+        ctx.textAlign = "center";
+        
+        if (msg.type === "hint") {
+            ctx.font = getPixelFont(10);
+            const txtW = Math.round(ctx.measureText(msg.text).width + 16);
+            ctx.fillStyle = "rgba(20, 15, 10, 0.85)";
+            ctx.fillRect(Math.round(fx - txtW/2), Math.round(fy - 12), txtW, 18);
+            ctx.fillStyle = "#ff5555";
+            ctx.fillText(msg.text, fx, fy);
         } else {
-            const p = Math.min(1, Math.max(0, elapsed / duration));
-            if (msg.type === "meat" && msg.targetPlayerPanel) {
-                const ease = Math.pow(p, 0.55);
-                const moveDist = 18;
-                const dir = msg.amount >= 0 ? -1 : 1;
-                yAnimOffset = dir * moveDist * ease;
-           } else {
-                yAnimOffset = -30 * Math.pow(p, 0.5);
-            }
-            if (elapsed < fadeInDuration) alpha = elapsed / fadeInDuration;
-            else if (elapsed > fadeOutStart) alpha = Math.max(0, 1 - ((elapsed - fadeOutStart) / (duration - fadeOutStart)));
-            else alpha = 1;
-        }
-        if (alpha <= 0) return;
-        let fx = Math.round(msg.x || cx);
-        let fy = 0;
-        if (msg.targetPlayerPanel) {
-            const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
-            fx = Math.round(msg.targetPlayerPanel === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2);
-            let offsetIdx = msg.targetPlayerPanel === 1 ? p1MsgCount++ : p2MsgCount++;
-            fy = Math.round(136 + (offsetIdx * 28) + yAnimOffset);
-            ctx.globalAlpha = alpha;
-            ctx.textAlign = "center";
-            ctx.font = getPixelFont(14);
-            const text1 = "P" + msg.targetPlayerPanel, text2 = msg.amount > 0 ? "+" + msg.amount : "" + msg.amount;
-            const w1 = ctx.measureText(text1).width, w2 = ctx.measureText(text2).width;
-            const iconW = 16, gap = 8;
-            let currentX = Math.round(fx - (w1 + gap + iconW + gap + w2)/2);
-            ctx.textAlign = "left";
-            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-            ctx.fillText(text1, currentX, fy);
-            currentX += w1 + gap;
-            drawDotIcon(ctx, "meat", Math.round(currentX + iconW/2 - 4), Math.round(fy - 8), "#fff", 2);
-            currentX += iconW + gap;
-            ctx.fillStyle = msg.targetPlayerPanel === 1 ? LAYOUT.COLORS.P1 : LAYOUT.COLORS.P2;
-            ctx.fillText(text2, currentX, fy);
-        } else {
-            if (isHint) fy = Math.round(msg.y + yAnimOffset);
-            else if (msg.x !== undefined && msg.y !== undefined) fy = Math.round(msg.y + yAnimOffset);
-            else fy = Math.round(170 + (idx * 32) + yAnimOffset);
+            let mainText = "";
+            let subText = "";
+            let mainColor = "#fff";
+            let icon = null;
+            let isStrong = false;
             
-            ctx.globalAlpha = alpha;
-            ctx.textAlign = "center";
-            if (isHint) {
-                ctx.font = getPixelFont(10);
-                const txtW = Math.round(ctx.measureText(msg.text).width + 16);
-                ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-                ctx.fillRect(Math.round(fx - txtW/2), Math.round(fy - 12), txtW, 18);
-                ctx.fillStyle = "#ff5555";
-                ctx.fillText(msg.text, fx, fy);
-            } else {
-                let isResult = msg.type === "result", icon = isResult ? null : (msg.isBonus ? "diamond" : null);
-                let text = msg.text || (msg.amount > 0 ? "+" + msg.amount : "" + msg.amount);
-                let color = isResult ? "#ffeb3b" : (msg.isBonus ? "#6cf" : (msg.isPerfect ? "#ffeb3b" : "#fff"));
-                ctx.font = getPixelFont(msg.isPerfect ? 18 : 14);
+            if (msg.type === "meat") {
+                mainText = msg.amount > 0 ? "+" + msg.amount : "" + msg.amount;
+                mainColor = msg.amount > 0 ? "#ffaaaa" : "#cccccc";
+                icon = "meat";
+            } else if (msg.type === "fire") {
+                mainText = "+" + msg.amount;
+                mainColor = "#ffaa33";
+                icon = "fire";
+            } else if (msg.type === "score") {
+                mainText = msg.amount > 0 ? "+" + msg.amount : "" + msg.amount;
+                mainColor = msg.amount > 0 ? "#ffeb3b" : (msg.amount < 0 ? "#ff5555" : "#aaaaaa");
+                
+                if (msg.isPerfect) {
+                    subText = "PERFECT!";
+                    mainColor = "#ffeb3b";
+                    isStrong = true;
+                } else if (msg.status === "burnt") {
+                    subText = "BURNT";
+                    mainColor = "#ff7755";
+                    isStrong = true;
+                } else if (msg.status === "early") {
+                    subText = "EARLY";
+                    mainColor = "#ff5555";
+                }
+                
+                if (msg.isBonus) {
+                    subText = msg.bonusText || "ORDER!";
+                    isStrong = true;
+                }
+                
+                if (msg.amount <= -5) {
+                    isStrong = true;
+                }
+            } else if (msg.type === "result") {
+                mainText = msg.text || "";
+                mainColor = "#ffeb3b";
+                isStrong = true;
+            }
+            
+            ctx.font = getPixelFont(isStrong ? 16 : 14);
+            let textX = fx;
+            
+            if (icon) {
+                textX = fx + 8;
+                drawDotIcon(ctx, icon, fx - 16, fy - 8, mainColor, 2.5);
+            }
+            
+            ctx.fillStyle = "#000";
+            ctx.fillText(mainText, textX + 2, fy + 2);
+            ctx.fillStyle = mainColor;
+            ctx.fillText(mainText, textX, fy);
+            
+            if (subText) {
+                const subY = fy - 18;
+                ctx.font = getPixelFont(12);
                 ctx.fillStyle = "#000";
-                if (icon) {
-                    drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0) + 1), Math.round(fy - 8 + 1), "#000", 2.5);
-                    ctx.fillText(text, Math.round(fx + 15 + 2), Math.round(fy + 2));
-                } else {
-                    ctx.fillText(text, Math.round(fx + 2), Math.round(fy + 2));
-                }
-                ctx.fillStyle = color;
-                if (icon) {
-                    drawDotIcon(ctx, icon, Math.round(fx - 25 - (msg.isPerfect?2:0)), Math.round(fy - 8), "#6cf", 2.5);
-                    ctx.fillText(text, Math.round(fx + 15), fy);
-                } else {
-                    ctx.fillText(text, fx, fy);
-                }
-                if (msg.isBonus && msg.bonusText) {
-                    ctx.font = getPixelFont(10);
-                    ctx.fillStyle = "#000"; ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0) + 2), Math.round(fy - 18 + 2));
-                    ctx.fillStyle = "#ffeb3b"; ctx.fillText(msg.bonusText, Math.round(fx + (icon ? 15 : 0)), Math.round(fy - 18));
-                } else if (msg.isPerfect && !msg.isBonus) {
-                    ctx.font = getPixelFont(10);
-                    ctx.fillStyle = "#000"; ctx.fillText("PERFECT!", Math.round(fx + 2), Math.round(fy - 18 + 2));
-                    ctx.fillStyle = "#ffeb3b"; ctx.fillText("PERFECT!", Math.round(fx), Math.round(fy - 18));
-                }
+                ctx.fillText(subText, fx + 2, subY + 2);
+                
+                if (subText === "PERFECT!") ctx.fillStyle = "#ffeb3b";
+                else if (subText === "BURNT") ctx.fillStyle = "#ff7755";
+                else if (subText === "EARLY") ctx.fillStyle = "#ff5555";
+                else if (subText === "ORDER!") ctx.fillStyle = "#66ccff";
+                else ctx.fillStyle = "#fff";
+                
+                ctx.fillText(subText, fx, subY);
             }
         }
     });
@@ -2156,6 +2173,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
