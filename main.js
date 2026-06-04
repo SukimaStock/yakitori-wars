@@ -432,17 +432,17 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
     const stickTop = b.y + b.h * 0.1;
-    // 肉の表面から出ているように少し上へ調整
-    const meatY = stickTop + (b.h * 0.7) * 0.4 - 4;
+    // 肉の中心より少し上から出す
+    const meatY = stickTop + (b.h * 0.7) * 0.3;
     
     if (status === "burnt") {
-        // 黒煙禁止。暗い茶色の小さい焦げカスを少量だけ出す
+        // 暗い茶色の小さい焦げカスを少量
         const numCrumbs = 2 + Math.floor(amount / 2);
         for (let i = 0; i < numCrumbs; i++) {
             state.visuals.particles.push({
                 x: laneCx + (Math.random() - 0.5) * 12, 
                 y: meatY + (Math.random() - 0.5) * 12,  
-                vx: (Math.random() - 0.5) * 0.05, // 横移動はほぼなし
+                vx: (Math.random() - 0.5) * 0.05, 
                 vy: -0.2 - Math.random() * 0.3,
                 life: 0, maxLife: 15 + Math.random() * 10, 
                 size: 1 + Math.random() * 1.5,
@@ -453,53 +453,52 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         return;
     }
 
-    // --- 通常の美味しそうな焼け進行 ---
-    
-    // 1. 小さめの白い湯気（今より少し多めに、少しだけふわっと広がる）
-    const numSteam = 3 + amount;
-    for (let i = 0; i < numSteam; i++) {
+    // --- もわっと立ち上がる美味しそうな薄い湯気の塊（主役） ---
+    const numLargeSteam = 2 + Math.floor(Math.random() * 3); // 2〜4個程度
+    for (let i = 0; i < numLargeSteam; i++) {
         state.visuals.particles.push({
-            x: laneCx + (Math.random() - 0.5) * 18, 
+            x: laneCx + (Math.random() - 0.5) * 16, 
             y: meatY + (Math.random() - 0.5) * 8,  
-            vx: (Math.random() - 0.5) * 0.15, 
-            vy: -0.5 - Math.random() * 0.5,             
-            life: 0, maxLife: 20 + Math.random() * 15, 
-            size: 2 + Math.random() * 2, 
-            color: Math.random() > 0.5 ? "#fcfaf5" : "#f0ebd8", // 白〜薄いベージュ
+            vx: (Math.random() - 0.5) * 0.2, // 横に少しだけ広がる
+            vy: -0.2 - Math.random() * 0.2,  // 上昇は遅め           
+            life: 0, maxLife: 35 + Math.random() * 20, // 寿命長め
+            size: 6 + Math.random() * 6, // 6〜12程度の大きな塊
+            color: Math.random() > 0.5 ? "rgba(240, 235, 225, 0.15)" : "rgba(220, 215, 205, 0.15)", // かなり薄いベージュ〜白
             isSteam: true
         });
     }
 
-    // 2. 大きめで薄い湯気（肉の上にふわっと乗る香りの雲）
-    const numLargeSteam = 1 + Math.floor(amount / 2);
-    for (let i = 0; i < numLargeSteam; i++) {
+    // --- 補助的な小さい白湯気（少しだけ） ---
+    const numSteam = 1 + Math.floor(amount / 2);
+    for (let i = 0; i < numSteam; i++) {
         state.visuals.particles.push({
             x: laneCx + (Math.random() - 0.5) * 12, 
-            y: meatY - 4 + (Math.random() - 0.5) * 8,  
+            y: meatY + (Math.random() - 0.5) * 8,  
             vx: (Math.random() - 0.5) * 0.1, 
-            vy: -0.3 - Math.random() * 0.3,             
-            life: 0, maxLife: 30 + Math.random() * 20, // 少し長め
-            size: 4 + Math.random() * 4, // サイズ4〜8
-            color: "rgba(245, 240, 230, 0.3)", // かなり薄め
+            vy: -0.4 - Math.random() * 0.3,             
+            life: 0, maxLife: 15 + Math.random() * 10, 
+            size: 2 + Math.random() * 2, 
+            color: "#e8e4d8",
             isSteam: true
         });
     }
     
-    // 3. 脂のはぜる小粒（ごく少量、短命）
-    const sizzleCount = 1 + Math.floor(Math.random() * 2); // 1〜2個程度
+    // --- 脂のはぜる小粒（ごく少量） ---
+    const sizzleCount = 1 + Math.floor(Math.random() * 2); // 1〜2個
     for (let i = 0; i < sizzleCount; i++) {
         state.visuals.particles.push({
-            x: laneCx + (Math.random() - 0.5) * 12, 
-            y: meatY + (Math.random() - 0.5) * 12,  
+            x: laneCx + (Math.random() - 0.5) * 10, 
+            y: meatY + (Math.random() - 0.5) * 10,  
             vx: (Math.random() - 0.5) * 0.3, 
-            vy: -1.0 - Math.random() * 0.5,             
-            life: 0, maxLife: 8 + Math.random() * 6, // 短命
-            size: 1 + Math.random() * 1.5, 
-            color: Math.random() > 0.5 ? "#ffaa33" : "#ffcc55",
+            vy: -0.8 - Math.random() * 0.4,             
+            life: 0, maxLife: 8 + Math.random() * 6, 
+            size: 1 + Math.random() * 1, 
+            color: Math.random() > 0.5 ? "#d88a30" : "#d8a840", // 落ち着いたオレンジ〜黄土色
             isSizzle: true
         });
     }
 }
+
 
 
 
@@ -1094,8 +1093,8 @@ const YAKITORI_PALETTE = {
     ".": null,      
     "O": "#0b0a0a", "S": "#161313", "1": "#2b2d35", "2": "#454854", "3": "#747887",
     "k": "#111111", "d": "#26211f", "a": "#3a302b", "r": "#8a2f18", "o": "#d75a20", "y": "#f0a13a",
-    "5": "#dca", "6": "#a87", "W": "#2a2a2a", "w": "#1f1f1f", 
-    "P": "#ffe8e8", "p": "#ffbaba", "q": "#e68a8a", "Q": "#c45c5c", "E": "#f4faee", "e": "#a4d674", "f": "#51912a",
+    "5": "#bba888", "6": "#886655", "W": "#2a2a2a", "w": "#1f1f1f", 
+    "P": "#e2caca", "p": "#d49a9a", "q": "#bf6c6c", "Q": "#a34646", "E": "#f4faee", "e": "#a4d674", "f": "#51912a",
     "H": "#fffae8", "L": "#e8a45c", "M": "#c26d36", "D": "#8a401a", "C": "#52210b", "V": "#f0f2d8", "N": "#96a646", "B": "#5e6924", "J": "#e6cc67", 
     "x": "#331613", "z": "#1a0a09", "j": "#a88e36", "b": "#3b5226"  
 };
@@ -1583,7 +1582,6 @@ function drawGameScreen(ctx) {
     const hudW = Math.min(tw + 48, centerSpace - 20, 340);
     const hudX = Math.round(cx - hudW / 2);
     const hudY = safeTop + 2;
-    // 上部HUDも静かな色合いに
     drawBevelRect(ctx, hudX, hudY, hudW, 32, "#1c1410");
     let stageHudH = 0;
     if (state.gameMode === "ai") {
@@ -1662,21 +1660,22 @@ function drawGameScreen(ctx) {
         // --- 焼き進行時の本体リアクション（炭火） ---
         let cookFlashAlpha = 0;
         if (isCurrentPreviewLane && previewProg >= 0.2 && previewProg <= 0.5) {
-            cookFlashAlpha = 1.0 - (Math.abs(previewProg - 0.35) / 0.15);
-            cookFlashAlpha = Math.max(0, Math.min(1, cookFlashAlpha));
+            let p = 1.0 - (Math.abs(previewProg - 0.35) / 0.15);
+            p = Math.max(0, Math.min(1, p));
+            // じわっと立ち上がって戻る
+            cookFlashAlpha = Math.sin(p * Math.PI / 2);
         }
         if (cookFlashAlpha > 0) {
-            const heatFactor = lane.type === "strong" ? 1.0 : (lane.type === "medium" ? 0.7 : 0.4);
-            ctx.globalAlpha = cookFlashAlpha * heatFactor * 0.8;
-            ctx.fillStyle = "#ff6600";
+            const heatFactor = lane.type === "strong" ? 0.8 : (lane.type === "medium" ? 0.5 : 0.3);
+            // globalAlphaを重ねず、rgbaで直接色を乗せることで透けを防止
+            ctx.fillStyle = "rgba(200, 60, 10, " + (cookFlashAlpha * heatFactor * 0.6) + ")";
             ctx.fillRect(gx + 6 * YAKITORI_PIXEL_UNIT, gy + 22 * YAKITORI_PIXEL_UNIT, 20 * YAKITORI_PIXEL_UNIT, 12 * YAKITORI_PIXEL_UNIT);
-            ctx.globalAlpha = 1.0;
         }
 
         if (lane.type === "strong" || lane.type === "medium") {
-            if (Math.sin(now / 100 + i * 13) > 0.5) {
-                ctx.fillStyle = lane.type === "strong" ?
-                "#ffcc44" : "#f0a13a";
+            const glowSin = Math.sin(now / 500 + i * 13); // 周期を長く穏やかに
+            if (glowSin > 0) {
+                ctx.fillStyle = lane.type === "strong" ? "rgba(216, 90, 16, " + (glowSin * 0.5) + ")" : "rgba(168, 74, 16, " + (glowSin * 0.5) + ")";
                 const dotX = gx + (lane.type === "strong" ? 14 : 12) * YAKITORI_PIXEL_UNIT;
                 const dotY = gy + 26 * YAKITORI_PIXEL_UNIT;
                 ctx.fillRect(dotX, dotY, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
@@ -1743,10 +1742,9 @@ function drawGameScreen(ctx) {
 
             // --- 焼き進行時の本体リアクション（肉のツヤ） ---
             if (cookFlashAlpha > 0 && displayStatusUpper !== "BURNT") {
-                ctx.globalAlpha = cookFlashAlpha * 0.6;
-                ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+                const shineAlpha = cookFlashAlpha * 0.2; // 透けないように薄くソリッドに乗せる
+                ctx.fillStyle = "rgba(240, 230, 220, " + shineAlpha + ")";
                 ctx.fillRect(gx + 14 * YAKITORI_PIXEL_UNIT, gy + 12 * YAKITORI_PIXEL_UNIT, 4 * YAKITORI_PIXEL_UNIT, 14 * YAKITORI_PIXEL_UNIT);
-                ctx.globalAlpha = 1.0;
             }
 
             const markerY = b.y - 10;
@@ -2126,6 +2124,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
