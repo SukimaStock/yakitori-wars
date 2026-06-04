@@ -1241,17 +1241,35 @@ function drawDeliciousYakitori(ctx, x, y, w, h, baseColor, isNegi, dangerOverlay
     }
 }
 
-function drawDotIcon(ctx, iconId, cx, cy, color, scale = 4) {
+function drawDotIcon(ctx, iconId, cx, cy, color, scale) {
+    if (scale === undefined) scale = 4;
     const data = ICON_DATA[iconId]; if (!data) return;
-    const isDisabled = (color === "#888"); let offsetX = 0;
+    
+    const isDisabled = (color === "disabled" || color === "#888" || color === "#666" || color === "#777777"); 
+    
+    let offsetX = 0;
     if (iconId === "put_skewer" || iconId === "serve_plate" || iconId === "burnt_skewer") offsetX = 3;
+    
+    // 非活性時用のグレースケールパレット（明度を調整し、立体感を残しつつ色を抜く）
+    const grayPalette = {
+        1: "#999999", 2: "#666666", 3: "#444444", 4: "#777777", 
+        5: "#888888", 6: "#777777", 7: "#555555", 8: "#444444", 
+        9: "#888888", 10: "#777777", 11: "#888888", 12: "#333333"
+    };
+
     for (let i = 0; i < 64; i++) {
         const val = data[i];
-        if (val !== 0) { ctx.fillStyle = isDisabled ? "#888" : (ICON_PALETTE[val] || color);
+        if (val !== 0) { 
+            if (isDisabled) {
+                ctx.fillStyle = grayPalette[val] || "#777777";
+            } else {
+                ctx.fillStyle = ICON_PALETTE[val] || color;
+            }
             ctx.fillRect(cx + offsetX - (4 * scale) + (i % 8) * scale, cy - (4 * scale) + Math.floor(i / 8) * scale, scale, scale);
         }
     }
 }
+
 function getBuildModeIcon(mode) { if (mode === "sapling") return "put_skewer"; if (mode === "harvest") return "serve_plate";
     if (mode === "uchiwa") return "uchiwa"; return null; }
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
@@ -2079,19 +2097,19 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
 
     if (boxId === 1) {
         iconName = "meat";
-        iconColor = isActive ? "#e87a7a" : "#777777";
+        iconColor = isActive ? "#e87a7a" : "disabled";
         labelText = "+1";
     } else if (boxId === 2) {
         iconName = "meat";
-        iconColor = isActive ? "#e87a7a" : "#777777";
+        iconColor = isActive ? "#e87a7a" : "disabled";
         labelText = "-1";
     } else if (boxId === 3) {
         iconName = "put_skewer";
-        iconColor = isActive ? "#dddddd" : "#777777";
+        iconColor = isActive ? "#dddddd" : "disabled";
         labelText = "↑";
     } else if (boxId === 4) {
         iconName = "fire";
-        iconColor = isActive ? "#e8a040" : "#777777";
+        iconColor = isActive ? "#e8a040" : "disabled";
         labelText = "+1";
     }
 
@@ -2101,6 +2119,7 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
     
     ctx.restore();
 }
+
 
 
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
@@ -2205,12 +2224,10 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.globalAlpha = btnAlpha;
                 const offset = isPressed ? 4 : 0; 
 
-                // 非活性時の色を #999 から #666 へ落とし、グレーの主張を控えめにしました
-                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "#666", 4);
+                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "disabled", 4);
                 let textAlpha = isPressed ? 1.0 : 0.85; 
                 ctx.globalAlpha = textAlpha;
                 
-                // ヒント札の位置を4px上に調整（-10 から -14 に変更）
                 const textY = b.y + b.h - 14 + offset; 
                 const textX = b.x + b.w/2 + offset;
                 
@@ -2221,6 +2238,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
