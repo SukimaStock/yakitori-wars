@@ -84,16 +84,9 @@ function initAudio() {
 }
 
 function initDebugMode() {
-    window.addEventListener("keydown", function(e) {
-        if (e.key === "g" || e.key === "G") {
-            if (document.body.style.filter) {
-                document.body.style.filter = "";
-            } else {
-                document.body.style.filter = "grayscale(100%)";
-            }
-        }
-    });
+    // 視認性確認が完了したため、モノクロテスト用のデバッグモードは削除しました
 }
+
 initDebugMode();
 
 
@@ -237,7 +230,7 @@ const getTime = () => performance.now();
 // ==========================================
 // 3. game/flow.js - ゲーム進行とスコア
 // ==========================================
-const COOK_PREVIEW_DUR = 55;
+const COOK_PREVIEW_DUR = 75;
 const STAGE_CONFIG = {
     1: { profile: "gambler", level: 1, enemyName: "KENTA" }, 2: { profile: "thief", level: 2, enemyName: "HIDEKI" },
     3: { profile: "reader", level: 3, enemyName: "TETSUYA" }, 4: { profile: "master", level: 4, enemyName: "MAKOTO" },
@@ -612,7 +605,7 @@ function updateCookPreview() {
     if (!state.cookPreviewActive) return;
     if (!state.cookPreviewEvents || state.cookPreviewEvents.length === 0) { finishEndRound(); return; }
     if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound(); return; }
-    const CHANGE_TIME = 36;
+    const CHANGE_TIME = 50;
     if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === CHANGE_TIME) {
         const event = state.cookPreviewEvents[state.cookPreviewIndex];
         if (event) {
@@ -634,6 +627,7 @@ function updateCookPreview() {
         else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; }
     }
 }
+
 
 
 
@@ -2174,7 +2168,7 @@ function drawGameScreen(ctx) {
             ctx.globalAlpha = currentAlpha;
             
             drawYakitoriSolidShadow(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX + 1, skewerOffsetY + 2);
-            drawYakitoriOutline(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX, skewerOffsetY, "rgba(4, 2, 2, 0.95)");
+            drawYakitoriOutline(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX, skewerOffsetY, "rgba(26, 12, 8, 0.85)");
             drawYakitoriSpriteMap(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX, skewerOffsetY);
             
             if (popFlashAlpha > 0 && displayStatusUpper !== "BURNT") {
@@ -2388,8 +2382,8 @@ function drawGameScreen(ctx) {
             ctx.globalAlpha = 1.0;
         }
 
-        if (info.isCurrentPreviewLane && info.previewEventForThisLane && info.previewProg >= 0.35) {
-            const p_prog = Math.min(1, (info.previewProg - 0.35) / 0.65);
+        if (info.isCurrentPreviewLane && info.previewEventForThisLane && info.previewProg >= 0.25) {
+            const p_prog = Math.min(1, (info.previewProg - 0.25) / 0.75);
             let textAlpha = 1;
             if (p_prog < 0.2) textAlpha = p_prog / 0.2;
             else if (p_prog > 0.8) textAlpha = 1 - ((p_prog - 0.8) / 0.2);
@@ -2522,11 +2516,8 @@ function drawGameScreen(ctx) {
         const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 55));
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
-    
-    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-    ctx.font = getPixelFont(10);
-    ctx.fillText("[G] MONO TEST", 10, LAYOUT.CANVAS_HEIGHT - 10);
 }
+
 
 
 
