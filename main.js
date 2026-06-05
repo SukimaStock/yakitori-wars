@@ -1569,9 +1569,8 @@ function drawSkewerCloth(ctx, x, y, player) {
 
 function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false) {
     const offset = isPressed ? 2 : 0;
-    const baseColor = isPressed ? "#422e20" : "#322216";
-    const borderColor = "#1c110a"; 
-
+    const baseColor = isPressed ? "#4a3525" : "#38271a";
+    const borderColor = "#1b1009";
     if (!isPressed) {
         ctx.fillStyle = "#080503";
         ctx.fillRect(x + 2, y + 4, w, h);
@@ -1581,22 +1580,19 @@ function drawTitleButton(ctx, x, y, w, h, label, accentColor, isPressed = false)
     ctx.fillRect(x, y + offset, w, h);
     ctx.fillStyle = baseColor;
     ctx.fillRect(x + 2, y + 2 + offset, w - 4, h - 4);
-
     ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
     ctx.fillRect(x + 2, y + 2 + offset, w - 4, 2);
-
     ctx.font = getPixelFont(14);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     
-    ctx.fillStyle = "rgba(0, 0, 0, 0.8)"; 
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
     ctx.fillText(label, x + w / 2 + 2, y + h / 2 + 2 + offset);
-    
     ctx.fillStyle = isPressed ? "#e4d9c5" : "#c4b69e"; 
     ctx.fillText(label, x + w / 2, y + h / 2 + offset);
-    
     return { x, y, w, h };
 }
+
 
 function drawPixelLogo(ctx, logoData, x, y, scale) {
     const rows = logoData.length;
@@ -1621,19 +1617,18 @@ function drawQuietCharcoal(ctx, cx, cy) {
     const h = 26; 
     const startX = Math.round(cx - w / 2);
     const startY = Math.round(cy - h / 2);
-
-    ctx.fillStyle = "rgba(12, 8, 6, 0.8)";
-    ctx.fillRect(startX - 10, startY - 10, w + 20, h + 20);
-
+    
+    ctx.fillStyle = "rgba(12, 8, 6, 0.45)";
+    ctx.fillRect(startX - 8, startY - 6, w + 16, h + 12);
     const now = performance.now();
 
-    for (let i = 0; i < 24; i++) {
+    for (let i = 0; i < 14; i++) {
         const pr1 = Math.abs(Math.sin(i * 13));
         const pr2 = Math.abs(Math.cos(i * 17));
         
         const cw = 12 + pr1 * 16;
         const ch = 6 + pr2 * 10;
-        const x = startX + (i / 24) * (w - 20) + Math.sin(i) * 10;
+        const x = startX + (i / 14) * (w - 20) + Math.sin(i) * 10;
         const y = startY + pr1 * (h - ch);
         
         ctx.fillStyle = pr2 > 0.5 ? "#110a08" : "#0a0504";
@@ -1643,13 +1638,12 @@ function drawQuietCharcoal(ctx, cx, cy) {
             const heat = (Math.sin(now / 800 + i * 2) * 0.5 + 0.5);
             const emberW = cw - 4;
             const emberH = ch - 4;
-            
             if (emberW > 0 && emberH > 0) {
-                ctx.fillStyle = "rgba(140, 20, 0, " + (heat * 0.9) + ")"; 
+                ctx.fillStyle = "rgba(140, 20, 0, " + (heat * 0.9) + ")";
                 ctx.fillRect(x + 2, y + 2, emberW, emberH);
                 
                 if (heat > 0.7 && pr2 < 0.4) {
-                    ctx.fillStyle = "rgba(200, 60, 0, " + (heat * 0.7) + ")"; 
+                    ctx.fillStyle = "rgba(200, 60, 0, " + (heat * 0.7) + ")";
                     ctx.fillRect(x + 4, y + 4, emberW - 4, emberH - 4);
                 }
             }
@@ -1669,6 +1663,7 @@ function drawQuietCharcoal(ctx, cx, cy) {
         });
     }
 }
+
 
 
 
@@ -2185,6 +2180,9 @@ function drawGameScreen(ctx) {
             
             ctx.globalAlpha = currentAlpha;
             
+            ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+            ctx.fillRect(info.gx + 10 * YAKITORI_PIXEL_UNIT, info.gy + 4 * YAKITORI_PIXEL_UNIT, 12 * YAKITORI_PIXEL_UNIT, 32 * YAKITORI_PIXEL_UNIT);
+
             drawYakitoriSolidShadow(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX + 1, skewerOffsetY + 2);
             drawYakitoriOutline(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX, skewerOffsetY, "rgba(26, 12, 8, 0.85)");
             drawYakitoriSpriteMap(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX, skewerOffsetY);
@@ -2562,6 +2560,7 @@ function drawGameScreen(ctx) {
 
 
 
+
 function shouldShowActionButtons() {
     if (state.screen !== "game") return false;
     if (state.gameOver) return false;
@@ -2593,7 +2592,6 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
 
     ctx.save();
     
-    // タグの背景とドット絵風の枠線
     ctx.fillStyle = baseColor;
     ctx.fillRect(tx + 1, ty + 1, tagW - 2, tagH - 2);
     ctx.fillStyle = lightColor;
@@ -2606,7 +2604,6 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
     ctx.fillRect(tx + tagW - 3, ty + 2, 1, 1);
     ctx.fillRect(tx + 2, ty + tagH - 3, 1, 1);
     ctx.fillRect(tx + tagW - 3, ty + tagH - 3, 1, 1);
-
     const textY = ty + tagH / 2 + 1;
     const iconY = ty + tagH / 2;
     ctx.font = getPixelFont(9);
@@ -2616,34 +2613,32 @@ function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
     let iconName = "";
     let iconColor = "";
     let labelText = "";
-    // テキストに新しい強調色を適用
-    let textColor = isActive ? LAYOUT.COLORS.TEXT_STRONG : LAYOUT.COLORS.TEXT_DIM;
-
-    // ボタンの役割ごとにアイコンの色味を調整
+    let textColor = isActive ? LAYOUT.COLORS.TEXT_STRONG : "#777777";
+    
     if (boxId === 1) {
         iconName = "meat";
-        iconColor = isActive ? "#D66A70" : "disabled"; // 暖色アクセント
+        iconColor = isActive ? "#D66A70" : "disabled"; 
         labelText = "+1";
     } else if (boxId === 2) {
         iconName = "meat";
-        iconColor = isActive ? "#8F443C" : "disabled"; // 暗赤アクセント
+        iconColor = isActive ? "#8F443C" : "disabled"; 
         labelText = "-1";
     } else if (boxId === 3) {
         iconName = "put_skewer";
-        iconColor = isActive ? "#E8DDC8" : "disabled"; // 少し明るい白系
+        iconColor = isActive ? "#E8DDC8" : "disabled"; 
         labelText = "↑";
     } else if (boxId === 4) {
         iconName = "fire";
-        iconColor = isActive ? "#FF9F2E" : "disabled"; // 炎のアクセントを強調
+        iconColor = isActive ? "#FF9F2E" : "disabled"; 
         labelText = "+1";
     }
 
     ctx.fillStyle = textColor;
     drawDotIcon(ctx, iconName, cx - 10, iconY, iconColor, 1.5);
     ctx.fillText(labelText, cx + 10, textY);
-    
     ctx.restore();
 }
+
 
 function renderParticlesAndOverlay(ctx, now, activePlayer) {
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
@@ -3138,13 +3133,12 @@ function render(ctx) {
 
     const cx = LAYOUT.CANVAS_WIDTH / 2, cy = LAYOUT.CANVAS_HEIGHT / 2;
     if (state.screen === "title") {
-        const logoScale = Math.max(3, Math.floor(LAYOUT.CANVAS_WIDTH / 110)); 
+        const logoScale = Math.max(3, Math.floor(LAYOUT.CANVAS_WIDTH / 110));
         const logoY = cy - 130; 
         drawPixelLogo(ctx, TITLE_LOGO_DATA, cx, logoY, logoScale);
 
-        const grillY = cy - 10; 
+        const grillY = logoY + 78; 
         drawQuietCharcoal(ctx, cx, grillY);
-
         renderParticlesAndOverlay(ctx, now, null);
 
         const btnW = 240;
@@ -3154,10 +3148,8 @@ function render(ctx) {
 
         const btnAi = { x: cx - btnW/2, y: btnStartY, w: btnW, h: btnH };
         const btnPvp = { x: cx - btnW/2, y: btnStartY + gapY, w: btnW, h: btnH };
-
         drawTitleButton(ctx, btnAi.x, btnAi.y, btnAi.w, btnAi.h, "VS AI", null, state.visuals.titleClick === "ai");
         drawTitleButton(ctx, btnPvp.x, btnPvp.y, btnPvp.w, btnPvp.h, "VS PLAYER", null, state.visuals.titleClick === "pvp");
-        
     } else if (state.screen === "game") { 
         drawGameScreen(ctx); drawEndSplash(ctx);
     } else if (state.screen === "clear") {
@@ -3265,12 +3257,12 @@ function render(ctx) {
             const p1Score = state.players[0].finalScore || state.players[0].score;
             const p2Score = state.players[1].finalScore || state.players[1].score;
             const p2Name = state.gameMode === "ai" ?
-    state.enemyName : "P2";
+            state.enemyName : "P2";
             let p1Color = LAYOUT.COLORS.P1, p2Color = LAYOUT.COLORS.P2, p1Alpha = 1.0, p2Alpha = 1.0;
             if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
             } 
             else if (p2Score > p1Score) { p1Color = "#555";
-    p1Alpha = 0.5; } 
+            p1Alpha = 0.5; } 
             
             ctx.globalAlpha = alpha;
             drawBevelRect(ctx, cx - 110, cy - 50, 220, 70, "#1c1410", false);
@@ -3293,7 +3285,7 @@ function render(ctx) {
             if (p1Score > p2Score) { p2Color = "#555"; p2Alpha = 0.5;
             } 
             else if (p2Score > p1Score) { p1Color = "#555";
-    p1Alpha = 0.5; } 
+            p1Alpha = 0.5; } 
             
             ctx.font = getPixelFont(10);
             const statsLabels = ["PERFECT", "BURNT", "STEAL"];
@@ -3304,16 +3296,12 @@ function render(ctx) {
                 ctx.globalAlpha = alpha; ctx.textAlign = "left"; ctx.fillStyle = "#888";
                 ctx.fillText(label, cx - 80, y);
            
-    
-                 
                 ctx.globalAlpha = alpha * p1Alpha; ctx.fillStyle = p1Color; ctx.textAlign = "right";
                 ctx.fillText(state.players[0].stats[statKey], cx + 15, y);
-                
+         
                 ctx.globalAlpha = alpha; ctx.fillStyle = "#555"; ctx.textAlign = "center";
                 ctx.fillText("-", cx + 35, y);
      
-            
-                
                 ctx.globalAlpha = alpha * p2Alpha; ctx.fillStyle = p2Color; ctx.textAlign = "left";
                 ctx.fillText(state.players[1].stats[statKey], cx + 55, y);
             });
@@ -3360,6 +3348,7 @@ function render(ctx) {
         ctx.fillStyle = "rgba(255, 255, 200, " + alpha + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT); state.visuals.perfectFlash.timer--;
     }
 }
+
 
 
 
