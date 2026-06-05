@@ -1283,14 +1283,14 @@ raw: [
 
     // 上の肉(少し小さめ)
 // 上の肉:少し小さめだが、削れ感を減らす版
-"..Pppppp...",
-".Pppqqqqqq.",
-".pqqqqqqqqQ.",
-"pqqqqqqqqqQQ",
-".qqqqqqqqQQ.",
-".qqqqqQQQ...",
-"..qqQQQQ....",
-"...qQQQ.....",
+    "..Ppppppp...",
+    ".Pppqqqqqq..",
+    "pqqqqqqqqqQ.",
+    "pqqqqqqqqqqQ",
+    ".qqqqqqqqqQQ",
+    ".qqqqqqQQQQ.",
+    "..qqqQQQQQ..",
+    "...qQQQQ....",
 
     // ねぎ
     "...Eeeeff...",
