@@ -480,29 +480,29 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         for (let i = 0; i < numLargeSteam; i++) {
             const src = steamSources[Math.floor(Math.random() * steamSources.length)];
             state.visuals.particles.push({
-                x: src.x + (Math.random() - 0.5) * 40, 
+                x: src.x + (Math.random() - 0.5) * 35, 
                 y: src.y + (Math.random() - 0.5) * 16,  
-                vx: (Math.random() - 0.5) * 0.5, 
-                vy: -0.2 - Math.random() * 0.3, 
-                life: 0, maxLife: 40 + Math.random() * 30, 
-                size: 6 + Math.random() * 6, 
-                color: Math.random() > 0.5 ? "#f0ebe1" : "#e6e0d3", 
-                baseAlpha: 0.35 + Math.random() * 0.15, 
+                vx: (Math.random() - 0.5) * 0.4, 
+                vy: -0.2 - Math.random() * 0.4, 
+                life: 0, maxLife: 45 + Math.random() * 25, 
+                size: 8 + Math.random() * 6, 
+                color: Math.random() > 0.5 ? "#f4f0e6" : "#ebe5d8", 
+                baseAlpha: 0.4 + Math.random() * 0.2, 
                 isSteam: true,
                 isLargeSteam: true 
             });
         }
 
-        const numSteam = 2 + Math.floor(amount);
+        const numSteam = 3 + Math.floor(amount);
         for (let i = 0; i < numSteam; i++) {
             const src = steamSources[Math.floor(Math.random() * steamSources.length)];
             state.visuals.particles.push({
-                x: src.x + (Math.random() - 0.5) * 30, 
+                x: src.x + (Math.random() - 0.5) * 25, 
                 y: src.y + (Math.random() - 0.5) * 16,  
                 vx: (Math.random() - 0.5) * 0.2, 
-                vy: -0.5 - Math.random() * 0.4,        
+                vy: -0.5 - Math.random() * 0.5,        
                 life: 0, maxLife: 20 + Math.random() * 15, 
-                size: 2 + Math.random() * 2, 
+                size: 3 + Math.random() * 2, 
                 color: "#e8e4d8",
                 baseAlpha: 0.7,
                 isSteam: true
@@ -510,14 +510,14 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         }
         
         if (burstIndex === 0) {
-            const sizzleCount = 2 + Math.floor(Math.random() * 3);
+            const sizzleCount = 3 + Math.floor(Math.random() * 3);
             for (let i = 0; i < sizzleCount; i++) {
                 const src = steamSources[Math.floor(Math.random() * steamSources.length)];
                 state.visuals.particles.push({
                     x: src.x + (Math.random() - 0.5) * 20, 
                     y: src.y + (Math.random() - 0.5) * 16,  
-                    vx: (Math.random() - 0.5) * 0.5, 
-                    vy: -1.0 - Math.random() * 0.6,             
+                    vx: (Math.random() - 0.5) * 0.6, 
+                    vy: -1.0 - Math.random() * 0.8,             
                     life: 0, maxLife: 12 + Math.random() * 8, 
                     size: 1.5 + Math.random() * 1.5, 
                     color: Math.random() > 0.5 ? "#ffcc55" : "#ffaa33", 
@@ -532,6 +532,7 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
     setTimeout(function() { spawnBurst(1); }, 100);
     setTimeout(function() { spawnBurst(2); }, 200);
 }
+
 
 
 function spawnPerfectPopEffect(laneIndex) {
@@ -2117,6 +2118,18 @@ function drawGameScreen(ctx) {
         ctx.globalAlpha = 1.0; }
     });
 
+    ctx.save();
+    state.visuals.particles.forEach(p => {
+        if (p.isEmber) {
+            const ratio = p.life / p.maxLife;
+            ctx.globalAlpha = Math.max(0, 1 - ratio);
+            ctx.fillStyle = p.color;
+            const s = Math.max(1, Math.floor(p.size));
+            ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
+        }
+    });
+    ctx.restore();
+
     laneInfos.forEach((info, i) => {
         const lane = state.lanes[i];
         if (lane.built) {
@@ -2548,6 +2561,7 @@ function drawGameScreen(ctx) {
 
 
 
+
 function shouldShowActionButtons() {
     if (state.screen !== "game") return false;
     if (state.gameOver) return false;
@@ -2666,19 +2680,15 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillStyle = p.color;
             
             if (p.isLargeSteam) {
-                const coreS = 2 + Math.floor(ratio * 2); 
-                const spread = p.size * ratio; 
-                const px = Math.floor(p.x);
-                const py = Math.floor(p.y);
-                
-                ctx.fillRect(px - coreS/2, py - coreS/2, coreS, coreS);
-                
-                ctx.globalAlpha = baseA * (1 - ratio) * 0.6;
-                const subS = Math.max(1, coreS - 1);
-                ctx.fillRect(Math.floor(px - spread), Math.floor(py - spread*0.5), subS, subS);
-                ctx.fillRect(Math.floor(px + spread), Math.floor(py + spread*0.5), subS, subS);
-                ctx.fillRect(Math.floor(px - spread*0.5), Math.floor(py + spread), subS, subS);
-                ctx.fillRect(Math.floor(px + spread*0.5), Math.floor(py - spread), subS, subS);
+                const s = Math.floor(p.size * (1 + ratio * 0.4));
+                const px = Math.floor(p.x - s/2);
+                const py = Math.floor(p.y - s/2);
+                ctx.fillRect(px, py, s, s);
+                ctx.globalAlpha = baseA * (1 - ratio) * 0.5;
+                ctx.fillRect(px - 1, py + 1, 1, s - 2);
+                ctx.fillRect(px + s, py + 1, 1, s - 2);
+                ctx.fillRect(px + 1, py - 1, s - 2, 1);
+                ctx.fillRect(px + 1, py + s, s - 2, 1);
             } else {
                 const s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
                 ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
@@ -2702,10 +2712,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isEmber) {
-            ctx.globalAlpha = 1 - ratio;
-            ctx.fillStyle = p.color;
-            const s = Math.max(1, Math.floor(p.size));
-            ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
+            // 火花の描画は焼き鳥より後ろ（drawGameScreen 内）で行うため、ここでは何もしません。
+            // 座標と寿命の更新のみが行われます。
         } else if (p.isTitleSpark) {
             const alpha = Math.min(1, 1.5 * (1 - ratio));
             ctx.globalAlpha = 1.0; 
@@ -2806,6 +2814,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
