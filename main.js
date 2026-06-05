@@ -83,6 +83,20 @@ function initAudio() {
     }
 }
 
+function initDebugMode() {
+    window.addEventListener("keydown", function(e) {
+        if (e.key === "g" || e.key === "G") {
+            if (document.body.style.filter) {
+                document.body.style.filter = "";
+            } else {
+                document.body.style.filter = "grayscale(100%)";
+            }
+        }
+    });
+}
+initDebugMode();
+
+
 async function unlockAudio() {
     if (audioSys.unlocked) return;
     initAudio();
@@ -535,6 +549,25 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
     setTimeout(function() { spawnBurst(2); }, 200);
 }
 
+function spawnPerfectPopEffect(laneIndex) {
+    const b = getLaneBounds(laneIndex);
+    const laneCx = b.x + b.w / 2;
+    const stickTop = b.y + b.h * 0.2;
+    for (let i = 0; i < 8; i++) {
+        state.visuals.particles.push({
+            x: laneCx + (Math.random() - 0.5) * 30, 
+            y: stickTop + (Math.random() - 0.5) * 40 + 20,
+            vx: (Math.random() - 0.5) * 2.0, 
+            vy: -1.0 - Math.random() * 2.5,
+            life: 0, maxLife: 15 + Math.random() * 10, 
+            size: 3 + Math.random() * 4,
+            color: Math.random() > 0.5 ? "#ffffff" : "#ffeb3b",
+            isSparkle: true
+        });
+    }
+}
+
+
 
 
 
@@ -584,11 +617,11 @@ function updateCookPreview() {
         const event = state.cookPreviewEvents[state.cookPreviewIndex];
         if (event) {
             let smokeAmount = event.newCookState - event.prevCookState;
-            // 以前の spawnSmokeEffect の代わりに、新しい美味しそうな湯気関数を呼び出します
             spawnJuwaSmoke(event.laneIndex, smokeAmount, event.newStatus); 
-            playSound("sizzle"); 
+            playSound("sizzle");
             if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
                 playSound("perfect");
+                spawnPerfectPopEffect(event.laneIndex);
                 state.visuals.peakFlashes[state.lanes[event.laneIndex].id] = performance.now();
                 state.visuals.perfectFlash = { timer: 15 }; 
             }
@@ -601,6 +634,7 @@ function updateCookPreview() {
         else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; }
     }
 }
+
 
 
 function tryEndRound() {
@@ -1161,11 +1195,13 @@ const YAKITORI_PALETTE = {
     "O": "#0b0a0a", "S": "#161313", "1": "#2b2d35", "2": "#454854", "3": "#747887",
     "k": "#111111", "d": "#26211f", "a": "#3a302b", "r": "#8a2f18", "o": "#d75a20", "y": "#f0a13a",
     "5": "#bba888", "6": "#886655", "W": "#2a2a2a", "w": "#1f1f1f", 
-    "P": "#e2caca", "p": "#d49a9a", "q": "#bf6c6c", "Q": "#a34646", "E": "#f4faee", "e": "#a4d674", "f": "#51912a",
-    "H": "#fffae8", "L": "#e8a45c", "M": "#c26d36", "D": "#8a401a", "C": "#52210b", "V": "#f0f2d8", "N": "#96a646", "B": "#5e6924", "J": "#e6cc67", 
-    "x": "#331613", "z": "#1a0a09", "j": "#a88e36", "b": "#3b5226"  
+    "P": "#dcaaaa", "p": "#c89494", "q": "#b87c7c", "Q": "#a86868", 
+    "E": "#e4f0d8", "e": "#9bc27a", "f": "#699846",
+    "H": "#ffffff", "L": "#fadd78", "M": "#cf6825", "D": "#782208", "C": "#380d02", 
+    "V": "#fcffe6", "N": "#acbf34", "B": "#4c5e15", "J": "#fcdb4e", 
+    "x": "#422620", "z": "#1c0d0a", "j": "#806640", "b": "#4f5c3c",  
+    "U": "#6b544b", "I": "#5c4033"
 };
-
 const YAKITORI_GRILL_PARTS = {
     base: [
         "11111111111111111111111111111111", "22222222222222222222222222222222", "11111111111111111111111111111111", "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
@@ -1254,22 +1290,34 @@ const YAKITORI_COAL_PATTERNS = {
 // [END_PATCH]
 const YAKITORI_SKEWER_SPRITES = {
     raw: [
-        ".....55.....", ".....55.....", ".....55.....", ".....55.....", "..Ppppppp...", ".Pppqqqqqqq.", ".pqqqqqqqqQ.", "pqqqqqqqqqqQ", "qqqqqqqqqQQ.",
-        ".qqqqqqqqqQ.", ".qqqqqqQQQQ.", "..qQQQQQ....", "...Eeeef....", "..EEEeeeff..", "..eEEeeeff..", "..eeEeeeff..", "...eeffff...", "..Ppppppp...", 
-        ".Pppqqqqqq..", "pqqqqqqqqqQ.", "pqqqqqqqqqqQ", ".qqqqqqqqqQQ", ".qqqqqqQQQQ.", "..qqqQQQQQ..", "...qQQQQ....", ".....55.....", ".....55.....",
-        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....66.....", ".....66....."  
+        ".....55.....", ".....55.....", ".....55.....", ".....55.....", 
+        "..Ppppppp...", ".Pppqqqqqqq.", ".pqqqqqqqqQ.", "pqqqqqqqqqqQ", "qqqqqqqqqQQ.",
+        ".qqqqqqqqqQ.", ".qqqqqqQQQQ.", "..qQQQQQ....", 
+        "...Eeeef....", "..EEEeeeff..", "..eEEeeeff..", "..eeEeeeff..", "...eeffff...", 
+        "..Ppppppp...", ".Pppqqqqqq..", "pqqqqqqqqqQ.", "pqqqqqqqqqqQ", ".qqqqqqqqqQQ", 
+        ".qqqqqqQQQQ.", "..qqqQQQQQ..", "...qQQQQ....", 
+        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", 
+        ".....55.....", ".....55.....", ".....66.....", ".....66....."  
     ],
     cooked: [
-        ".....55.....", "....W55.....", "...w.55.w...", ".....55.....", "..HHLLMMM...", ".HLLMMMMDDC.", ".LMMMMMDDDD.", "LLMMMMMDDDDC", "MMMMMMMDDDD.", 
-        ".MMMMMDDMMD.", ".MMMMMDDCCC.", "..MMDDCC....", "...VJNNB....", "..VVJNNNBB..", "..JVVNNNBB..", "..JJJNNNBC..", "...JNBBBC...", "..HHLLMMM...", 
-        ".HLLMMMDDD..", "LLMMMMMDDDD.", "MMMMMMMDDDDC", ".MMMMMDDMMD.", ".MMMMMDDDCC.", "..MMMDDDCC..", "...MDDCC....", ".....55.....", ".....55.....",
-        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....66.....", ".....66....."  
+        ".....55.....", "....W55.....", "...w.55.w...", ".....55.....", 
+        "...HHLLMM...", ".HHLMMMMDC..", "LHLMMMMDDC..", "LLMMMMMDDDC.", "MMMMMMMDDDC.", 
+        ".MMMMMDDDC..", ".CMMMDDCCC..", "..CMDDCC....", 
+        "...VJNNB....", "..VVJNNNBB..", ".JJVVNNNBB..", ".JJJNNNBBC..", "..JNNBBC....", 
+        "...HHLLMM...", ".HHLMMMMDC..", "LLLMMMMDDC..", "LMMMMMMDDDC.", ".MMMMMDDDC..", 
+        ".CMMMMDDCC..", "..CMMDDCC...", "...MDDCC....", 
+        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", 
+        ".....55.....", ".....55.....", ".....66.....", ".....66....."  
     ],
     burnt: [
-        "..w.55..w...", ".W..55...W..", "..w.55.w....", ".....55.....", "..xDxxxxC...", ".xxzxxxxxCx.", ".zxxxxxxxxC.", "zxxxxxxxxxzz", "xxxxxxxxxzz.",
-        ".xxxxxxxxzC.", ".xxxxzCCCzz.", "..xCCzzz....", "...jbbbk....", "..jjbbbbkk..", "..jjjbbbkk..", "..jxxbbkzz..", "...xxkkkz...", "..MDxxxxx...", 
-        ".MDxxxxxxx..", "DxxxxxxxxxC.", "DxxxxxxxxxxC", ".xxxxxxxxxCC", ".xxxxxxCCCz.", "..xxxCCCzz..", "...xCCzz....", ".....55.....", ".....55.....",
-        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....66.....", ".....66....."  
+        "..w.55..w...", ".W..55...W..", "..w.55.w....", ".....55.....", 
+        "...UIxxz....", "..jIxxzzzz..", ".UIxxzzzzx..", "jIIxxzzzzzI.", "IIxxzzzzzzI.",
+        ".IxxxzzzxI..", ".IxxzzCCzz..", "..xCzzzI....", 
+        "...Ubbbk....", "..jIbbbbkk..", ".jIIbbbbkk..", ".jIxbbkkzz..", "..Ixbkkz....", 
+        "...UIxxz....", "..jIxxzzzz..", "UIIxxzzzzx..", "IIxxzzzzzzI.", ".IxxxzzzxI..", 
+        ".IxxzzCCzz..", "..xCzzzI....", "...CzzI.....", 
+        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", 
+        ".....55.....", ".....55.....", ".....66.....", ".....66....."  
     ]
 };
 const TITLE_LOGO_PALETTE = {
@@ -1415,6 +1463,41 @@ function drawYakitoriSolidShadow(ctx, x, y, spriteArray, offsetX, offsetY) {
         }
     }
 }
+
+function drawYakitoriOutline(ctx, x, y, spriteArray, offsetX, offsetY, color) {
+    if (color === undefined) color = "rgba(4, 2, 2, 0.95)";
+    ctx.fillStyle = color;
+    const u = 4;
+    for (let row = 0; row < spriteArray.length; row++) {
+        const line = spriteArray[row];
+        for (let col = 0; col < line.length; col++) {
+            const c = line[col];
+            if (c !== "." && c !== "W" && c !== "w" && YAKITORI_PALETTE[c]) {
+                const px = Math.floor(x) + (col + offsetX) * u;
+                const py = Math.floor(y) + (row + offsetY) * u;
+                ctx.fillRect(px - u, py, u, u);
+                ctx.fillRect(px + u, py, u, u);
+                ctx.fillRect(px, py - u, u, u);
+                ctx.fillRect(px, py + u, u, u);
+            }
+        }
+    }
+}
+
+function drawYakitoriSilhouette(ctx, x, y, spriteArray, offsetX, offsetY, color) {
+    ctx.fillStyle = color;
+    const u = 4;
+    for (let row = 0; row < spriteArray.length; row++) {
+        const line = spriteArray[row];
+        for (let col = 0; col < line.length; col++) {
+            const c = line[col];
+            if (c !== "." && c !== "W" && c !== "w" && YAKITORI_PALETTE[c]) {
+                ctx.fillRect(Math.floor(x) + (col + offsetX) * u, Math.floor(y) + (row + offsetY) * u, u, u);
+            }
+        }
+    }
+}
+
 
 
 function getFadeAlpha(currentTimer, maxTimer, fadeFrames = 10) {
@@ -1935,9 +2018,9 @@ function drawGameScreen(ctx) {
                 isCurrentPreviewLane = true; 
                 previewProg = 1.0 - (state.cookPreviewPhaseTimer / COOK_PREVIEW_DUR);
                 if (previewProg < 0.35) { displayCookState = activeEvent.prevCookState;
-                gaugeCookState = activeEvent.prevCookState; }
+                    gaugeCookState = activeEvent.prevCookState; }
                 else { displayCookState = activeEvent.newCookState;
-                gaugeCookState = activeEvent.newCookState; }
+                    gaugeCookState = activeEvent.newCookState; }
                 effectiveCookState = displayCookState;
             } else if (previewEventForThisLane) {
                 const eventIndex = state.cookPreviewEvents.indexOf(previewEventForThisLane);
@@ -2005,7 +2088,7 @@ function drawGameScreen(ctx) {
             }
             if (glowSin > 0) {
                 ctx.fillStyle = lane.type === "strong" ?
-                "rgba(216, 90, 16, " + (glowSin * 0.5) + ")" : "rgba(168, 74, 16, " + (glowSin * 0.5) + ")";
+                    "rgba(216, 90, 16, " + (glowSin * 0.5) + ")" : "rgba(168, 74, 16, " + (glowSin * 0.5) + ")";
                 const dotX = info.gx + (lane.type === "strong" ? 14 : 12) * YAKITORI_PIXEL_UNIT;
                 const dotY = info.gy + 26 * YAKITORI_PIXEL_UNIT;
                 ctx.fillRect(dotX, dotY, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
@@ -2040,7 +2123,7 @@ function drawGameScreen(ctx) {
             const isUchiwaPreviewActive = (state.buildMode === "uchiwa" && info.isFlashable);
             const targetCookState = isUchiwaPreviewActive ? info.baseEndState + 1 : info.displayCookState;
             let targetAlpha = lane.justPlaced ? 0.6 : 1.0;
-         
+            
             let fallYOffset = 0;
             let currentAlpha = targetAlpha;
             const pTime = state.visuals.placedAt[lane.id];
@@ -2052,7 +2135,6 @@ function drawGameScreen(ctx) {
             }
             
             const displayStatusUpperForBreathe = getCookLabel(lane.type, targetCookState).toUpperCase();
-           
             let breatheY = 0;
             if (displayStatusUpperForBreathe === "PERFECT" && !lane.justPlaced) breatheY = Math.sin(now / 260) * 1.5;
             const isPrePerfect = (info.currentStatus !== "perfect" && info.currentStatus !== "burnt" && info.baseEndStatus === "perfect");
@@ -2066,18 +2148,38 @@ function drawGameScreen(ctx) {
             }
 
             const stickTop = info.b.y + info.b.h * 0.1 + fallYOffset + breatheY;
-            ctx.globalAlpha = currentAlpha;
             
             const displayStatusUpper = getCookLabel(lane.type, targetCookState).toUpperCase();
             let spriteStage = "raw";
             if (displayStatusUpper === "OKAY" || displayStatusUpper === "PERFECT") spriteStage = "cooked";
             else if (displayStatusUpper === "BURNT") spriteStage = "burnt";
             const skewerSprite = YAKITORI_SKEWER_SPRITES[spriteStage];
+            
+            let popY = 0;
+            let popFlashAlpha = 0;
+            if (info.isCurrentPreviewLane && info.previewProg >= 0.2 && info.previewProg <= 0.6) {
+                let p = 1.0 - (Math.abs(info.previewProg - 0.4) / 0.2);
+                popFlashAlpha = Math.sin(Math.max(0, Math.min(1, p)) * Math.PI / 2);
+                
+                if (info.previewProg > 0.35 && info.previewProg < 0.5) {
+                    let jumpP = 1.0 - (Math.abs(info.previewProg - 0.425) / 0.075);
+                    popY = -Math.sin(Math.max(0, jumpP) * Math.PI) * 10;
+                }
+            }
+
             const skewerOffsetX = 10 + Math.round(gustWobble / YAKITORI_PIXEL_UNIT);
-            const skewerOffsetY = 8 + Math.round((fallYOffset + breatheY) / YAKITORI_PIXEL_UNIT);
+            const skewerOffsetY = 8 + Math.round((fallYOffset + breatheY + popY) / YAKITORI_PIXEL_UNIT);
+            
+            ctx.globalAlpha = currentAlpha;
             
             drawYakitoriSolidShadow(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX + 1, skewerOffsetY + 2);
+            drawYakitoriOutline(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX, skewerOffsetY, "rgba(4, 2, 2, 0.95)");
             drawYakitoriSpriteMap(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX, skewerOffsetY);
+            
+            if (popFlashAlpha > 0 && displayStatusUpper !== "BURNT") {
+                drawYakitoriSilhouette(ctx, info.gx, info.gy, skewerSprite, skewerOffsetX, skewerOffsetY, "rgba(255, 255, 230, " + (popFlashAlpha * 0.5) + ")");
+            }
+            
             ctx.globalAlpha = 1.0;
 
             if (displayStatusUpper === "PERFECT") {
@@ -2092,15 +2194,12 @@ function drawGameScreen(ctx) {
                     const s1 = Math.abs(Math.sin(seedVal + pIdx * 10));
                     const s2 = Math.abs(Math.sin(seedVal + pIdx * 20));
                     const numChars = p.isNegi ? Math.floor(s1 * 2) : 1 + Math.floor(s1 * 3);
-          
                     for (let c = 0; c < numChars; c++) {
                         const rs = Math.abs(Math.sin(seedVal + pIdx * 30 + c * 10));
                         const cs = Math.abs(Math.cos(seedVal + pIdx * 40 + c * 10));
-           
                         const dr = p.r + Math.floor(rs * p.h);
                         const dc = p.c + Math.floor(cs * p.w);
                         ctx.fillStyle = charColors[Math.floor(rs * charColors.length)];
-                     
                         ctx.fillRect(
                             info.gx + (dc + skewerOffsetX) * YAKITORI_PIXEL_UNIT,
                             info.gy + (dr + skewerOffsetY) * YAKITORI_PIXEL_UNIT,
@@ -2122,16 +2221,6 @@ function drawGameScreen(ctx) {
                         );
                     }
                 });
-            }
-
-            let cookFlashAlpha = 0;
-            if (info.isCurrentPreviewLane && info.previewProg >= 0.2 && info.previewProg <= 0.5) {
-                let p = 1.0 - (Math.abs(info.previewProg - 0.35) / 0.15);
-                cookFlashAlpha = Math.sin(Math.max(0, Math.min(1, p)) * Math.PI / 2);
-            }
-            if (cookFlashAlpha > 0 && displayStatusUpper !== "BURNT") {
-                ctx.fillStyle = "rgba(240, 230, 220, " + (cookFlashAlpha * 0.2) + ")";
-                ctx.fillRect(info.gx + 14 * YAKITORI_PIXEL_UNIT, info.gy + 12 * YAKITORI_PIXEL_UNIT, 4 * YAKITORI_PIXEL_UNIT, 14 * YAKITORI_PIXEL_UNIT);
             }
 
             drawSkewerCloth(ctx, info.gx + skewerOffsetX * YAKITORI_PIXEL_UNIT, info.gy + skewerOffsetY * YAKITORI_PIXEL_UNIT, lane.owner);
@@ -2158,7 +2247,6 @@ function drawGameScreen(ctx) {
                 state.visuals.particles.push({
                     x: info.laneCx + (Math.random() - 0.5) * 24, 
                     y: stickTop + (info.b.h * 0.7) * 0.3 + (Math.random() - 0.5) * 16,  
- 
                     vx: (Math.random() - 0.5) * 0.2, vy: -0.15 - Math.random() * 0.2,             
                     life: 0, maxLife: 40 + Math.random() * 20, size: 6 + Math.random() * 6, 
                     color: Math.random() > 0.5 ? "#f0ebe1" : "#e6e0d3", baseAlpha: 0.15 + Math.random() * 0.1,
@@ -2220,7 +2308,7 @@ function drawGameScreen(ctx) {
             if (ghostStatusUpper === "OKAY" || ghostStatusUpper === "PERFECT") spriteStage = "cooked";
             else if (ghostStatusUpper === "BURNT") spriteStage = "burnt";
             const skewerSprite = YAKITORI_SKEWER_SPRITES[spriteStage];
-  
+            
             const spriteW = 32 * YAKITORI_PIXEL_UNIT;
             const spriteH = 48 * YAKITORI_PIXEL_UNIT;
             const gx = Math.round(b.x + b.w / 2 - spriteW / 2);
@@ -2240,7 +2328,6 @@ function drawGameScreen(ctx) {
             const modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
 
             const tagFloatY = Math.sin(now / 200) * 3;
-         
             const ty = info.b.y - 10 + tagFloatY;
             const baseColor = "#a07b5a"; 
             const markColor = "#4a2818"; 
@@ -2335,7 +2422,6 @@ function drawGameScreen(ctx) {
         
         let alpha = 1;
         if (p < 0.15) alpha = p / 0.15;
- 
         else if (p > 0.8) alpha = 1 - ((p - 0.8) / 0.2);
         
         let floatDist = -25;
@@ -2344,7 +2430,6 @@ function drawGameScreen(ctx) {
         const easeOut = 1 - Math.pow(1 - p, 2);
         const yAnimOffset = floatDist * easeOut;
         
- 
         const fx = Math.round(msg.x || cx);
         const fy = Math.round((msg.y || cy) + yAnimOffset);
         
@@ -2353,7 +2438,6 @@ function drawGameScreen(ctx) {
         
         if (msg.type === "hint") {
             ctx.font = getPixelFont(10);
-           
             const txtW = Math.round(ctx.measureText(msg.text).width + 24);
             ctx.fillStyle = "rgba(20, 15, 10, 0.85)";
             ctx.fillRect(Math.round(fx - txtW/2), Math.round(fy - 14), txtW, 22);
@@ -2366,8 +2450,7 @@ function drawGameScreen(ctx) {
             let icon = null;
             let isStrong = false;
             if (msg.type === "meat") {
-                mainText = msg.amount > 0 ?
-                "+" + msg.amount : "" + msg.amount;
+                mainText = msg.amount > 0 ? "+" + msg.amount : "" + msg.amount;
                 mainColor = msg.amount > 0 ? "#ffaaaa" : "#cccccc";
                 icon = "meat";
             } else if (msg.type === "fire") {
@@ -2375,10 +2458,8 @@ function drawGameScreen(ctx) {
                 mainColor = "#ffaa33";
                 icon = "fire";
             } else if (msg.type === "score") {
-                mainText = msg.amount > 0 ?
-                "+" + msg.amount : "" + msg.amount;
-                mainColor = msg.amount > 0 ?
-                "#ffeb3b" : (msg.amount < 0 ? "#ff5555" : "#aaaaaa");
+                mainText = msg.amount > 0 ? "+" + msg.amount : "" + msg.amount;
+                mainColor = msg.amount > 0 ? "#ffeb3b" : (msg.amount < 0 ? "#ff5555" : "#aaaaaa");
                 if (msg.amount !== 0) icon = "diamond";
                 if (msg.isPerfect) {
                     subText = "PERFECT!";
@@ -2394,8 +2475,7 @@ function drawGameScreen(ctx) {
                 }
                 
                 if (msg.isBonus) {
-                    subText = msg.bonusText ||
-                    "ORDER!";
+                    subText = msg.bonusText || "ORDER!";
                     isStrong = true;
                 }
                 
@@ -2403,8 +2483,7 @@ function drawGameScreen(ctx) {
                     isStrong = true;
                 }
             } else if (msg.type === "result") {
-                mainText = msg.text ||
-                "";
+                mainText = msg.text || "";
                 mainColor = "#ffeb3b";
                 isStrong = true;
             }
@@ -2442,7 +2521,12 @@ function drawGameScreen(ctx) {
         const alpha = Math.min(1, 1 - (state.gameEndWaitTimer / 55));
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
+    
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.font = getPixelFont(10);
+    ctx.fillText("[G] MONO TEST", 10, LAYOUT.CANVAS_HEIGHT - 10);
 }
+
 
 
 
