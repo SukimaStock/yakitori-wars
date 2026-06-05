@@ -476,35 +476,35 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         { x: laneCx, y: meatCenterY + 16 }
     ];
     const spawnBurst = function(burstIndex) {
-        const numLargeSteam = 5 + Math.floor(Math.random() * 4);
+        const numLargeSteam = 6 + Math.floor(Math.random() * 4);
         for (let i = 0; i < numLargeSteam; i++) {
             const src = steamSources[Math.floor(Math.random() * steamSources.length)];
             state.visuals.particles.push({
                 x: src.x + (Math.random() - 0.5) * 35, 
                 y: src.y + (Math.random() - 0.5) * 16,  
                 vx: (Math.random() - 0.5) * 0.4, 
-                vy: -0.2 - Math.random() * 0.4, 
+                vy: -0.4 - Math.random() * 0.4, 
                 life: 0, maxLife: 45 + Math.random() * 25, 
                 size: 8 + Math.random() * 6, 
                 color: Math.random() > 0.5 ? "#f4f0e6" : "#ebe5d8", 
-                baseAlpha: 0.4 + Math.random() * 0.2, 
+                baseAlpha: 0.45 + Math.random() * 0.2, 
                 isSteam: true,
                 isLargeSteam: true 
             });
         }
 
-        const numSteam = 3 + Math.floor(amount);
+        const numSteam = 4 + Math.floor(amount);
         for (let i = 0; i < numSteam; i++) {
             const src = steamSources[Math.floor(Math.random() * steamSources.length)];
             state.visuals.particles.push({
                 x: src.x + (Math.random() - 0.5) * 25, 
                 y: src.y + (Math.random() - 0.5) * 16,  
                 vx: (Math.random() - 0.5) * 0.2, 
-                vy: -0.5 - Math.random() * 0.5,        
+                vy: -0.6 - Math.random() * 0.5,        
                 life: 0, maxLife: 20 + Math.random() * 15, 
                 size: 3 + Math.random() * 2, 
                 color: "#e8e4d8",
-                baseAlpha: 0.7,
+                baseAlpha: 0.75,
                 isSteam: true
             });
         }
@@ -517,7 +517,7 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
                     x: src.x + (Math.random() - 0.5) * 20, 
                     y: src.y + (Math.random() - 0.5) * 16,  
                     vx: (Math.random() - 0.5) * 0.6, 
-                    vy: -1.0 - Math.random() * 0.8,             
+                    vy: -1.2 - Math.random() * 0.8,             
                     life: 0, maxLife: 12 + Math.random() * 8, 
                     size: 1.5 + Math.random() * 1.5, 
                     color: Math.random() > 0.5 ? "#ffcc55" : "#ffaa33", 
@@ -532,6 +532,7 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
     setTimeout(function() { spawnBurst(1); }, 100);
     setTimeout(function() { spawnBurst(2); }, 200);
 }
+
 
 
 
@@ -2062,20 +2063,29 @@ function drawGameScreen(ctx) {
         const breathGlow = (Math.sin(breathPhase) * 0.5 + 0.5) * 0.25; 
         const heatFactor = lane.type === "strong" ? 1.0 : (lane.type === "medium" ? 0.7 : 0.4);
         
-        const totalAlpha = Math.min(1.0, cookFlashAlpha + hoverGlow + breathGlow);
-        if (totalAlpha > 0) {
-            ctx.fillStyle = "rgba(220, 60, 10, " + (totalAlpha * heatFactor * 0.6) + ")";
-            ctx.fillRect(info.gx + 6 * YAKITORI_PIXEL_UNIT, info.gy + 22 * YAKITORI_PIXEL_UNIT, 20 * YAKITORI_PIXEL_UNIT, 12 * YAKITORI_PIXEL_UNIT);
+        const totalEmberAlpha = Math.min(1.0, cookFlashAlpha + hoverGlow + breathGlow);
+        if (totalEmberAlpha > 0) {
+            ctx.fillStyle = "rgba(255, 90, 20, " + (totalEmberAlpha * heatFactor * 0.8) + ")";
+            const u = YAKITORI_PIXEL_UNIT;
+            ctx.fillRect(info.gx + 12 * u, info.gy + 25 * u, 3 * u, 2 * u);
+            ctx.fillRect(info.gx + 18 * u, info.gy + 27 * u, 4 * u, 2 * u);
+            ctx.fillRect(info.gx + 15 * u, info.gy + 29 * u, 2 * u, 2 * u);
+            if (lane.type === "strong" || lane.type === "medium") {
+                ctx.fillRect(info.gx + 22 * u, info.gy + 25 * u, 2 * u, 2 * u);
+                ctx.fillRect(info.gx + 9 * u, info.gy + 28 * u, 2 * u, 2 * u);
+            }
         }
 
         drawYakitoriSpriteMap(ctx, info.gx, info.gy, YAKITORI_GRILL_PARTS.net);
 
-        if (Math.random() < 0.02 * heat) { 
+        let sparkChance = 0.02 * heat;
+        if (cookFlashAlpha > 0) sparkChance += 0.08 * heat * cookFlashAlpha;
+        if (Math.random() < sparkChance) { 
             state.visuals.particles.push({
                 x: info.laneCx + (Math.random() - 0.5) * 30,
-                y: info.gy + 30 * YAKITORI_PIXEL_UNIT + (Math.random() - 0.5) * 10,
+                y: info.gy + 28 * YAKITORI_PIXEL_UNIT + (Math.random() - 0.5) * 10,
                 vx: (Math.random() - 0.5) * 0.5,
-                vy: -0.5 - Math.random() * 1.0,
+                vy: -0.6 - Math.random() * 1.2,
                 life: 0,
                 maxLife: 20 + Math.random() * 20,
                 size: 1.5 + Math.random() * 1.5,
@@ -2105,6 +2115,10 @@ function drawGameScreen(ctx) {
             let fireColor = "#ffaa33";
             if (flicker > 0.4) fireColor = "#ffcc66"; 
             else if (flicker < -0.4) fireColor = "#dd6622"; 
+            
+            if (cookFlashAlpha > 0) {
+                fireColor = (flicker > 0) ? "#ffeb3b" : "#ffcc66";
+            }
             
             drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, info.b.y + info.b.h + 40, fireColor, fireScale);
         }
@@ -2530,6 +2544,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
