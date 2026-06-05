@@ -2144,9 +2144,9 @@ function drawGameScreen(ctx) {
             
             const displayStatusUpperForBreathe = getCookLabel(lane.type, targetCookState).toUpperCase();
             let breatheY = 0;
-            if (displayStatusUpperForBreathe === "PERFECT" && !lane.justPlaced) breatheY = Math.sin(now / 260) * 1.5;
+            if (displayStatusUpperForBreathe === "PERFECT" && !lane.justPlaced) breatheY = Math.sin(now / 420) * 0.6;
             const isPrePerfect = (info.currentStatus !== "perfect" && info.currentStatus !== "burnt" && info.baseEndStatus === "perfect");
-            if (isPrePerfect && !lane.justPlaced) breatheY = Math.sin(now / 150) * 0.5;
+            if (isPrePerfect && !lane.justPlaced) breatheY = Math.sin(now / 300) * 0.3;
             
             const uchiwaTime = state.visuals.uchiwaGusts[lane.id];
             let gustWobble = 0;
@@ -2167,12 +2167,9 @@ function drawGameScreen(ctx) {
             let popFlashAlpha = 0;
             if (info.isCurrentPreviewLane && info.previewProg >= 0.2 && info.previewProg <= 0.6) {
                 let p = 1.0 - (Math.abs(info.previewProg - 0.4) / 0.2);
-                popFlashAlpha = Math.sin(Math.max(0, Math.min(1, p)) * Math.PI / 2);
-                
-                if (info.previewProg > 0.35 && info.previewProg < 0.5) {
-                    let jumpP = 1.0 - (Math.abs(info.previewProg - 0.425) / 0.075);
-                    popY = -Math.sin(Math.max(0, jumpP) * Math.PI) * 10;
-                }
+                p = Math.max(0, Math.min(1, p));
+                popFlashAlpha = Math.sin(p * Math.PI / 2);
+                popY = -Math.sin(p * Math.PI) * 1.0; 
             }
 
             const skewerOffsetX = 10 + Math.round(gustWobble / YAKITORI_PIXEL_UNIT);
@@ -2533,6 +2530,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 
