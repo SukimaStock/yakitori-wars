@@ -1195,13 +1195,14 @@ const YAKITORI_PALETTE = {
     "O": "#0b0a0a", "S": "#161313", "1": "#2b2d35", "2": "#454854", "3": "#747887",
     "k": "#111111", "d": "#26211f", "a": "#3a302b", "r": "#8a2f18", "o": "#d75a20", "y": "#f0a13a",
     "5": "#bba888", "6": "#886655", "W": "#2a2a2a", "w": "#1f1f1f", 
-    "P": "#dcaaaa", "p": "#c89494", "q": "#b87c7c", "Q": "#a86868", 
-    "E": "#e4f0d8", "e": "#9bc27a", "f": "#699846",
+    "P": "#e8b4b4", "p": "#d69898", "q": "#c27c7c", "Q": "#b06666", 
+    "E": "#ebf5df", "e": "#a3c97b", "f": "#719e48",
     "H": "#ffffff", "L": "#fadd78", "M": "#cf6825", "D": "#782208", "C": "#380d02", 
     "V": "#fcffe6", "N": "#acbf34", "B": "#4c5e15", "J": "#fcdb4e", 
     "x": "#422620", "z": "#1c0d0a", "j": "#806640", "b": "#4f5c3c",  
     "U": "#6b544b", "I": "#5c4033"
 };
+
 const YAKITORI_GRILL_PARTS = {
     base: [
         "11111111111111111111111111111111", "22222222222222222222222222222222", "11111111111111111111111111111111", "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
@@ -1310,7 +1311,7 @@ const YAKITORI_SKEWER_SPRITES = {
         ".....55.....", ".....55.....", ".....66.....", ".....66....."  
     ],
     burnt: [
-        "..w.55..w...", ".W..55...W..", "..w.55.w....", ".....55.....", 
+        "..w..55..w..", ".W...55...W.", "..w..55..w..", ".....55.....", 
         "...UIxxz....", "..jIxxzzzz..", ".UIxxzzzzx..", "jIIxxzzzzzI.", "IIxxzzzzzzI.",
         ".IxxxzzzxI..", ".IxxzzCCzz..", "..xCzzzI....", 
         "...Ubbbk....", "..jIbbbbkk..", ".jIIbbbbkk..", ".jIxbbkkzz..", "..Ixbkkz....", 
@@ -1465,14 +1466,13 @@ function drawYakitoriSolidShadow(ctx, x, y, spriteArray, offsetX, offsetY) {
 }
 
 function drawYakitoriOutline(ctx, x, y, spriteArray, offsetX, offsetY, color) {
-    if (color === undefined) color = "rgba(4, 2, 2, 0.95)";
-    ctx.fillStyle = color;
+    ctx.fillStyle = "rgba(26, 12, 8, 0.85)";
     const u = 4;
     for (let row = 0; row < spriteArray.length; row++) {
         const line = spriteArray[row];
         for (let col = 0; col < line.length; col++) {
             const c = line[col];
-            if (c !== "." && c !== "W" && c !== "w" && YAKITORI_PALETTE[c]) {
+            if (c !== "." && c !== "W" && c !== "w" && c !== "5" && c !== "6" && YAKITORI_PALETTE[c]) {
                 const px = Math.floor(x) + (col + offsetX) * u;
                 const py = Math.floor(y) + (row + offsetY) * u;
                 ctx.fillRect(px - u, py, u, u);
@@ -1483,6 +1483,7 @@ function drawYakitoriOutline(ctx, x, y, spriteArray, offsetX, offsetY, color) {
         }
     }
 }
+
 
 function drawYakitoriSilhouette(ctx, x, y, spriteArray, offsetX, offsetY, color) {
     ctx.fillStyle = color;
