@@ -1282,7 +1282,7 @@ const YAKITORI_SKEWER_SPRITES = {
         ".....55.....", ".....55.....", ".....55.....", ".....55.....", 
         "..Ppppppp...", ".Pppqqqqqqq.", ".pqqqqqqqqQ.", "pqqqqqqqqqqQ", "qqqqqqqqqQQ.",
         ".qqqqqqqqqQ.", ".qqqqqqQQQQ.", "..qQQQQQ....", 
-        "...Eeeef....", "..EEEeeeff..", "..eEEeeeff..", "..eeEeeeff..", "...eeffff...", 
+        "...Eeeeff...", "..EEEeeeff..", "..eEEeeeff..", "..eeEeeeff..", "...eeffff...", 
         "..Ppppppp...", ".Pppqqqqqq..", "pqqqqqqqqqQ.", "pqqqqqqqqqqQ", ".qqqqqqqqqQQ", 
         ".qqqqqqQQQQ.", "..qqqQQQQQ..", "...qQQQQ....", 
         ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", 
