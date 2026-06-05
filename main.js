@@ -1278,16 +1278,39 @@ const YAKITORI_COAL_PATTERNS = {
 };
 // [END_PATCH]
 const YAKITORI_SKEWER_SPRITES = {
-    raw: [
-        ".....55.....", ".....55.....", ".....55.....", ".....55.....", 
-        "..Ppppppp...", ".Pppqqqqqqq.", ".pqqqqqqqqQ.", "pqqqqqqqqqqQ", "qqqqqqqqqQQ.",
-        ".qqqqqqqQ...", ".qqqqqqQQQQ.", "..qQQQQQQ...", 
-        "...Eeeeff...", "..EEEeeeff..", "..eEEeeeff..", "..eeEeeeff..", "...eeffff...", 
-        "..Ppppppp...", ".Pppqqqqqq..", "pqqqqqqqqqQ.", "pqqqqqqqqqqQ", ".qqqqqqqqqQQ", 
-        ".qqqqqqQQQQ.", "..qqqQQQQQ..", "...qQQQQ....", 
-        ".....55.....", ".....55.....", ".....55.....", ".....55.....", ".....55.....", 
-        ".....55.....", ".....55.....", ".....66.....", ".....66....."  
-    ],
+raw: [
+    ".....55.....", ".....55.....", ".....55.....", ".....55.....",
+
+    // 上の肉(少し小さめ)
+    "..Pppppp...",
+    ".Pppqqqqqq.",
+    ".pqqqqqqqqQ.",
+    "pqqqqqqqqqQ.",
+    ".qqqqqqqqQQ.",
+    ".qqqqqqQQQ..",
+    "..qqqQQQQ...",
+    "...qQQQ.....",
+
+    // ねぎ
+    "...Eeeeff...",
+    "..EEEeeeff..",
+    "..eEEeeeff..",
+    "..eeEeeeff..",
+    "...eeffff...",
+
+    // 下の肉(今の大きめ感を維持)
+    "..Ppppppp...",
+    ".Pppqqqqqqq.",
+    "pqqqqqqqqqQ.",
+    "pqqqqqqqqqqQ",
+    ".qqqqqqqqqQQ",
+    ".qqqqqqQQQQ.",
+    "..qqqQQQQQ..",
+    "...qQQQQ....",
+
+    ".....55.....", ".....55.....", ".....55.....", ".....55.....",
+    ".....55.....", ".....55.....", ".....55.....", ".....66.....", ".....66....."
+],
     cooked: [
         ".....55.....", "....W55.....", "...w.55.w...", ".....55.....", 
         "...HHLLMM...", ".HHLMMMMDC..", "LHLMMMMDDC..", "LLMMMMMDDDC.", "MMMMMMMDDDC.", 
