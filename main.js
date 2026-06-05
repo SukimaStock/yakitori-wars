@@ -452,11 +452,8 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
     const stickTop = b.y + b.h * 0.1;
-    // 肉の中心付近
     const meatCenterY = stickTop + (b.h * 0.7) * 0.3;
-    
     if (status === "burnt") {
-        // 暗い茶色の小さい焦げカスを少量
         const numCrumbs = 2 + Math.floor(amount / 2);
         for (let i = 0; i < numCrumbs; i++) {
             state.visuals.particles.push({
@@ -474,61 +471,56 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         return;
     }
 
-    // 肉の上下（2箇所）を発生源として、串全体から湯気が出るようにする
     const steamSources = [
         { x: laneCx, y: meatCenterY - 18 },
         { x: laneCx, y: meatCenterY + 16 }
     ];
-
     const spawnBurst = function(burstIndex) {
-        // 1. もわっと立ち上がる美味しそうな薄い湯気の塊（主役）
-        const numLargeSteam = 3 + Math.floor(Math.random() * 3); // 3〜5個
+        const numLargeSteam = 5 + Math.floor(Math.random() * 4);
         for (let i = 0; i < numLargeSteam; i++) {
             const src = steamSources[Math.floor(Math.random() * steamSources.length)];
             state.visuals.particles.push({
-                x: src.x + (Math.random() - 0.5) * 40, // 横に広く（±20px）
+                x: src.x + (Math.random() - 0.5) * 40, 
                 y: src.y + (Math.random() - 0.5) * 16,  
-                vx: (Math.random() - 0.5) * 0.4, // 横への広がりを少し強める
-                vy: -0.15 - Math.random() * 0.25, // 上昇は遅め           
-                life: 0, maxLife: 45 + Math.random() * 25, // 寿命（45〜70）
-                size: 10 + Math.random() * 8, // 大きな塊（10〜18）
-                color: Math.random() > 0.5 ? "#f0ebe1" : "#e6e0d3", // 薄いベージュ〜白
-                baseAlpha: 0.25 + Math.random() * 0.1, // 0.25〜0.35の透明度
+                vx: (Math.random() - 0.5) * 0.5, 
+                vy: -0.2 - Math.random() * 0.3, 
+                life: 0, maxLife: 40 + Math.random() * 30, 
+                size: 6 + Math.random() * 6, 
+                color: Math.random() > 0.5 ? "#f0ebe1" : "#e6e0d3", 
+                baseAlpha: 0.35 + Math.random() * 0.15, 
                 isSteam: true,
-                isLargeSteam: true // 膨らませるためのフラグ
+                isLargeSteam: true 
             });
         }
 
-        // 2. 補助的な小さい白湯気（少しだけ）
-        const numSteam = 1 + Math.floor(amount / 2);
+        const numSteam = 2 + Math.floor(amount);
         for (let i = 0; i < numSteam; i++) {
             const src = steamSources[Math.floor(Math.random() * steamSources.length)];
             state.visuals.particles.push({
-                x: src.x + (Math.random() - 0.5) * 24, 
+                x: src.x + (Math.random() - 0.5) * 30, 
                 y: src.y + (Math.random() - 0.5) * 16,  
-                vx: (Math.random() - 0.5) * 0.1, 
-                vy: -0.4 - Math.random() * 0.3,             
-                life: 0, maxLife: 15 + Math.random() * 10, 
+                vx: (Math.random() - 0.5) * 0.2, 
+                vy: -0.5 - Math.random() * 0.4,        
+                life: 0, maxLife: 20 + Math.random() * 15, 
                 size: 2 + Math.random() * 2, 
                 color: "#e8e4d8",
-                baseAlpha: 0.6,
+                baseAlpha: 0.7,
                 isSteam: true
             });
         }
         
-        // 3. 脂のはぜる小粒（最初の1回だけごく少量出す）
         if (burstIndex === 0) {
-            const sizzleCount = 1 + Math.floor(Math.random() * 2); // 1〜2個
+            const sizzleCount = 2 + Math.floor(Math.random() * 3);
             for (let i = 0; i < sizzleCount; i++) {
                 const src = steamSources[Math.floor(Math.random() * steamSources.length)];
                 state.visuals.particles.push({
-                    x: src.x + (Math.random() - 0.5) * 16, 
-                    y: src.y + (Math.random() - 0.5) * 12,  
-                    vx: (Math.random() - 0.5) * 0.3, 
-                    vy: -0.8 - Math.random() * 0.4,             
-                    life: 0, maxLife: 10 + Math.random() * 5, 
-                    size: 1 + Math.random() * 1, 
-                    color: Math.random() > 0.5 ? "#d88a30" : "#d8a840", 
+                    x: src.x + (Math.random() - 0.5) * 20, 
+                    y: src.y + (Math.random() - 0.5) * 16,  
+                    vx: (Math.random() - 0.5) * 0.5, 
+                    vy: -1.0 - Math.random() * 0.6,             
+                    life: 0, maxLife: 12 + Math.random() * 8, 
+                    size: 1.5 + Math.random() * 1.5, 
+                    color: Math.random() > 0.5 ? "#ffcc55" : "#ffaa33", 
                     baseAlpha: 1.0,
                     isSizzle: true
                 });
@@ -536,11 +528,11 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
         }
     };
 
-    // 焼ける瞬間に、短時間で3回に分けて湯気を出す
     spawnBurst(0);
     setTimeout(function() { spawnBurst(1); }, 100);
     setTimeout(function() { spawnBurst(2); }, 200);
 }
+
 
 function spawnPerfectPopEffect(laneIndex) {
     const b = getLaneBounds(laneIndex);
@@ -2069,30 +2061,33 @@ function drawGameScreen(ctx) {
             hoverGlow = 0.20 + 0.20 * Math.sin(now / 220 + i * 11);
         }
 
-        if (cookFlashAlpha > 0 || hoverGlow > 0) {
-            const heatFactor = lane.type === "strong" ? 0.8 : (lane.type === "medium" ? 0.5 : 0.3);
-            const totalAlpha = Math.min(1.0, cookFlashAlpha + hoverGlow);
-            ctx.fillStyle = "rgba(200, 60, 10, " + (totalAlpha * heatFactor * 0.7) + ")";
+        const heat = getBaseHeat(lane.type);
+        const breathPhase = now / (1000 - heat * 100) + i; 
+        const breathGlow = (Math.sin(breathPhase) * 0.5 + 0.5) * 0.25; 
+        const heatFactor = lane.type === "strong" ? 1.0 : (lane.type === "medium" ? 0.7 : 0.4);
+        
+        const totalAlpha = Math.min(1.0, cookFlashAlpha + hoverGlow + breathGlow);
+        if (totalAlpha > 0) {
+            ctx.fillStyle = "rgba(220, 60, 10, " + (totalAlpha * heatFactor * 0.6) + ")";
             ctx.fillRect(info.gx + 6 * YAKITORI_PIXEL_UNIT, info.gy + 22 * YAKITORI_PIXEL_UNIT, 20 * YAKITORI_PIXEL_UNIT, 12 * YAKITORI_PIXEL_UNIT);
         }
 
-        if (lane.type === "strong" || lane.type === "medium") {
-            let glowSin = Math.sin(now / 500 + i * 13);
-            if (info.isFlashable) {
-                glowSin = Math.max(glowSin, Math.sin(now / 200 + i * 13));
-            }
-            if (glowSin > 0) {
-                ctx.fillStyle = lane.type === "strong" ?
-                    "rgba(216, 90, 16, " + (glowSin * 0.5) + ")" : "rgba(168, 74, 16, " + (glowSin * 0.5) + ")";
-                const dotX = info.gx + (lane.type === "strong" ? 14 : 12) * YAKITORI_PIXEL_UNIT;
-                const dotY = info.gy + 26 * YAKITORI_PIXEL_UNIT;
-                ctx.fillRect(dotX, dotY, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
-                if (lane.type === "strong") {
-                    ctx.fillRect(info.gx + 20 * YAKITORI_PIXEL_UNIT, info.gy + 27 * YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT, YAKITORI_PIXEL_UNIT);
-                }
-            }
-        }
         drawYakitoriSpriteMap(ctx, info.gx, info.gy, YAKITORI_GRILL_PARTS.net);
+
+        if (Math.random() < 0.02 * heat) { 
+            state.visuals.particles.push({
+                x: info.laneCx + (Math.random() - 0.5) * 30,
+                y: info.gy + 30 * YAKITORI_PIXEL_UNIT + (Math.random() - 0.5) * 10,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: -0.5 - Math.random() * 1.0,
+                life: 0,
+                maxLife: 20 + Math.random() * 20,
+                size: 1.5 + Math.random() * 1.5,
+                color: Math.random() > 0.5 ? "#ffaa33" : "#ff5511",
+                isEmber: true
+            });
+        }
+
         let cv = 0, uchiwaDotIndex = -1, uchiwaPreviewNextCv = 0, baseEndHeatCv = Math.min(6, info.baseEndState);
         if (lane.built) {
             cv = Math.min(info.gaugeCookState || 0, 6);
@@ -2107,7 +2102,17 @@ function drawGameScreen(ctx) {
         let fireSwayX = 0;
         if (uchiwaTime && now - uchiwaTime < 800) fireSwayX = Math.sin(now / 40) * 2 * (1 - ((now - uchiwaTime) / 800));
         const fireScale = 2.5, fireSize = 8 * fireScale, totalFireW = (fireSize * lane.fire) + (4 * (lane.fire - 1)), startFireX = info.laneCx - totalFireW / 2 + fireSize / 2;
-        for (let f = 0; f < lane.fire; f++) drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, info.b.y + info.b.h + 40, "#fa3", fireScale);
+        
+        for (let f = 0; f < lane.fire; f++) {
+            const phase = now / (800 + f * 150 + i * 100);
+            const flicker = Math.sin(phase) * 0.5 + Math.sin(phase * 1.5 + f) * 0.5;
+            let fireColor = "#ffaa33";
+            if (flicker > 0.4) fireColor = "#ffcc66"; 
+            else if (flicker < -0.4) fireColor = "#dd6622"; 
+            
+            drawDotIcon(ctx, "fire", startFireX + f * (fireSize + 4) + fireSwayX, info.b.y + info.b.h + 40, fireColor, fireScale);
+        }
+        
         if (lane.uchiwaBoost > 0) { ctx.globalAlpha = 0.6; drawDotIcon(ctx, "fire", info.b.x + info.b.w - 18, info.b.y + info.b.h - 18, "#f85", 2);
         ctx.globalAlpha = 1.0; }
     });
@@ -2542,6 +2547,7 @@ function drawGameScreen(ctx) {
 
 
 
+
 function shouldShowActionButtons() {
     if (state.screen !== "game") return false;
     if (state.gameOver) return false;
@@ -2635,7 +2641,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             p.vy += 0.15;
         }
         if (p.isTitleSpark) {
-            p.vx += (Math.random() - 0.5) * 0.2; 
+            p.vx += (Math.random() - 0.5) * 0.2;
         }
         
         p.x += p.vx;
@@ -2659,13 +2665,24 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
             
-            let s = p.size;
             if (p.isLargeSteam) {
-                s = Math.floor(p.size * (1 + ratio * 0.8));
+                const coreS = 2 + Math.floor(ratio * 2); 
+                const spread = p.size * ratio; 
+                const px = Math.floor(p.x);
+                const py = Math.floor(p.y);
+                
+                ctx.fillRect(px - coreS/2, py - coreS/2, coreS, coreS);
+                
+                ctx.globalAlpha = baseA * (1 - ratio) * 0.6;
+                const subS = Math.max(1, coreS - 1);
+                ctx.fillRect(Math.floor(px - spread), Math.floor(py - spread*0.5), subS, subS);
+                ctx.fillRect(Math.floor(px + spread), Math.floor(py + spread*0.5), subS, subS);
+                ctx.fillRect(Math.floor(px - spread*0.5), Math.floor(py + spread), subS, subS);
+                ctx.fillRect(Math.floor(px + spread*0.5), Math.floor(py - spread), subS, subS);
             } else {
-                s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
+                const s = Math.max(2, Math.floor(p.size * (1 + ratio * 0.5)));
+                ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
             }
-            ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isAroma) {
             const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 0.8;
             ctx.globalAlpha = baseA * (1 - ratio);
@@ -2684,6 +2701,11 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillStyle = p.color;
             const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
+        } else if (p.isEmber) {
+            ctx.globalAlpha = 1 - ratio;
+            ctx.fillStyle = p.color;
+            const s = Math.max(1, Math.floor(p.size));
+            ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isTitleSpark) {
             const alpha = Math.min(1, 1.5 * (1 - ratio));
             ctx.globalAlpha = 1.0; 
@@ -2697,7 +2719,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
     ctx.globalAlpha = 1.0;
-
     if (state.buildMode) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
         if (selectedIcon) { 
@@ -2732,20 +2753,17 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 
                 let baseColor = tagColors[i];
  
-        
                 if (isError) {
                     baseColor = "#7a3b3b";
                 } else if (!canUse || isLocked) {
                     baseColor = "#4a4642"; 
                 }
 
-       
                 let btnAlpha = 1.0; 
                 let harvestBreatheAlpha = 0;
         
                 if (boxId === 3 && canUse && !isLocked && state.buildMode === null) 
                 { 
-               
                     const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
                     baseColor = brightenColor(tagColors[i], isPerfect ? 0.2 : 0.0);
                     harvestBreatheAlpha = isPerfect ?
@@ -2788,6 +2806,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
