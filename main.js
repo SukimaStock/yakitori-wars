@@ -1282,14 +1282,15 @@ raw: [
     ".....55.....", ".....55.....", ".....55.....", ".....55.....",
 
     // 上の肉(少し小さめ)
-    "..Pppppp...",
-    ".Pppqqqqqq.",
-    ".pqqqqqqqqQ.",
-    "pqqqqqqqqqQ.",
-    ".qqqqqqqqQQ.",
-    ".qqqqqqQQQ..",
-    "..qqqQQQQ...",
-    "...qQQQ.....",
+// 上の肉:少し小さめだが、削れ感を減らす版
+"..Pppppp...",
+".Pppqqqqqq.",
+".pqqqqqqqqQ.",
+"pqqqqqqqqqQQ",
+".qqqqqqqqQQ.",
+".qqqqqQQQ...",
+"..qqQQQQ....",
+"...qQQQ.....",
 
     // ねぎ
     "...Eeeeff...",
