@@ -223,7 +223,7 @@ const SynthSfx = {
 
         this.ctx = new AudioContext();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.40;
+        this.masterGain.gain.value = 0.70;
         this.masterGain.connect(this.ctx.destination);
     },
 
