@@ -75,7 +75,9 @@ const SoundManager = {
         harvest: "harvest.wav",
         perfect: "perfect.wav",
         burnt: "burnt.wav",
-        perfectServe: "harvest_perfect.wav"
+        perfectServe: "harvest_perfect.wav",
+        uchiwa: "uchiwa.wav",
+        undercooked: "undercooked.wav"
     },
 
     volumes: {
@@ -84,7 +86,9 @@ const SoundManager = {
         harvest: 0.22,
         perfect: 0.24,
         burnt: 0.20,
-        perfectServe: 0.26
+        perfectServe: 0.26,
+        uchiwa: 0.24,
+        undercooked: 0.24
     },
 
     cooldowns: {
@@ -93,7 +97,9 @@ const SoundManager = {
         harvest: 100,
         perfect: 100,
         burnt: 100,
-        perfectServe: 100
+        perfectServe: 100,
+        uchiwa: 100,
+        undercooked: 100
     },
 
     lastPlayed: {},
@@ -200,6 +206,7 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
 
 const SynthSfx = {
     ctx: null,
