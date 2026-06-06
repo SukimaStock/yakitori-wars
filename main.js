@@ -62,97 +62,6 @@ function getPixelFont(size) { return `${size}px 'Press Start 2P', monospace`; }
 // ==========================================
 // 1.5. game/audio.js - 音声システム
 // ==========================================
-const audioSys = {
-    ctx: null, 
-    masterGain: null, 
-    unlocked: false, 
-    lastPlayed: {}, 
-    masterVolume: 0.6 
-};
-function initAudio() {
-    if (audioSys.ctx) return;
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    try {
-        audioSys.ctx = new AudioContext();
-        audioSys.masterGain = audioSys.ctx.createGain();
-        audioSys.masterGain.gain.value = audioSys.masterVolume;
-        audioSys.masterGain.connect(audioSys.ctx.destination);
-    } catch (e) { 
-        console.warn("Web Audio API がサポートされていません", e);
-    }
-}
-
-function initDebugMode() {
-    // 視認性確認が完了したため、モノクロテスト用のデバッグモードは削除しました
-}
-
-initDebugMode();
-
-
-async function unlockAudio() {
-    if (audioSys.unlocked) return;
-    initAudio();
-    if (!audioSys.ctx) return;
-    try {
-        if (audioSys.ctx.state === "suspended") await audioSys.ctx.resume();
-        const t = audioSys.ctx.currentTime;
-        const osc = audioSys.ctx.createOscillator();
-        const gain = audioSys.ctx.createGain();
-        gain.gain.setValueAtTime(0.001, t);
-        osc.frequency.setValueAtTime(440, t);
-        osc.connect(gain);
-        gain.connect(audioSys.masterGain);
-        osc.start(t);
-        osc.stop(t + 0.03);
-        audioSys.unlocked = true;
-    } catch (e) {
-        console.warn("audio unlock failed", e);
-    }
-}
-
-function playTone(freq, duration, type = 'sine', vol = 1.0, freqSlide = 0) {
-    if (!audioSys.ctx || audioSys.ctx.state !== 'running') return;
-    const t = audioSys.ctx.currentTime, osc = audioSys.ctx.createOscillator(), gain = audioSys.ctx.createGain();
-    osc.type = type; osc.frequency.setValueAtTime(freq, t);
-    if (freqSlide !== 0) osc.frequency.exponentialRampToValueAtTime(freq + freqSlide, t + duration);
-    gain.gain.setValueAtTime(vol, t); gain.gain.exponentialRampToValueAtTime(0.01, t + duration);
-    osc.connect(gain); gain.connect(audioSys.masterGain);
-    osc.start(t);
-    osc.stop(t + duration);
-}
-
-function playNoise(duration, vol = 1.0, filterFreq = 1000) {
-    if (!audioSys.ctx || audioSys.ctx.state !== 'running') return;
-    const t = audioSys.ctx.currentTime, bufferSize = audioSys.ctx.sampleRate * duration;
-    const buffer = audioSys.ctx.createBuffer(1, bufferSize, audioSys.ctx.sampleRate), data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-    const noise = audioSys.ctx.createBufferSource();
-    noise.buffer = buffer;
-    const filter = audioSys.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = filterFreq;
-    const gain = audioSys.ctx.createGain(); gain.gain.setValueAtTime(vol, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + duration);
-    noise.connect(filter); filter.connect(gain); gain.connect(audioSys.masterGain);
-    noise.start(t);
-}
-
-function playSound(name) {
-    if (!audioSys.ctx || !audioSys.unlocked) return;
-    const now = Date.now();
-    if (audioSys.lastPlayed[name] && now - audioSys.lastPlayed[name] < 50) return;
-    audioSys.lastPlayed[name] = now;
-    switch (name) {
-        case "meat_plus": playTone(800, 0.08, 'sine', 0.4); break;
-        case "meat_minus": playTone(400, 0.08, 'sine', 0.4); break;
-        case "put_skewer": playNoise(0.05, 0.3, 2000); playTone(600, 0.05, 'triangle', 0.2); break;
-        case "sizzle": playNoise(0.12, 0.25, 1500); break;
-        case "perfect": playTone(880, 0.1, 'triangle', 0.5); setTimeout(() => playTone(1318, 0.15, 'triangle', 0.5), 60); break;
-        case "burnt": playNoise(0.2, 0.5, 400); playTone(150, 0.2, 'square', 0.3, -50); break;
-        case "uchiwa": playNoise(0.15, 0.4, 800); break;
-        case "score": playTone(600, 0.15, 'sine', 0.4, 300); break;
-        case "error": playTone(180, 0.1, 'square', 0.3); break;
-    }
-}
 
 const SoundManager = {
     enabled: localStorage.getItem("yakitoriSoundEnabled") !== "false",
@@ -908,14 +817,14 @@ function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
     if (boxId === 1) { 
         p.resources += 1;
-        playSound("meat_plus");
         const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
         const px = state.currentPlayer === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
         const py = 15 + 95 + 10;
-        state.visuals.statusMessages.push({ type: "meat", amount: 1, player: state.currentPlayer, x: px, y: py, startTime: performance.now(), duration: 800 }); consumeWorker();
+        state.visuals.statusMessages.push({ type: "meat", amount: 1, player: state.currentPlayer, x: px, y: py, startTime: performance.now(), duration: 800 });
+        consumeWorker();
     } else {
         state.isBusy = true;
-        setTimeout(() => {
+        setTimeout(function() {
             if (boxId === 2 && p.resources >= 1) { state.buildMode = "sapling"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
             else if (boxId === 3) { state.buildMode = "harvest"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
             else if (boxId === 4) { state.buildMode = "uchiwa"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
@@ -925,11 +834,11 @@ function placeWorker(boxId) {
 }
 
 
+
 function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
     if (p.resources >= 1 && !node.built) {
         p.resources -= 1;
-        playSound("meat_minus");
         const b = getLaneBounds(state.lanes.indexOf(node));
         state.visuals.statusMessages.push({ type: "meat", amount: -1, player: state.currentPlayer, x: b.x + b.w / 2, y: b.y + b.h / 2, startTime: performance.now(), duration: 800 });
         node.built = true; node.owner = state.currentPlayer;
@@ -938,6 +847,7 @@ function tryBuildNode(node) {
         state.visuals.placedAt[node.id] = performance.now(); consumeWorker();
     }
 }
+
 
 
 function tryHarvestNode(node) {
@@ -954,13 +864,11 @@ function tryHarvestNode(node) {
         if (status !== "burnt") {
             if (p.resources < 1) return;
             p.resources -= 1;
-            playSound("meat_minus"); 
             state.visuals.statusMessages.push({ type: "meat", amount: -1, player: state.currentPlayer, x: msgX, y: meatMsgY, startTime: performance.now(), duration: 800, isSteal: true });
             if (stolenFrom !== null && state.players[stolenFrom - 1]) {
                 state.players[stolenFrom - 1].resources += 1;
                 const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
-                const stolenPx = stolenFrom === 1 ?
-10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
+                const stolenPx = stolenFrom === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
                 state.visuals.statusMessages.push({ type: "meat", amount: 1, player: stolenFrom, x: stolenPx, y: 15 + 95 + 10, startTime: performance.now() + 150, duration: 800, isSteal: true });
             }
             state.hitStopTimer = 4;
@@ -969,7 +877,7 @@ function tryHarvestNode(node) {
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
     if (status === "perfect") SoundManager.play("perfect");
     else if (status === "burnt") SoundManager.play("burnt");
-    else if (scoreGained > 0) playSound("score");
+    
     if (status === "perfect") p.stats.perfect++; if (status === "burnt") p.stats.burnt++; if (isSteal && scoreGained > 0) p.stats.steal++;
     let isBonus = false; let bonusText = "";
     const order = state.todaysOrder ? state.todaysOrder.id : null;
@@ -1010,10 +918,10 @@ bonusText = "ORDER!"; }
 
 
 
+
 function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1;
-        playSound("uchiwa"); 
         const laneIndex = state.lanes.indexOf(node);
         const b = getLaneBounds(laneIndex);
         state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now(), duration: 800, x: b.x + b.w/2, y: b.y + b.h*0.2 });
@@ -1021,6 +929,7 @@ function tryUchiwaNode(node) {
         consumeWorker();
     }
 }
+
 function isNodeValidForMode(node, mode) {
     if (!node) return false;
     if (mode === "sapling") return !node.built;
@@ -1040,7 +949,6 @@ function isInputLocked() {
         state.turnSplashTimer > 0 || state.aiBreathTimer > 0 || state.gameOver || state.players[cp - 1].workersRemaining <= 0 || isAIPlayer(cp);
 }
 function handleCanvasClick(event, canvas) {
-    unlockAudio(); 
     const rect = canvas.getBoundingClientRect(), x = event.clientX - rect.left, y = event.clientY - rect.top;
     if (state.screen === "title") {
         if (state.isBusy || (state.transition && state.transition.active)) return;
@@ -1117,13 +1025,13 @@ function handleCanvasClick(event, canvas) {
                 if (reason) { 
                     state.visuals.statusMessages.push({ type: "hint", text: reason, startTime: performance.now(), duration: 800, x: b.x + b.w/2, y: b.y - 15 });
                     state.visuals.buttonErrors[i] = performance.now(); 
-                    playSound("error"); 
                 }
             }
             return;
         }
     }
 }
+
 
 
 
