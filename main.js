@@ -69,42 +69,27 @@ const SoundManager = {
     sounds: {},
 
     files: {
-        tap: "tap.wav",
         place: "place.wav",
         sizzle: "sizzle.wav",
+        harvest: "harvest.wav",
         perfect: "perfect.wav",
-        burnt: "burnt.wav",
-        title: "title.wav",
-        roulette: "roulette.wav",
-        order: "order.wav",
-        meat: "meat.wav",
-        harvest: "harvest.wav"
+        burnt: "burnt.wav"
     },
 
     volumes: {
-        tap: 0.35,
         place: 0.45,
         sizzle: 0.30,
+        harvest: 0.45,
         perfect: 0.50,
-        burnt: 0.35,
-        title: 0.45,
-        roulette: 0.25,
-        order: 0.40,
-        meat: 0.35,
-        harvest: 0.45
+        burnt: 0.35
     },
 
     cooldowns: {
-        tap: 100,
         place: 100,
         sizzle: 120,
+        harvest: 100,
         perfect: 100,
-        burnt: 100,
-        title: 100,
-        roulette: 40,
-        order: 100,
-        meat: 100,
-        harvest: 100
+        burnt: 100
     },
 
     lastPlayed: {},
@@ -128,7 +113,6 @@ const SoundManager = {
             const audio = this.sounds[key];
 
             try {
-                // 極小音量ではなく、完全にミュートにしてテスト再生します
                 audio.muted = true;
                 audio.currentTime = 0;
 
@@ -138,7 +122,7 @@ const SoundManager = {
                     p.then(function() {
                         audio.pause();
                         audio.currentTime = 0;
-                        audio.muted = false; // ミュートを解除
+                        audio.muted = false;
                     }).catch(function() {
                         audio.muted = false;
                     });
@@ -179,6 +163,147 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
+const SynthSfx = {
+    ctx: null,
+    masterGain: null,
+    unlocked: false,
+    enabled: true,
+    lastPlayed: {},
+
+    init: function() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext || this.ctx) return;
+
+        this.ctx = new AudioContext();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.18;
+        this.masterGain.connect(this.ctx.destination);
+    },
+
+    unlock: function() {
+        this.init();
+        if (!this.ctx) return;
+
+        if (this.ctx.state === "suspended") {
+            this.ctx.resume();
+        }
+
+        this.unlocked = true;
+    },
+
+    play: function(name) {
+        if (!this.enabled) return;
+        this.unlock();
+        if (!this.ctx || !this.unlocked) return;
+
+        const now = Date.now();
+        const cooldowns = {
+            tap: 80,
+            title: 150,
+            roulette: 35,
+            order: 150,
+            meat: 120
+        };
+        const cooldown = cooldowns[name] || 80;
+
+        if (this.lastPlayed[name] && now - this.lastPlayed[name] < cooldown) return;
+        this.lastPlayed[name] = now;
+
+        const self = this;
+        switch (name) {
+            case "tap":
+                this.tone(520, 0.035, "square", 0.10);
+                break;
+
+            case "title":
+                this.tone(420, 0.05, "square", 0.12);
+                setTimeout(function() { self.tone(720, 0.08, "square", 0.10); }, 45);
+                break;
+
+            case "roulette":
+                this.tone(880, 0.025, "square", 0.07);
+                break;
+
+            case "order":
+                this.noise(0.07, 0.08, 2500);
+                setTimeout(function() { self.tone(980, 0.04, "triangle", 0.06); }, 20);
+                break;
+
+            case "meat":
+                this.tone(360, 0.045, "triangle", 0.09);
+                setTimeout(function() { self.tone(540, 0.05, "triangle", 0.08); }, 35);
+                break;
+        }
+    },
+
+    tone: function(freq, duration, type, vol) {
+        if (!this.ctx || !this.masterGain) return;
+
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = type || "sine";
+        osc.frequency.setValueAtTime(freq, t);
+
+        gain.gain.setValueAtTime(vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.start(t);
+        osc.stop(t + duration);
+    },
+
+    noise: function(duration, vol, filterFreq) {
+        if (!this.ctx || !this.masterGain) return;
+
+        const t = this.ctx.currentTime;
+        const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = "highpass";
+        filter.frequency.value = filterFreq || 1800;
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+
+        noise.start(t);
+        noise.stop(t + duration);
+    }
+};
+
+SoundManager.init();
+
+function unlockSoundOnce() {
+    SoundManager.unlock();
+    SynthSfx.unlock();
+
+    window.removeEventListener("pointerdown", unlockSoundOnce);
+    window.removeEventListener("touchstart", unlockSoundOnce);
+    window.removeEventListener("click", unlockSoundOnce);
+}
+
+window.addEventListener("pointerdown", unlockSoundOnce);
+window.addEventListener("touchstart", unlockSoundOnce);
+window.addEventListener("click", unlockSoundOnce);
+
 
 
 SoundManager.init();
@@ -365,7 +490,7 @@ function updateIntroSequence() {
             } else {
                 state.introPhase = "order";
                 state.introOrderTimer = 120;
-                SoundManager.play("order");
+                SynthSfx.play("order");
             }
         }
     } else if (state.introPhase === "order") {
@@ -384,6 +509,7 @@ function updateIntroSequence() {
         }
     }
 }
+
 
 
 function updateGameEndWait() {
@@ -787,7 +913,7 @@ function updateRoulette() {
         if (state.startRouletteTickTimer <= 0) {
             state.startRouletteIndex = 3 - state.startRouletteIndex;
             state.startRouletteCount++;
-            SoundManager.play("roulette");
+            SynthSfx.play("roulette");
             state.startRouletteInterval *= 1.12; state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
             if (state.startRouletteCount >= state.startRouletteMaxCount) {
                 state.startRouletteActive = false;
@@ -808,6 +934,7 @@ function updateRoulette() {
         }
     }
 }
+
 
 
 function hasActiveImportantMessage() {
@@ -915,7 +1042,7 @@ function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
     if (boxId === 1) { 
         p.resources += 1;
-        SoundManager.play("meat");
+        SynthSfx.play("meat");
         const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
         const px = state.currentPlayer === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
         const py = 15 + 95 + 10;
@@ -931,6 +1058,7 @@ function placeWorker(boxId) {
         }, 150);
     }
 }
+
 
 
 
@@ -1026,6 +1154,7 @@ bonusText = "ORDER!"; }
 
 
 
+
 function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1;
@@ -1065,23 +1194,23 @@ function handleCanvasClick(event, canvas) {
         const btnPvp = { x: cx - btnW/2, y: btnStartY + gapY, w: btnW, h: btnH };
         if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) { 
             state.visuals.titleClick = "ai";
-            SoundManager.play("title");
+            SynthSfx.play("title");
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "ai" };
         } 
         else if (x >= btnPvp.x && x <= btnPvp.x + btnPvp.w && y >= btnPvp.y && y <= btnPvp.y + btnPvp.h) { 
             state.visuals.titleClick = "pvp";
-            SoundManager.play("title");
+            SynthSfx.play("title");
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "pvp" };
         }
         return;
     } else if (state.screen === "clear") {
         if (state.resultScreenTimer < 300) return;
-        SoundManager.play("tap");
+        SynthSfx.play("tap");
         initGameState(); return;
     } else if (state.screen === "gameover" || state.screen === "stage_clear") {
         if (state.resultScreenTimer < 55) return;
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
-        SoundManager.play("tap");
+        SynthSfx.play("tap");
         if (state.screen === "stage_clear") {
             const retryY = cy + 135 + 30;
             if (y >= retryY - 15 && y <= retryY + 15) retryStage(); else nextStage();
@@ -1099,7 +1228,7 @@ function handleCanvasClick(event, canvas) {
         const cb = getCancelButtonBounds();
         if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
             state.visuals.cancelClick = performance.now();
-            SoundManager.play("tap");
+            SynthSfx.play("tap");
             state.isBusy = true;
             setTimeout(function() { state.buildMode = null; state.pendingBox = null; state.isBusy = false; }, 150); return;
         }
@@ -1123,7 +1252,7 @@ function handleCanvasClick(event, canvas) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer); if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer);
             if (canUse) { state.visuals.buttonClicks[i] = performance.now();
-                SoundManager.play("tap");
+                SynthSfx.play("tap");
                 placeWorker(boxId); } 
             else if (!isInputLocked()) {
                 let reason = "";
@@ -1138,6 +1267,7 @@ function handleCanvasClick(event, canvas) {
         }
     }
 }
+
 
 
 
