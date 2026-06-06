@@ -66,14 +66,14 @@ function getPixelFont(size) { return `${size}px 'Press Start 2P', monospace`; }
 const SoundManager = {
     enabled: localStorage.getItem("yakitoriSoundEnabled") !== "false",
     unlocked: false,
-    ready: false,
+    sounds: {},
 
     files: {
-        tap: "assets/sounds/tap.wav",
-        place: "assets/sounds/place.wav",
-        sizzle: "assets/sounds/sizzle.wav",
-        perfect: "assets/sounds/perfect.wav",
-        burnt: "assets/sounds/burnt.wav"
+        tap: "tap.wav",
+        place: "place.wav",
+        sizzle: "sizzle.wav",
+        perfect: "perfect.wav",
+        burnt: "burnt.wav"
     },
 
     volumes: {
@@ -84,112 +84,63 @@ const SoundManager = {
         burnt: 0.35
     },
 
-    pools: {},
-    poolIndex: {},
-    poolSize: 3,
     lastPlayed: {},
 
     init: function() {
-        let loadedCount = 0;
-        const total = Object.keys(this.files).length * this.poolSize;
-
         for (const key in this.files) {
-            this.pools[key] = [];
-            this.poolIndex[key] = 0;
-
-            for (let i = 0; i < this.poolSize; i++) {
-                const audio = new Audio(this.files[key]);
-                audio.volume = this.volumes[key];
-                audio.preload = "auto";
-
-                audio.addEventListener("loadeddata", function() {
-                    loadedCount++;
-                    if (loadedCount >= Math.min(total, 5)) {
-                        SoundManager.ready = true;
-                    }
-                }, { once: true });
-
-                audio.addEventListener("error", function() {
-                    console.warn("Sound load failed: " + key);
-                    loadedCount++;
-                    if (loadedCount >= 5) {
-                        SoundManager.ready = true;
-                    }
-                }, { once: true });
-
-                audio.load();
-                this.pools[key].push(audio);
-            }
+            const audio = new Audio(this.files[key]);
+            audio.volume = this.volumes[key];
+            audio.preload = "auto";
+            audio.load();
+            this.sounds[key] = audio;
         }
-
-        // 保険：読み込みイベントが遅い環境でも、少し後には再生を試せるようにする
-        setTimeout(function() {
-            SoundManager.ready = true;
-        }, 800);
     },
 
     unlock: function() {
         if (this.unlocked) return;
 
-        const tasks = [];
+        this.unlocked = true;
 
-        // warmup: 各プールのAudioを短く再生→停止→currentTime=0
-        for (const key in this.pools) {
-            const pool = this.pools[key];
+        for (const key in this.sounds) {
+            const audio = this.sounds[key];
 
-            for (let i = 0; i < pool.length; i++) {
-                const audio = pool[i];
-                try {
-                    audio.volume = 0.001; // Safari対策として完全な0は避ける
-                    audio.currentTime = 0;
+            try {
+                audio.volume = 0.001;
+                audio.currentTime = 0;
 
-                    const p = audio.play();
-                    if (p && p.then) {
-                        tasks.push(
-                            p.then(function() {
-                                audio.pause();
-                                audio.currentTime = 0;
-                                audio.volume = SoundManager.volumes[key];
-                            }).catch(function() {
-                                audio.volume = SoundManager.volumes[key];
-                            })
-                        );
-                    }
-                } catch (e) {
+                const p = audio.play();
+
+                if (p && p.then) {
+                    p.then(function() {
+                        audio.pause();
+                        audio.currentTime = 0;
+                        audio.volume = SoundManager.volumes[key];
+                    }).catch(function() {
+                        audio.volume = SoundManager.volumes[key];
+                    });
+                } else {
                     audio.volume = SoundManager.volumes[key];
                 }
+            } catch (e) {
+                audio.volume = SoundManager.volumes[key];
             }
         }
-
-        Promise.allSettled(tasks).then(function() {
-            SoundManager.unlocked = true;
-            SoundManager.ready = true;
-        });
-
-        // 保険：Promiseが返らない/遅い環境でもゲームが止まらないようにする
-        setTimeout(function() {
-            SoundManager.unlocked = true;
-            SoundManager.ready = true;
-        }, 300);
     },
 
     play: function(name) {
-        if (!this.enabled || !this.unlocked || !this.ready || !this.pools[name]) return;
+        if (!this.enabled || !this.unlocked || !this.sounds[name]) return;
 
         const now = Date.now();
         if (this.lastPlayed[name] && now - this.lastPlayed[name] < 100) return;
         this.lastPlayed[name] = now;
 
-        const pool = this.pools[name];
-        const index = this.poolIndex[name] || 0;
-        const audio = pool[index];
-
-        this.poolIndex[name] = (index + 1) % pool.length;
+        const original = this.sounds[name];
 
         try {
-            audio.pause();
-            audio.currentTime = 0;
+            const audio = original.cloneNode(true);
             audio.volume = this.volumes[name];
+            audio.currentTime = 0;
+
             audio.play().catch(function(e) {
                 console.warn("Sound play failed: " + name, e);
             });
@@ -203,6 +154,20 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
+SoundManager.init();
+
+function unlockSoundOnce() {
+    SoundManager.unlock();
+    window.removeEventListener("pointerdown", unlockSoundOnce);
+    window.removeEventListener("touchstart", unlockSoundOnce);
+    window.removeEventListener("click", unlockSoundOnce);
+}
+
+window.addEventListener("pointerdown", unlockSoundOnce);
+window.addEventListener("touchstart", unlockSoundOnce);
+window.addEventListener("click", unlockSoundOnce);
+
 
 SoundManager.init();
 
