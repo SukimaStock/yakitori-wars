@@ -67,6 +67,7 @@ const SoundManager = {
     enabled: localStorage.getItem("yakitoriSoundEnabled") !== "false",
     unlocked: false,
     sounds: {},
+    loadFailed: {},
 
     files: {
         place: "place.wav",
@@ -78,12 +79,12 @@ const SoundManager = {
     },
 
     volumes: {
-        place: 0.28,
-        sizzle: 0.22,
-        harvest: 0.28,
-        perfect: 0.30,
-        burnt: 0.25,
-        perfectServe: 0.34
+        place: 0.22,
+        sizzle: 0.18,
+        harvest: 0.22,
+        perfect: 0.24,
+        burnt: 0.20,
+        perfectServe: 0.26
     },
 
     cooldowns: {
@@ -99,12 +100,20 @@ const SoundManager = {
 
     init: function() {
         const self = this;
+
         for (const key in this.files) {
             const audio = new Audio(this.files[key]);
-            
-            audio.onerror = function() {
+
+            audio.addEventListener("error", function() {
+                self.loadFailed[key] = true;
                 console.warn("Sound file failed to load: " + key + " -> " + self.files[key]);
-            };
+            });
+
+            audio.addEventListener("canplaythrough", function() {
+                if (self.loadFailed[key]) {
+                    self.loadFailed[key] = false;
+                }
+            });
 
             audio.volume = this.volumes[key];
             audio.preload = "auto";
@@ -145,10 +154,25 @@ const SoundManager = {
     },
 
     play: function(name) {
-        if (!this.enabled || !this.unlocked || !this.sounds[name]) return;
+        if (!this.enabled) return;
+
+        if (!this.sounds[name]) {
+            console.warn("Unknown sound name: " + name);
+            return;
+        }
+
+        if (this.loadFailed[name]) {
+            console.warn("Sound was not loaded: " + name + " -> " + this.files[name]);
+            return;
+        }
+
+        if (!this.unlocked) {
+            this.unlock();
+        }
 
         const now = Date.now();
         const cooldown = this.cooldowns && this.cooldowns[name] !== undefined ? this.cooldowns[name] : 100;
+
         if (this.lastPlayed[name] && now - this.lastPlayed[name] < cooldown) return;
         this.lastPlayed[name] = now;
 
@@ -156,12 +180,16 @@ const SoundManager = {
 
         try {
             const audio = original.cloneNode(true);
-            audio.volume = this.volumes[name];
+            audio.volume = this.volumes[name] !== undefined ? this.volumes[name] : 0.25;
             audio.currentTime = 0;
 
-            audio.play().catch(function(e) {
-                console.warn("Sound play failed: " + name, e);
-            });
+            const p = audio.play();
+
+            if (p && p.catch) {
+                p.catch(function(e) {
+                    console.warn("Sound play failed: " + name, e);
+                });
+            }
         } catch (e) {
             console.warn("Sound play error: " + name, e);
         }
@@ -175,11 +203,13 @@ const SoundManager = {
 
 
 
+
 const SynthSfx = {
     ctx: null,
     masterGain: null,
     unlocked: false,
     enabled: true,
+    warmed: false,
     lastPlayed: {},
 
     init: function() {
@@ -188,7 +218,7 @@ const SynthSfx = {
 
         this.ctx = new AudioContext();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.30;
+        this.masterGain.gain.value = 0.40;
         this.masterGain.connect(this.ctx.destination);
     },
 
@@ -196,19 +226,18 @@ const SynthSfx = {
         this.init();
         if (!this.ctx) return;
 
-        const self = this;
+        this.unlocked = true;
 
         if (this.ctx.state === "suspended") {
-            this.ctx.resume().then(function() {
-                self.unlocked = true;
-            }).catch(function() {
-                self.unlocked = true;
+            this.ctx.resume().catch(function(e) {
+                console.warn("Synth resume failed", e);
             });
-        } else {
-            this.unlocked = true;
         }
 
-        this.warmup();
+        if (!this.warmed) {
+            this.warmed = true;
+            this.warmup();
+        }
     },
 
     warmup: function() {
@@ -230,8 +259,10 @@ const SynthSfx = {
 
     play: function(name) {
         if (!this.enabled) return;
+
         this.unlock();
-        if (!this.ctx || !this.unlocked) return;
+
+        if (!this.ctx || !this.masterGain) return;
 
         const now = Date.now();
         const cooldowns = {
@@ -245,42 +276,57 @@ const SynthSfx = {
 
         if (this.lastPlayed[name] && now - this.lastPlayed[name] < cooldown) return;
         this.lastPlayed[name] = now;
+
         const self = this;
+
         switch (name) {
             case "tap":
-                this.tone(520, 0.035, "square", 0.10);
+                this.tone(520, 0.04, "square", 0.12);
                 break;
 
             case "title":
-                this.tone(420, 0.07, "square", 0.18);
-                setTimeout(function() { self.tone(720, 0.10, "square", 0.16); }, 45);
+                this.tone(420, 0.08, "square", 0.24);
+                setTimeout(function() {
+                    self.tone(720, 0.11, "square", 0.20);
+                }, 45);
                 break;
 
             case "roulette":
-                this.tone(880, 0.025, "square", 0.07);
+                this.tone(880, 0.025, "square", 0.08);
                 break;
 
             case "order":
-                this.noise(0.07, 0.08, 2500);
-                setTimeout(function() { self.tone(980, 0.04, "triangle", 0.06); }, 20);
+                this.noise(0.08, 0.11, 2500);
+                setTimeout(function() {
+                    self.tone(980, 0.05, "triangle", 0.09);
+                }, 20);
                 break;
 
             case "meat":
-                this.tone(320, 0.06, "triangle", 0.18);
-                setTimeout(function() { self.tone(480, 0.06, "triangle", 0.15); }, 40);
+                this.tone(260, 0.07, "triangle", 0.26);
+                setTimeout(function() {
+                    self.tone(420, 0.07, "triangle", 0.22);
+                }, 45);
+                break;
+
+            default:
+                console.warn("Unknown synth sound name: " + name);
                 break;
         }
     },
 
     tone: function(freq, duration, type, vol) {
         if (!this.ctx || !this.masterGain) return;
+
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
         osc.type = type || "sine";
         osc.frequency.setValueAtTime(freq, t);
-        gain.gain.setValueAtTime(vol, t);
+
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(vol, t + 0.005);
         gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
 
         osc.connect(gain);
@@ -292,10 +338,12 @@ const SynthSfx = {
 
     noise: function(duration, vol, filterFreq) {
         if (!this.ctx || !this.masterGain) return;
+
         const t = this.ctx.currentTime;
         const bufferSize = Math.floor(this.ctx.sampleRate * duration);
         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
         const data = buffer.getChannelData(0);
+
         for (let i = 0; i < bufferSize; i++) {
             data[i] = Math.random() * 2 - 1;
         }
@@ -308,7 +356,8 @@ const SynthSfx = {
         filter.frequency.value = filterFreq || 1800;
 
         const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(vol, t);
+        gain.gain.setValueAtTime(0.001, t);
+        gain.gain.linearRampToValueAtTime(vol, t + 0.005);
         gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
 
         noise.connect(filter);
@@ -322,6 +371,7 @@ const SynthSfx = {
 
 
 
+
 SoundManager.init();
 SynthSfx.init();
 
@@ -329,10 +379,15 @@ const unlockAllSoundOnce = function() {
     SoundManager.unlock();
     SynthSfx.unlock();
 
-    window.removeEventListener("pointerdown", unlockAllSoundOnce);
-    window.removeEventListener("touchstart", unlockAllSoundOnce);
-    window.removeEventListener("click", unlockAllSoundOnce);
+    window.removeEventListener("pointerdown", unlockAllSoundOnce, true);
+    window.removeEventListener("touchstart", unlockAllSoundOnce, true);
+    window.removeEventListener("click", unlockAllSoundOnce, true);
 };
+
+window.addEventListener("pointerdown", unlockAllSoundOnce, true);
+window.addEventListener("touchstart", unlockAllSoundOnce, true);
+window.addEventListener("click", unlockAllSoundOnce, true);
+
 
 
 window.addEventListener("pointerdown", unlockAllSoundOnce);
