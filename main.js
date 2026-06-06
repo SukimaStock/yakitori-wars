@@ -984,13 +984,24 @@ function resolvePendingTurnFlow() {
 // 4. game/rules.js - 調理ルールとアクション
 // ==========================================
 function getCookLabel(laneType, cv) {
-    if (laneType === "weak") { if (cv >= 8) return "burnt";
-        if (cv >= 6) return "perfect"; if (cv === 5) return "okay";
+    if (laneType === "weak") { 
+        if (cv >= 8) return "burnt";
+        if (cv >= 6) return "perfect"; 
+        if (cv === 5) return "okay";
     } 
-    else { if (cv >= 7) return "burnt"; if (cv === 6) return "perfect";
-        if (cv === 5) return "okay"; }
+    else if (laneType === "strong") {
+        if (cv >= 7) return "burnt";
+        if (cv === 6) return "perfect";
+        if (cv >= 4) return "okay";
+    }
+    else { 
+        if (cv >= 7) return "burnt"; 
+        if (cv === 6) return "perfect";
+        if (cv === 5) return "okay"; 
+    }
     return "early";
 }
+
 function hasPerfectHarvestTarget(playerIndex) {
     const p = state.players[playerIndex - 1];
     for (let n of state.lanes) {
