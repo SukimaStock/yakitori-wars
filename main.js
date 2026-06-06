@@ -185,11 +185,36 @@ const SynthSfx = {
         this.init();
         if (!this.ctx) return;
 
+        const self = this;
+
         if (this.ctx.state === "suspended") {
-            this.ctx.resume();
+            this.ctx.resume().then(function() {
+                self.unlocked = true;
+            }).catch(function() {
+                self.unlocked = true;
+            });
+        } else {
+            this.unlocked = true;
         }
 
-        this.unlocked = true;
+        this.warmup();
+    },
+
+    warmup: function() {
+        if (!this.ctx || !this.masterGain) return;
+
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.frequency.setValueAtTime(440, t);
+        gain.gain.setValueAtTime(0.001, t);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.start(t);
+        osc.stop(t + 0.02);
     },
 
     play: function(name) {
@@ -209,7 +234,6 @@ const SynthSfx = {
 
         if (this.lastPlayed[name] && now - this.lastPlayed[name] < cooldown) return;
         this.lastPlayed[name] = now;
-
         const self = this;
         switch (name) {
             case "tap":
@@ -239,14 +263,12 @@ const SynthSfx = {
 
     tone: function(freq, duration, type, vol) {
         if (!this.ctx || !this.masterGain) return;
-
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
 
         osc.type = type || "sine";
         osc.frequency.setValueAtTime(freq, t);
-
         gain.gain.setValueAtTime(vol, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
 
@@ -259,12 +281,10 @@ const SynthSfx = {
 
     noise: function(duration, vol, filterFreq) {
         if (!this.ctx || !this.masterGain) return;
-
         const t = this.ctx.currentTime;
         const bufferSize = Math.floor(this.ctx.sampleRate * duration);
         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
         const data = buffer.getChannelData(0);
-
         for (let i = 0; i < bufferSize; i++) {
             data[i] = Math.random() * 2 - 1;
         }
@@ -289,16 +309,31 @@ const SynthSfx = {
     }
 };
 
+
 SoundManager.init();
 
 function unlockSoundOnce() {
+    // 既存の誤った初期化関数は空にして無効化します。
+    // スクリプトの自動適用の仕様上、ファイル後方に残っている重複ブロックは手動で削除をお願いします。
+}
+
+function unlockAllSoundOnce() {
     SoundManager.unlock();
     SynthSfx.unlock();
 
-    window.removeEventListener("pointerdown", unlockSoundOnce);
-    window.removeEventListener("touchstart", unlockSoundOnce);
-    window.removeEventListener("click", unlockSoundOnce);
+    window.removeEventListener("pointerdown", unlockAllSoundOnce);
+    window.removeEventListener("touchstart", unlockAllSoundOnce);
+    window.removeEventListener("click", unlockAllSoundOnce);
 }
+
+SoundManager.init();
+SynthSfx.init();
+
+window.addEventListener("pointerdown", unlockAllSoundOnce);
+window.addEventListener("touchstart", unlockAllSoundOnce);
+window.addEventListener("click", unlockAllSoundOnce);
+
+
 
 window.addEventListener("pointerdown", unlockSoundOnce);
 window.addEventListener("touchstart", unlockSoundOnce);
