@@ -154,6 +154,87 @@ function playSound(name) {
     }
 }
 
+const SoundManager = {
+    enabled: localStorage.getItem("yakitoriSoundEnabled") !== "false",
+    unlocked: false,
+    sounds: {},
+    files: {
+        tap: "tap.wav",
+        place: "place.wav",
+        sizzle: "sizzle.wav",
+        perfect: "perfect.wav",
+        burnt: "burnt.wav"
+    },
+    volumes: {
+        tap: 0.35,
+        place: 0.45,
+        sizzle: 0.30,
+        perfect: 0.50,
+        burnt: 0.35
+    },
+    lastPlayed: {},
+
+    init: function() {
+        for (const key in this.files) {
+            const audio = new Audio(this.files[key]);
+            audio.volume = this.volumes[key];
+            audio.preload = "auto";
+            this.sounds[key] = audio;
+        }
+    },
+
+    unlock: function() {
+        if (this.unlocked) return;
+        this.unlocked = true;
+        for (const key in this.sounds) {
+            const audio = this.sounds[key];
+            audio.volume = 0;
+            audio.play().then(function() {
+                audio.pause();
+                audio.currentTime = 0;
+                audio.volume = SoundManager.volumes[key];
+            }).catch(function(e) {
+                // エラー時はゲームを止めずに無視します
+            });
+        }
+    },
+
+    play: function(name) {
+        if (!this.enabled || !this.unlocked || !this.sounds[name]) return;
+        
+        // 同じ音が短時間に連続して鳴りすぎるのを防ぎます
+        const now = Date.now();
+        if (this.lastPlayed[name] && now - this.lastPlayed[name] < 100) return;
+        this.lastPlayed[name] = now;
+
+        const original = this.sounds[name];
+        const clone = original.cloneNode();
+        clone.volume = this.volumes[name];
+        clone.play().catch(function(e) {
+            console.warn("Sound play failed", e);
+        });
+    },
+
+    setEnabled: function(value) {
+        this.enabled = value;
+        localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
+    }
+};
+
+SoundManager.init();
+
+// 最初のタップで音声を有効化します
+window.addEventListener("pointerdown", function() {
+    SoundManager.unlock();
+}, { once: true });
+window.addEventListener("touchstart", function() {
+    SoundManager.unlock();
+}, { once: true });
+window.addEventListener("click", function() {
+    SoundManager.unlock();
+}, { once: true });
+
+
 // ==========================================
 // 2. render/layout.js - 定数とレイアウト設定 (メリハリ強化版)
 // ==========================================
@@ -597,7 +678,8 @@ function advanceAllSkewersAtRoundEnd() {
 
 function updateCookPreview() {
     if (!state.cookPreviewActive) return;
-    if (!state.cookPreviewEvents || state.cookPreviewEvents.length === 0) { finishEndRound(); return; }
+    if (!state.cookPreviewEvents || state.cookPreviewEvents.length === 0) { finishEndRound(); return;
+    }
     if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound(); return; }
     const CHANGE_TIME = 50;
     if (state.cookPreviewPhase === "show" && state.cookPreviewPhaseTimer === CHANGE_TIME) {
@@ -605,22 +687,27 @@ function updateCookPreview() {
         if (event) {
             let smokeAmount = event.newCookState - event.prevCookState;
             spawnJuwaSmoke(event.laneIndex, smokeAmount, event.newStatus); 
-            playSound("sizzle");
+            SoundManager.play("sizzle");
             if (event.prevStatus !== "perfect" && event.newStatus === "perfect") {
-                playSound("perfect");
+                SoundManager.play("perfect");
                 spawnPerfectPopEffect(event.laneIndex);
                 state.visuals.peakFlashes[state.lanes[event.laneIndex].id] = performance.now();
-                state.visuals.perfectFlash = { timer: 15 }; 
+                state.visuals.perfectFlash = { timer: 15 };
+            } else if (event.prevStatus !== "burnt" && event.newStatus === "burnt") {
+                SoundManager.play("burnt");
             }
         }
     }
     state.cookPreviewPhaseTimer--;
     if (state.cookPreviewPhaseTimer <= 0) {
         state.cookPreviewIndex++;
-        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound(); } 
-        else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR; }
+        if (state.cookPreviewIndex >= state.cookPreviewEvents.length) { finishEndRound();
+        } 
+        else { state.cookPreviewPhase = "show"; state.cookPreviewPhaseTimer = COOK_PREVIEW_DUR;
+        }
     }
 }
+
 
 
 
@@ -846,11 +933,12 @@ function tryBuildNode(node) {
         const b = getLaneBounds(state.lanes.indexOf(node));
         state.visuals.statusMessages.push({ type: "meat", amount: -1, player: state.currentPlayer, x: b.x + b.w / 2, y: b.y + b.h / 2, startTime: performance.now(), duration: 800 });
         node.built = true; node.owner = state.currentPlayer;
-        playSound("put_skewer"); 
+        SoundManager.play("place");
         node.cookState = 0; node.justPlaced = true;
         state.visuals.placedAt[node.id] = performance.now(); consumeWorker();
     }
 }
+
 
 function tryHarvestNode(node) {
     const p = state.players[state.currentPlayer - 1]; if (!node.built) return;
@@ -861,7 +949,6 @@ function tryHarvestNode(node) {
     const msgY = b.y + b.h * 0.2;
     const scoreMsgY = msgY - 15;
     const meatMsgY = msgY + 20;
-
     if (isSteal) {
         if (status === "early") return;
         if (status !== "burnt") {
@@ -873,25 +960,25 @@ function tryHarvestNode(node) {
                 state.players[stolenFrom - 1].resources += 1;
                 const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
                 const stolenPx = stolenFrom === 1 ?
-                10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
+10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
                 state.visuals.statusMessages.push({ type: "meat", amount: 1, player: stolenFrom, x: stolenPx, y: 15 + 95 + 10, startTime: performance.now() + 150, duration: 800, isSteal: true });
             }
             state.hitStopTimer = 4;
         }
     }
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
-    if (status === "perfect") playSound("perfect");
-    else if (status === "burnt") playSound("burnt");
+    if (status === "perfect") SoundManager.play("perfect");
+    else if (status === "burnt") SoundManager.play("burnt");
     else if (scoreGained > 0) playSound("score");
     if (status === "perfect") p.stats.perfect++; if (status === "burnt") p.stats.burnt++; if (isSteal && scoreGained > 0) p.stats.steal++;
     let isBonus = false; let bonusText = "";
     const order = state.todaysOrder ? state.todaysOrder.id : null;
     if (order === "strong" && node.type === "strong" && scoreGained > 0 && status !== "early") { isBonus = true;
-    bonusText = "ORDER!"; }
+bonusText = "ORDER!"; }
     if (order === "steal" && isSteal && scoreGained > 0) { isBonus = true;
-    bonusText = "ORDER!"; }
+bonusText = "ORDER!"; }
     if (order === "burnt" && status === "burnt") { isBonus = true;
-    bonusText = "ORDER!"; }
+bonusText = "ORDER!"; }
 
     if (scoreGained !== 0 || status === "burnt" || status === "early") { 
         let duration = 1000;
@@ -919,6 +1006,7 @@ function tryHarvestNode(node) {
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
+
 
 
 
@@ -960,22 +1048,25 @@ function handleCanvasClick(event, canvas) {
         const btnW = 240, btnH = 56, gapY = 76, btnStartY = cy + 90;
         const btnAi = { x: cx - btnW/2, y: btnStartY, w: btnW, h: btnH };
         const btnPvp = { x: cx - btnW/2, y: btnStartY + gapY, w: btnW, h: btnH };
-
         if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) { 
             state.visuals.titleClick = "ai";
+            SoundManager.play("tap");
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "ai" };
         } 
         else if (x >= btnPvp.x && x <= btnPvp.x + btnPvp.w && y >= btnPvp.y && y <= btnPvp.y + btnPvp.h) { 
             state.visuals.titleClick = "pvp";
+            SoundManager.play("tap");
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "pvp" };
         }
         return;
     } else if (state.screen === "clear") {
         if (state.resultScreenTimer < 300) return;
+        SoundManager.play("tap");
         initGameState(); return;
     } else if (state.screen === "gameover" || state.screen === "stage_clear") {
         if (state.resultScreenTimer < 55) return;
         const cy = LAYOUT.CANVAS_HEIGHT / 2;
+        SoundManager.play("tap");
         if (state.screen === "stage_clear") {
             const retryY = cy + 135 + 30;
             if (y >= retryY - 15 && y <= retryY + 15) retryStage(); else nextStage();
@@ -993,8 +1084,9 @@ function handleCanvasClick(event, canvas) {
         const cb = getCancelButtonBounds();
         if (x >= cb.x && x <= cb.x + cb.w && y >= cb.y && y <= cb.y + cb.h) {
             state.visuals.cancelClick = performance.now();
+            SoundManager.play("tap");
             state.isBusy = true;
-            setTimeout(() => { state.buildMode = null; state.pendingBox = null; state.isBusy = false; }, 150); return;
+            setTimeout(function() { state.buildMode = null; state.pendingBox = null; state.isBusy = false; }, 150); return;
         }
         for (let i = 0; i < state.lanes.length; i++) {
             const l = getLaneBounds(i), padding = 15, node = state.lanes[i];
@@ -1016,7 +1108,8 @@ function handleCanvasClick(event, canvas) {
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer); if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer);
             if (canUse) { state.visuals.buttonClicks[i] = performance.now();
-            placeWorker(boxId); } 
+                SoundManager.play("tap");
+                placeWorker(boxId); } 
             else if (!isInputLocked()) {
                 let reason = "";
                 if (boxId === 2) reason = state.players[state.currentPlayer - 1].resources < 1 ? "NO MEAT" : "FULL";
@@ -1031,6 +1124,7 @@ function handleCanvasClick(event, canvas) {
         }
     }
 }
+
 
 
 
