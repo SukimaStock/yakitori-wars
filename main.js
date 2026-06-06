@@ -73,7 +73,8 @@ const SoundManager = {
         sizzle: "sizzle.wav",
         harvest: "harvest.wav",
         perfect: "perfect.wav",
-        burnt: "burnt.wav"
+        burnt: "burnt.wav",
+        harvestPerfect: "harvest_perfect.wav"
     },
 
     volumes: {
@@ -81,7 +82,8 @@ const SoundManager = {
         sizzle: 0.30,
         harvest: 0.45,
         perfect: 0.50,
-        burnt: 0.35
+        burnt: 0.35,
+        harvestPerfect: 0.50
     },
 
     cooldowns: {
@@ -89,7 +91,8 @@ const SoundManager = {
         sizzle: 120,
         harvest: 100,
         perfect: 100,
-        burnt: 100
+        burnt: 100,
+        harvestPerfect: 100
     },
 
     lastPlayed: {},
@@ -164,6 +167,7 @@ const SoundManager = {
     }
 };
 
+
 const SynthSfx = {
     ctx: null,
     masterGain: null,
@@ -177,7 +181,7 @@ const SynthSfx = {
 
         this.ctx = new AudioContext();
         this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.value = 0.18;
+        this.masterGain.gain.value = 0.30;
         this.masterGain.connect(this.ctx.destination);
     },
 
@@ -241,8 +245,8 @@ const SynthSfx = {
                 break;
 
             case "title":
-                this.tone(420, 0.05, "square", 0.12);
-                setTimeout(function() { self.tone(720, 0.08, "square", 0.10); }, 45);
+                this.tone(420, 0.07, "square", 0.18);
+                setTimeout(function() { self.tone(720, 0.10, "square", 0.16); }, 45);
                 break;
 
             case "roulette":
@@ -255,8 +259,8 @@ const SynthSfx = {
                 break;
 
             case "meat":
-                this.tone(360, 0.045, "triangle", 0.09);
-                setTimeout(function() { self.tone(540, 0.05, "triangle", 0.08); }, 35);
+                this.tone(360, 0.06, "triangle", 0.16);
+                setTimeout(function() { self.tone(540, 0.06, "triangle", 0.14); }, 35);
                 break;
         }
     },
@@ -311,23 +315,17 @@ const SynthSfx = {
 
 
 SoundManager.init();
+SynthSfx.init();
 
-function unlockSoundOnce() {
-    // 既存の誤った初期化関数は空にして無効化します。
-    // スクリプトの自動適用の仕様上、ファイル後方に残っている重複ブロックは手動で削除をお願いします。
-}
-
-function unlockAllSoundOnce() {
+const unlockAllSoundOnce = function() {
     SoundManager.unlock();
     SynthSfx.unlock();
 
     window.removeEventListener("pointerdown", unlockAllSoundOnce);
     window.removeEventListener("touchstart", unlockAllSoundOnce);
     window.removeEventListener("click", unlockAllSoundOnce);
-}
+};
 
-SoundManager.init();
-SynthSfx.init();
 
 window.addEventListener("pointerdown", unlockAllSoundOnce);
 window.addEventListener("touchstart", unlockAllSoundOnce);
@@ -335,66 +333,39 @@ window.addEventListener("click", unlockAllSoundOnce);
 
 
 
-window.addEventListener("pointerdown", unlockSoundOnce);
-window.addEventListener("touchstart", unlockSoundOnce);
-window.addEventListener("click", unlockSoundOnce);
 
 
 
-SoundManager.init();
-
-function unlockSoundOnce() {
-    SoundManager.unlock();
-    window.removeEventListener("pointerdown", unlockSoundOnce);
-    window.removeEventListener("touchstart", unlockSoundOnce);
-    window.removeEventListener("click", unlockSoundOnce);
-}
-
-window.addEventListener("pointerdown", unlockSoundOnce);
-window.addEventListener("touchstart", unlockSoundOnce);
-window.addEventListener("click", unlockSoundOnce);
 
 
-SoundManager.init();
-
-function unlockSoundOnce() {
-    SoundManager.unlock();
-    window.removeEventListener("pointerdown", unlockSoundOnce);
-    window.removeEventListener("touchstart", unlockSoundOnce);
-    window.removeEventListener("click", unlockSoundOnce);
-}
-
-window.addEventListener("pointerdown", unlockSoundOnce);
-window.addEventListener("touchstart", unlockSoundOnce);
-window.addEventListener("click", unlockSoundOnce);
 
 
-SoundManager.init();
-
-function unlockSoundOnce() {
-    SoundManager.unlock();
-    window.removeEventListener("pointerdown", unlockSoundOnce);
-    window.removeEventListener("touchstart", unlockSoundOnce);
-    window.removeEventListener("click", unlockSoundOnce);
-}
-
-window.addEventListener("pointerdown", unlockSoundOnce);
-window.addEventListener("touchstart", unlockSoundOnce);
-window.addEventListener("click", unlockSoundOnce);
 
 
-SoundManager.init();
 
-// 最初のタップで音声を有効化します
-window.addEventListener("pointerdown", function() {
-    SoundManager.unlock();
-}, { once: true });
-window.addEventListener("touchstart", function() {
-    SoundManager.unlock();
-}, { once: true });
-window.addEventListener("click", function() {
-    SoundManager.unlock();
-}, { once: true });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // ==========================================
@@ -1140,7 +1111,7 @@ function tryHarvestNode(node) {
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
     
     if (status === "perfect") {
-        SoundManager.play("perfect");
+        SoundManager.play("harvestPerfect");
     } else if (status === "burnt") {
         SoundManager.play("burnt");
     } else {
@@ -1183,6 +1154,7 @@ bonusText = "ORDER!"; }
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
+
 
 
 
