@@ -128,7 +128,8 @@ const SoundManager = {
             const audio = this.sounds[key];
 
             try {
-                audio.volume = 0.001;
+                // 極小音量ではなく、完全にミュートにしてテスト再生します
+                audio.muted = true;
                 audio.currentTime = 0;
 
                 const p = audio.play();
@@ -137,15 +138,15 @@ const SoundManager = {
                     p.then(function() {
                         audio.pause();
                         audio.currentTime = 0;
-                        audio.volume = SoundManager.volumes[key];
+                        audio.muted = false; // ミュートを解除
                     }).catch(function() {
-                        audio.volume = SoundManager.volumes[key];
+                        audio.muted = false;
                     });
                 } else {
-                    audio.volume = SoundManager.volumes[key];
+                    audio.muted = false;
                 }
             } catch (e) {
-                audio.volume = SoundManager.volumes[key];
+                audio.muted = false;
             }
         }
     },
@@ -178,6 +179,7 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
 
 SoundManager.init();
 
