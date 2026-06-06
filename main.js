@@ -73,7 +73,12 @@ const SoundManager = {
         place: "place.wav",
         sizzle: "sizzle.wav",
         perfect: "perfect.wav",
-        burnt: "burnt.wav"
+        burnt: "burnt.wav",
+        title: "title.wav",
+        roulette: "roulette.wav",
+        order: "order.wav",
+        meat: "meat.wav",
+        harvest: "harvest.wav"
     },
 
     volumes: {
@@ -81,7 +86,25 @@ const SoundManager = {
         place: 0.45,
         sizzle: 0.30,
         perfect: 0.50,
-        burnt: 0.35
+        burnt: 0.35,
+        title: 0.45,
+        roulette: 0.25,
+        order: 0.40,
+        meat: 0.35,
+        harvest: 0.45
+    },
+
+    cooldowns: {
+        tap: 100,
+        place: 100,
+        sizzle: 120,
+        perfect: 100,
+        burnt: 100,
+        title: 100,
+        roulette: 40,
+        order: 100,
+        meat: 100,
+        harvest: 100
     },
 
     lastPlayed: {},
@@ -131,7 +154,8 @@ const SoundManager = {
         if (!this.enabled || !this.unlocked || !this.sounds[name]) return;
 
         const now = Date.now();
-        if (this.lastPlayed[name] && now - this.lastPlayed[name] < 100) return;
+        const cooldown = this.cooldowns && this.cooldowns[name] !== undefined ? this.cooldowns[name] : 100;
+        if (this.lastPlayed[name] && now - this.lastPlayed[name] < cooldown) return;
         this.lastPlayed[name] = now;
 
         const original = this.sounds[name];
@@ -154,6 +178,20 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
+SoundManager.init();
+
+function unlockSoundOnce() {
+    SoundManager.unlock();
+    window.removeEventListener("pointerdown", unlockSoundOnce);
+    window.removeEventListener("touchstart", unlockSoundOnce);
+    window.removeEventListener("click", unlockSoundOnce);
+}
+
+window.addEventListener("pointerdown", unlockSoundOnce);
+window.addEventListener("touchstart", unlockSoundOnce);
+window.addEventListener("click", unlockSoundOnce);
+
 
 SoundManager.init();
 
@@ -313,7 +351,8 @@ function updateIntroSequence() {
     if (!state.introSequenceActive) return;
     if (state.introPhase === "vs") {
         state.introVsTimer--;
-        if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25; }
+        if (state.introVsTimer <= 0) { state.introPhase = "fight"; state.fightSplashTimer = 25;
+        }
     } else if (state.introPhase === "fight") {
         state.fightSplashTimer--;
         if (state.fightSplashTimer <= 0) { 
@@ -324,6 +363,7 @@ function updateIntroSequence() {
             } else {
                 state.introPhase = "order";
                 state.introOrderTimer = 120;
+                SoundManager.play("order");
             }
         }
     } else if (state.introPhase === "order") {
@@ -342,6 +382,7 @@ function updateIntroSequence() {
         }
     }
 }
+
 
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
@@ -744,6 +785,7 @@ function updateRoulette() {
         if (state.startRouletteTickTimer <= 0) {
             state.startRouletteIndex = 3 - state.startRouletteIndex;
             state.startRouletteCount++;
+            SoundManager.play("roulette");
             state.startRouletteInterval *= 1.12; state.startRouletteTickTimer = Math.floor(state.startRouletteInterval);
             if (state.startRouletteCount >= state.startRouletteMaxCount) {
                 state.startRouletteActive = false;
@@ -764,6 +806,7 @@ function updateRoulette() {
         }
     }
 }
+
 
 function hasActiveImportantMessage() {
     const now = performance.now();
@@ -870,6 +913,7 @@ function placeWorker(boxId) {
     const p = state.players[state.currentPlayer - 1];
     if (boxId === 1) { 
         p.resources += 1;
+        SoundManager.play("meat");
         const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
         const px = state.currentPlayer === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
         const py = 15 + 95 + 10;
@@ -885,6 +929,7 @@ function placeWorker(boxId) {
         }, 150);
     }
 }
+
 
 
 
@@ -928,8 +973,14 @@ function tryHarvestNode(node) {
         }
     }
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
-    if (status === "perfect") SoundManager.play("perfect");
-    else if (status === "burnt") SoundManager.play("burnt");
+    
+    if (status === "perfect") {
+        SoundManager.play("perfect");
+    } else if (status === "burnt") {
+        SoundManager.play("burnt");
+    } else {
+        SoundManager.play("harvest");
+    }
     
     if (status === "perfect") p.stats.perfect++; if (status === "burnt") p.stats.burnt++; if (isSteal && scoreGained > 0) p.stats.steal++;
     let isBonus = false; let bonusText = "";
@@ -967,6 +1018,7 @@ bonusText = "ORDER!"; }
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
+
 
 
 
@@ -1011,12 +1063,12 @@ function handleCanvasClick(event, canvas) {
         const btnPvp = { x: cx - btnW/2, y: btnStartY + gapY, w: btnW, h: btnH };
         if (x >= btnAi.x && x <= btnAi.x + btnAi.w && y >= btnAi.y && y <= btnAi.y + btnAi.h) { 
             state.visuals.titleClick = "ai";
-            SoundManager.play("tap");
+            SoundManager.play("title");
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "ai" };
         } 
         else if (x >= btnPvp.x && x <= btnPvp.x + btnPvp.w && y >= btnPvp.y && y <= btnPvp.y + btnPvp.h) { 
             state.visuals.titleClick = "pvp";
-            SoundManager.play("tap");
+            SoundManager.play("title");
             state.transition = { active: true, type: "titleToGame", timer: 0, duration: 20, targetMode: "pvp" };
         }
         return;
@@ -1084,6 +1136,7 @@ function handleCanvasClick(event, canvas) {
         }
     }
 }
+
 
 
 
