@@ -81,14 +81,14 @@ const SoundManager = {
     },
 
     volumes: {
-        place: 0.22,
-        sizzle: 0.18,
-        harvest: 0.22,
-        perfect: 0.24,
-        burnt: 0.20,
-        perfectServe: 0.26,
-        uchiwa: 0.24,
-        undercooked: 0.24
+        place: 0.15,
+        sizzle: 0.13,
+        harvest: 0.15,
+        perfect: 0.17,
+        burnt: 0.14,
+        perfectServe: 0.18,
+        uchiwa: 0.16,
+        undercooked: 0.16
     },
 
     cooldowns: {
@@ -206,6 +206,7 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
 
 
 const SynthSfx = {
