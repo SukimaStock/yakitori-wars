@@ -74,16 +74,16 @@ const SoundManager = {
         harvest: "harvest.wav",
         perfect: "perfect.wav",
         burnt: "burnt.wav",
-        harvestPerfect: "harvest_perfect.wav"
+        perfectServe: "harvest_perfect.wav"
     },
 
     volumes: {
-        place: 0.45,
-        sizzle: 0.30,
-        harvest: 0.45,
-        perfect: 0.50,
-        burnt: 0.35,
-        harvestPerfect: 0.50
+        place: 0.28,
+        sizzle: 0.22,
+        harvest: 0.28,
+        perfect: 0.30,
+        burnt: 0.25,
+        perfectServe: 0.34
     },
 
     cooldowns: {
@@ -92,14 +92,20 @@ const SoundManager = {
         harvest: 100,
         perfect: 100,
         burnt: 100,
-        harvestPerfect: 100
+        perfectServe: 100
     },
 
     lastPlayed: {},
 
     init: function() {
+        const self = this;
         for (const key in this.files) {
             const audio = new Audio(this.files[key]);
+            
+            audio.onerror = function() {
+                console.warn("Sound file failed to load: " + key + " -> " + self.files[key]);
+            };
+
             audio.volume = this.volumes[key];
             audio.preload = "auto";
             audio.load();
@@ -166,6 +172,7 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
 
 
 const SynthSfx = {
@@ -259,8 +266,8 @@ const SynthSfx = {
                 break;
 
             case "meat":
-                this.tone(360, 0.06, "triangle", 0.16);
-                setTimeout(function() { self.tone(540, 0.06, "triangle", 0.14); }, 35);
+                this.tone(320, 0.06, "triangle", 0.18);
+                setTimeout(function() { self.tone(480, 0.06, "triangle", 0.15); }, 40);
                 break;
         }
     },
@@ -312,6 +319,7 @@ const SynthSfx = {
         noise.stop(t + duration);
     }
 };
+
 
 
 SoundManager.init();
@@ -1111,7 +1119,7 @@ function tryHarvestNode(node) {
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
     
     if (status === "perfect") {
-        SoundManager.play("harvestPerfect");
+        SoundManager.play("perfectServe");
     } else if (status === "burnt") {
         SoundManager.play("burnt");
     } else {
@@ -1154,6 +1162,7 @@ bonusText = "ORDER!"; }
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
+
 
 
 
@@ -1258,9 +1267,13 @@ function handleCanvasClick(event, canvas) {
             let canUse = false;
             if (boxId === 1) canUse = canUseMeat(state.currentPlayer); if (boxId === 2) canUse = canUseSkewer(state.currentPlayer);
             if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer);
-            if (canUse) { state.visuals.buttonClicks[i] = performance.now();
-                SynthSfx.play("tap");
-                placeWorker(boxId); } 
+            if (canUse) { 
+                state.visuals.buttonClicks[i] = performance.now();
+                if (boxId !== 1) {
+                    SynthSfx.play("tap");
+                }
+                placeWorker(boxId); 
+            } 
             else if (!isInputLocked()) {
                 let reason = "";
                 if (boxId === 2) reason = state.players[state.currentPlayer - 1].resources < 1 ? "NO MEAT" : "FULL";
@@ -1274,6 +1287,7 @@ function handleCanvasClick(event, canvas) {
         }
     }
 }
+
 
 
 
