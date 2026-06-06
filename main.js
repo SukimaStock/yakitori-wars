@@ -201,9 +201,6 @@ const SoundManager = {
     }
 };
 
-
-
-
 const SynthSfx = {
     ctx: null,
     masterGain: null,
@@ -369,9 +366,6 @@ const SynthSfx = {
     }
 };
 
-
-
-
 SoundManager.init();
 SynthSfx.init();
 
@@ -388,48 +382,9 @@ window.addEventListener("pointerdown", unlockAllSoundOnce, true);
 window.addEventListener("touchstart", unlockAllSoundOnce, true);
 window.addEventListener("click", unlockAllSoundOnce, true);
 
-
-
 window.addEventListener("pointerdown", unlockAllSoundOnce);
 window.addEventListener("touchstart", unlockAllSoundOnce);
 window.addEventListener("click", unlockAllSoundOnce);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // ==========================================
 // 2. render/layout.js - 定数とレイアウト設定 (メリハリ強化版)
@@ -579,8 +534,6 @@ function updateIntroSequence() {
     }
 }
 
-
-
 function updateGameEndWait() {
     if (state.gameOver && state.gameEndWaitTimer > 0) {
         if (state.endSplashTimer > 0) state.endSplashTimer--;
@@ -668,22 +621,22 @@ function spawnSmokeEffect(laneIndex, amount, status) {
     const meatY = stickTop + (b.h * 0.7) * 0.4;
     
     if (status === "burnt") {
-        // BURNTの場合：大粒の黒煙をやめ、小さな焦げカスを少しだけ飛ばす
+        // BURNTの場合:大粒の黒煙をやめ、小さな焦げカスを少しだけ飛ばす
         const numParticles = 2 + Math.floor(amount / 2);
         for (let i = 0; i < numParticles; i++) {
             state.visuals.particles.push({
                 x: laneCx + (Math.random() - 0.5) * 16, 
                 y: meatY + (Math.random() - 0.5) * 16,  
-                vx: (Math.random() - 0.5) * 0.1, // 横方向への移動をほぼなくす
+                vx: (Math.random() - 0.5) * 0.1, // 横方向への移動をほぼなくす
                 vy: -0.3 - Math.random() * 0.4,  // 上昇も控えめに
                 life: 0, maxLife: 15 + Math.random() * 10, 
-                size: 1 + Math.random() * 1,     // サイズを極小(1〜2)に
-                color: Math.random() > 0.5 ? "#3c2a23" : "#2a1c18", // 真っ黒ではなく暗い焦げ茶
+                size: 1 + Math.random() * 1,     // サイズを極小(1〜2)に
+                color: Math.random() > 0.5 ? "#3c2a23" : "#2a1c18", // 真っ黒ではなく暗い焦げ茶
                 isSmoke: true
             });
         }
     } else {
-        // 通常の焼き進行：美味しそうな湯気・油・香りのみにする
+        // 通常の焼き進行:美味しそうな湯気・油・香りのみにする
         
         // 1. 白〜クリーム色の小さな湯気
         const numSteam = 2 + Math.floor(amount / 2);
@@ -699,7 +652,7 @@ function spawnSmokeEffect(laneIndex, amount, status) {
             });
         }
         
-        // 2. 小さな黄色〜橙色の油はぜ
+        // 2. 小さな黄色〜橙色の油はぜ
         const numSizzle = 1 + amount;
         for (let i = 0; i < numSizzle; i++) {
             state.visuals.particles.push({
@@ -713,7 +666,7 @@ function spawnSmokeEffect(laneIndex, amount, status) {
             });
         }
         
-        // 3. 薄ベージュの香り粒子（目立たない程度に）
+        // 3. 薄ベージュの香り粒子(目立たない程度に)
         const numAroma = 1 + Math.floor(amount / 2);
         for (let i = 0; i < numAroma; i++) {
             state.visuals.particles.push({
@@ -814,9 +767,6 @@ function spawnJuwaSmoke(laneIndex, amount, status) {
     setTimeout(function() { spawnBurst(2); }, 200);
 }
 
-
-
-
 function spawnPerfectPopEffect(laneIndex) {
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
@@ -834,15 +784,6 @@ function spawnPerfectPopEffect(laneIndex) {
         });
     }
 }
-
-
-
-
-
-
-
-
-
 
 function spawnPerfectHarvestEffect(laneIndex) {
     const b = getLaneBounds(laneIndex), laneCx = b.x + b.w / 2, meatY = b.y + b.h * 0.4, colors = ["#fff7b0", "#ffdf6b", "#ffffff"];
@@ -907,10 +848,6 @@ function updateCookPreview() {
         }
     }
 }
-
-
-
-
 
 function tryEndRound() {
     advanceAllSkewersAtRoundEnd();
@@ -1003,8 +940,6 @@ function updateRoulette() {
         }
     }
 }
-
-
 
 function hasActiveImportantMessage() {
     const now = performance.now();
@@ -1128,10 +1063,6 @@ function placeWorker(boxId) {
     }
 }
 
-
-
-
-
 function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
     if (p.resources >= 1 && !node.built) {
@@ -1144,8 +1075,6 @@ function tryBuildNode(node) {
         state.visuals.placedAt[node.id] = performance.now(); consumeWorker();
     }
 }
-
-
 
 function tryHarvestNode(node) {
     const p = state.players[state.currentPlayer - 1]; if (!node.built) return;
@@ -1217,14 +1146,6 @@ bonusText = "ORDER!"; }
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
-
-
-
-
-
-
-
-
 
 function tryUchiwaNode(node) {
     if (node.built) { 
@@ -1342,13 +1263,6 @@ function handleCanvasClick(event, canvas) {
         }
     }
 }
-
-
-
-
-
-
-
 
 // ==========================================
 // 6. game/ai.js - AIロジック
@@ -2068,7 +1982,7 @@ function drawDotIcon(ctx, iconId, cx, cy, color, scale) {
     let offsetX = 0;
     if (iconId === "put_skewer" || iconId === "serve_plate" || iconId === "burnt_skewer") offsetX = 3;
     
-    // 非活性時用のグレースケールパレット（明度を調整し、立体感を残しつつ色を抜く）
+    // 非活性時用のグレースケールパレット(明度を調整し、立体感を残しつつ色を抜く)
     const grayPalette = {
         1: "#999999", 2: "#666666", 3: "#444444", 4: "#777777", 
         5: "#888888", 6: "#777777", 7: "#555555", 8: "#444444", 
@@ -2196,7 +2110,7 @@ function drawCompactOrderCard(ctx, cx, y, orderObj) {
     const cardH = 32;
     const cardX = Math.round(cx - cardW / 2);
     const cardY = Math.round(y);
-    // 彩度と主張を下げた、落ち着いた木札/紙色に変更
+    // 彩度と主張を下げた、落ち着いた木札/紙色に変更
     drawBevelRect(ctx, cardX, cardY, cardW, cardH, "#8a8076");
     
     ctx.save();
@@ -2219,7 +2133,7 @@ function drawCompactOrderCard(ctx, cx, y, orderObj) {
         ctx.font = getPixelFont(12);
         ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
         ctx.fillText(orderObj.bonus, splitX + 38 + 1, cardY + cardH / 2 + 1);
-        // ボーナスの色も彩度を落とした赤茶色に
+        // ボーナスの色も彩度を落とした赤茶色に
         ctx.fillStyle = "#b84a38";
         ctx.fillText(orderObj.bonus, splitX + 38, cardY + cardH / 2);
     }
@@ -2885,35 +2799,6 @@ function drawGameScreen(ctx) {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function shouldShowActionButtons() {
     if (state.screen !== "game") return false;
     if (state.gameOver) return false;
@@ -3060,8 +2945,8 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isEmber) {
-            // 火花の描画は焼き鳥より後ろ（drawGameScreen 内）で行うため、ここでは何もしません。
-            // 座標と寿命の更新のみが行われます。
+            // 火花の描画は焼き鳥より後ろ(drawGameScreen 内)で行うため、ここでは何もしません。
+            // 座標と寿命の更新のみが行われます。
         } else if (p.isTitleSpark) {
             const alpha = Math.min(1, 1.5 * (1 - ratio));
             ctx.globalAlpha = 1.0; 
@@ -3162,17 +3047,6 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
 
 // --------------------------------------------------
 // ドット絵ルールの背景描画(ellipse廃止)
@@ -3401,8 +3275,6 @@ function drawCookGauge(ctx, cx, y, cv, uchiwaPreviewNextCv, uchiwaDotIndex, uchi
     }
 }
 
-
-
 function drawGrillDirt(ctx, bounds, laneIndex) {
     const { x, y, w, h } = bounds;
     ctx.save();
@@ -3419,7 +3291,7 @@ function drawGrillDirt(ctx, bounds, laneIndex) {
 }
 
 function drawAmbientSmoke(ctx, w, h) {
-    // もし背景の環境煙演出も無効化したい場合は、下の行のコメントアウト(//)を外してreturnを有効にしてください。
+    // もし背景の環境煙演出も無効化したい場合は、下の行のコメントアウト(//)を外してreturnを有効にしてください。
     // return;
 
     const now = getTime();
@@ -3444,11 +3316,10 @@ function drawAmbientSmoke(ctx, w, h) {
     ctx.restore();
 }
 
-
 function drawTableBackground(ctx) {
     const w = LAYOUT.CANVAS_WIDTH;
     const h = LAYOUT.CANVAS_HEIGHT;
-    // 焼き台が主役になるよう、背景を「奥の暗がり」としてさらに落とす
+    // 焼き台が主役になるよう、背景を「奥の暗がり」としてさらに落とす
     ctx.fillStyle = "#0c0806";
     ctx.fillRect(0, 0, w, h * 0.3);
     ctx.fillStyle = "#120a08";
@@ -3465,8 +3336,6 @@ function drawTableBackground(ctx) {
     drawBackgroundProps(ctx, w, h);
     drawAmbientSmoke(ctx, w, h);
 }
-
-
 
 function render(ctx) {
     const now = getTime();
@@ -3702,15 +3571,12 @@ function render(ctx) {
     }
 }
 
-
-
-
 function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
     const active = activePlayer === idx;
     const offsetAnim = active ? -2 : 0;
     const px = Math.round(x);
     const py = Math.round(y + offsetAnim);
-    // 背景・UIが主役にならないよう、静かで暗い色味に
+    // 背景・UIが主役にならないよう、静かで暗い色味に
     let baseColor = "#1e1713";
     if (active) {
         baseColor = idx === 1 ? "#28303a" : "#3a2424";
@@ -3720,7 +3586,7 @@ function drawPlayerPanel(ctx, player, x, y, w, h, idx, activePlayer) {
 
     if (active) { 
         const scale = 2;
-        // 枠線の不透明度を下げて主張を和らげる
+        // 枠線の不透明度を下げて主張を和らげる
         ctx.fillStyle = idx === 1 ? "rgba(60, 150, 255, 0.6)" : "rgba(255, 80, 120, 0.6)"; 
         ctx.fillRect(px - scale, py - scale, w + scale*2, scale);
         ctx.fillRect(px - scale, py - scale, scale, h + scale*2);
