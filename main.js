@@ -1158,6 +1158,8 @@ bonusText = "ORDER!"; }
 function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1;
+        SoundManager.play("uchiwa");
+
         const laneIndex = state.lanes.indexOf(node);
         const b = getLaneBounds(laneIndex);
         state.visuals.statusMessages.push({ type: 'fire', amount: 1, player: state.currentPlayer, startTime: performance.now(), duration: 800, x: b.x + b.w/2, y: b.y + b.h*0.2 });
@@ -1165,6 +1167,7 @@ function tryUchiwaNode(node) {
         consumeWorker();
     }
 }
+
 
 function isNodeValidForMode(node, mode) {
     if (!node) return false;
