@@ -81,14 +81,14 @@ const SoundManager = {
     },
 
     volumes: {
-        place: 0.05,
-        sizzle: 0.08,
-        harvest: 0.10,
-        perfect: 0.08,
-        burnt: 0.09,
-        perfectServe: 0.10,
-        uchiwa: 0.11,
-        undercooked: 0.11
+        place: 0.15,
+        sizzle: 0.13,
+        harvest: 0.15,
+        perfect: 0.17,
+        burnt: 0.14,
+        perfectServe: 0.18,
+        uchiwa: 0.16,
+        undercooked: 0.16
     },
 
     cooldowns: {
@@ -159,7 +159,7 @@ const SoundManager = {
         }
     },
 
-    play: function(name) {
+    play: function(name, options) {
         if (!this.enabled) return;
 
         if (!this.sounds[name]) {
@@ -178,8 +178,9 @@ const SoundManager = {
 
         const now = Date.now();
         const cooldown = this.cooldowns && this.cooldowns[name] !== undefined ? this.cooldowns[name] : 100;
+        const force = options && options.force === true;
 
-        if (this.lastPlayed[name] && now - this.lastPlayed[name] < cooldown) return;
+        if (!force && this.lastPlayed[name] && now - this.lastPlayed[name] < cooldown) return;
         this.lastPlayed[name] = now;
 
         const original = this.sounds[name];
@@ -206,6 +207,7 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
 
 
 
@@ -1122,7 +1124,7 @@ function tryHarvestNode(node) {
     const scoreGained = getHarvestScore(node, isSteal, status); p.servedScore += scoreGained;
     
     if (status === "perfect") {
-        SoundManager.play("perfectServe");
+        SoundManager.play("perfectServe", { force: true });
     } else if (status === "burnt") {
         SoundManager.play("burnt");
     } else {
@@ -1165,6 +1167,7 @@ bonusText = "ORDER!"; }
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
+
 
 
 function tryUchiwaNode(node) {
@@ -2032,8 +2035,24 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     if (mode !== "harvest" && mode !== "uchiwa" && mode !== null) return;
     
     const now = getTime();
-    let modeAlpha = 1.0;
     
+    if (mode === null) {
+        const canShowIdleHint = state.screen === "game"
+            && !state.buildMode
+            && !state.cookPreviewActive
+            && state.turnSplashTimer <= 0
+            && !state.pendingTurnSplash
+            && state.pendingPlayer === null
+            && !state.introSequenceActive
+            && !state.startRouletteActive
+            && !state.startRouletteBlinkActive
+            && !state.gameOver
+            && !state.isBusy;
+            
+        if (!canShowIdleHint) return;
+    }
+
+    let modeAlpha = 1.0;
     if (mode !== null) {
         const elapsedMode = now - (state.buildModeStartTime || now);
         modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
@@ -2193,6 +2212,7 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
 
     ctx.restore();
 }
+
 
 
 
