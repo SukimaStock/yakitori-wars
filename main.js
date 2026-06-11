@@ -81,14 +81,14 @@ const SoundManager = {
     },
 
     volumes: {
-        place: 0.15,
-        sizzle: 0.13,
-        harvest: 0.15,
-        perfect: 0.17,
-        burnt: 0.14,
-        perfectServe: 0.18,
-        uchiwa: 0.16,
-        undercooked: 0.16
+        place: 0.10,
+        sizzle: 0.08,
+        harvest: 0.10,
+        perfect: 0.12,
+        burnt: 0.09,
+        perfectServe: 0.13,
+        uchiwa: 0.11,
+        undercooked: 0.11
     },
 
     cooldowns: {
