@@ -82,16 +82,16 @@ const SoundManager = {
         undercooked: "undercooked.wav"
     },
 
-    volumes: {
-        place: 0.08,
-        sizzle: 0.08,
-        harvest: 0.09,
-        perfect: 0.09,
-        burnt: 0.10,
-        perfectServe: 0.10,
-        uchiwa: 0.10,
-        undercooked: 0.10
-    },
+volumes: {
+    place: 0.05,
+    sizzle: 0.06,
+    harvest: 0.07,
+    perfect: 0.07,
+    burnt: 0.06,
+    perfectServe: 0.08,
+    uchiwa: 0.07,
+    undercooked: 0.07
+},
 
     cooldowns: {
         place: 100,
