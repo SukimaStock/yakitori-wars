@@ -3113,10 +3113,10 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             ctx.fillRect(p.x - size/2, p.y - 1, size, 2);
             ctx.fillRect(p.x - 1, p.y - size/2, 2, size);
         } else if (p.isSteam) {
-            const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 0.5;
+            const baseA = p.baseAlpha !== undefined ?
+            p.baseAlpha : 0.5;
             ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
-            
             if (p.isLargeSteam) {
                 const s = Math.floor(p.size * (1 + ratio * 0.4));
                 const px = Math.floor(p.x - s/2);
@@ -3132,19 +3132,22 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
             }
         } else if (p.isAroma) {
-            const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 0.8;
+            const baseA = p.baseAlpha !== undefined ?
+            p.baseAlpha : 0.8;
             ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
             const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isSizzle) {
-            const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 1.0;
+            const baseA = p.baseAlpha !== undefined ?
+            p.baseAlpha : 1.0;
             ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
             const s = Math.floor(p.size);
             ctx.fillRect(Math.floor(p.x - s/2), Math.floor(p.y - s/2), s, s);
         } else if (p.isSmoke) {
-            const baseA = p.baseAlpha !== undefined ? p.baseAlpha : 0.5;
+            const baseA = p.baseAlpha !== undefined ?
+            p.baseAlpha : 0.5;
             ctx.globalAlpha = baseA * (1 - ratio);
             ctx.fillStyle = p.color;
             const s = Math.floor(p.size);
@@ -3194,13 +3197,15 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 if (boxId === 1) canUse = canUseMeat(state.currentPlayer);  if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); 
                 if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
         
-                const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 150), isLocked = isInputLocked() && !isPressed;
+                const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 160), isLocked = isInputLocked() && !isPressed;
                 const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); 
                 
                 let baseColor = tagColors[i];
+                let wobbleX = 0;
  
                 if (isError) {
                     baseColor = "#7a3b3b";
+                    wobbleX = Math.sin(now / 20) * 2;
                 } else if (!canUse || isLocked) {
                     baseColor = "#4a4642"; 
                 }
@@ -3216,35 +3221,38 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                     0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
                 }
                 
+                const pressOffset = isPressed ? 2 : 0;
+                const drawX = b.x + wobbleX;
+                const drawY = b.y + pressOffset;
+
                 ctx.globalAlpha = btnAlpha;
-                drawBevelRect(ctx, b.x, b.y, b.w, b.h, baseColor, isPressed);
+                drawBevelRect(ctx, drawX, drawY, b.w, b.h, baseColor, isPressed);
                 
                 ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
-                ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, 4);
-                ctx.fillRect(b.x + 8, b.y + 12, 4, b.h - 24);
+                ctx.fillRect(drawX + 8, drawY + 8, b.w - 16, 4);
+                ctx.fillRect(drawX + 8, drawY + 12, 4, b.h - 24);
                 ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-                ctx.fillRect(b.x + 8, b.y + b.h - 12, b.w - 16, 4);
-                ctx.fillRect(b.x + b.w - 12, b.y + 12, 4, b.h - 24);
+                ctx.fillRect(drawX + 8, drawY + b.h - 12, b.w - 16, 4);
+                ctx.fillRect(drawX + b.w - 12, drawY + 12, 4, b.h - 24);
                 ctx.fillStyle = (canUse && !isLocked) ?
                 "rgba(30, 20, 10, 0.4)" : "rgba(10, 10, 10, 0.6)";
-                ctx.fillRect(b.x + 4, b.y + 4, 4, 4);
-                ctx.fillRect(b.x + b.w - 8, b.y + 4, 4, 4);
-                ctx.fillRect(b.x + 4, b.y + b.h - 8, 4, 4);
-                ctx.fillRect(b.x + b.w - 8, b.y + b.h - 8, 4, 4);
+                ctx.fillRect(drawX + 4, drawY + 4, 4, 4);
+                ctx.fillRect(drawX + b.w - 8, drawY + 4, 4, 4);
+                ctx.fillRect(drawX + 4, drawY + b.h - 8, 4, 4);
+                ctx.fillRect(drawX + b.w - 8, drawY + b.h - 8, 4, 4);
                 if (harvestBreatheAlpha > 0 && !isPressed) {
                     ctx.globalAlpha = harvestBreatheAlpha;
                     ctx.fillStyle = "#fff";
-                    ctx.fillRect(b.x + 12, b.y + 8, b.w - 24, 4);
+                    ctx.fillRect(drawX + 12, drawY + 8, b.w - 24, 4);
                 }
                 
                 ctx.globalAlpha = btnAlpha;
-                const offset = isPressed ? 4 : 0; 
 
-                drawDotIcon(ctx, btn.icon, b.x + b.w/2 + offset, b.y + b.h/2 - 6 + offset, (canUse && !isLocked) ? "#fff" : "disabled", 4);
+                drawDotIcon(ctx, btn.icon, drawX + b.w/2, drawY + b.h/2 - 6, (canUse && !isLocked) ? "#fff" : "disabled", 4);
                 let textAlpha = isPressed ? 1.0 : 0.85; 
                 ctx.globalAlpha = textAlpha;
-                const textY = b.y + b.h - 14 + offset; 
-                const textX = b.x + b.w/2 + offset;
+                const textY = drawY + b.h - 14; 
+                const textX = drawX + b.w/2;
                 drawActionHintTag(ctx, boxId, textX, textY, canUse, isLocked);
                 
                 ctx.globalAlpha = 1.0;
@@ -3252,6 +3260,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 // --------------------------------------------------
 // ドット絵ルールの背景描画(ellipse廃止)
