@@ -3219,7 +3219,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         
                 const pending = state.visuals.pendingButtonAction;
                 const isPendingPressed = pending && pending.index === i;
-                const isPressed = isPendingPressed || (now - (state.visuals.buttonClicks[i] || 0) < 160);
+                const isPressed = isPendingPressed || (now - (state.visuals.buttonClicks[i] || 0) < 180);
                 const isLocked = isInputLocked() && !isPressed;
                 const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); 
                 
@@ -3233,40 +3233,51 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                     baseColor = "#4a4642"; 
                 }
 
+                if (isPressed) {
+                    baseColor = mixColor(baseColor, "#000000", 0.25);
+                } else if (pending && pending.index !== i) {
+                    baseColor = mixColor(baseColor, "#000000", 0.35);
+                }
+
                 let btnAlpha = 1.0; 
                 let harvestBreatheAlpha = 0;
         
                 if (boxId === 3 && canUse && !isLocked && state.buildMode === null) 
                 { 
                     const isPerfect = hasPerfectHarvestTarget(state.currentPlayer);
-                    baseColor = brightenColor(tagColors[i], isPerfect ? 0.2 : 0.0);
+                    baseColor = brightenColor(baseColor, isPerfect ? 0.2 : 0.0);
                     harvestBreatheAlpha = isPerfect ?
                     0.4 + 0.3 * Math.sin(now / 200) : 0.15 + 0.15 * Math.sin(now / 300);
                 }
                 
-                const pressOffset = isPressed ? 2 : 0;
+                const pressOffset = isPressed ? 4 : 0;
                 const drawX = b.x + wobbleX;
                 const drawY = b.y + pressOffset;
 
                 ctx.globalAlpha = btnAlpha;
                 drawBevelRect(ctx, drawX, drawY, b.w, b.h, baseColor, isPressed);
                 
-                ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
-                ctx.fillRect(drawX + 8, drawY + 8, b.w - 16, 4);
-                ctx.fillRect(drawX + 8, drawY + 12, 4, b.h - 24);
-                ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-                ctx.fillRect(drawX + 8, drawY + b.h - 12, b.w - 16, 4);
-                ctx.fillRect(drawX + b.w - 12, drawY + 12, 4, b.h - 24);
-                ctx.fillStyle = (canUse && !isLocked) ?
-                "rgba(30, 20, 10, 0.4)" : "rgba(10, 10, 10, 0.6)";
-                ctx.fillRect(drawX + 4, drawY + 4, 4, 4);
-                ctx.fillRect(drawX + b.w - 8, drawY + 4, 4, 4);
-                ctx.fillRect(drawX + 4, drawY + b.h - 8, 4, 4);
-                ctx.fillRect(drawX + b.w - 8, drawY + b.h - 8, 4, 4);
-                if (harvestBreatheAlpha > 0 && !isPressed) {
-                    ctx.globalAlpha = harvestBreatheAlpha;
-                    ctx.fillStyle = "#fff";
-                    ctx.fillRect(drawX + 12, drawY + 8, b.w - 24, 4);
+                if (!isPressed) {
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+                    ctx.fillRect(drawX + 8, drawY + 8, b.w - 16, 4);
+                    ctx.fillRect(drawX + 8, drawY + 12, 4, b.h - 24);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+                    ctx.fillRect(drawX + 8, drawY + b.h - 12, b.w - 16, 4);
+                    ctx.fillRect(drawX + b.w - 12, drawY + 12, 4, b.h - 24);
+                    ctx.fillStyle = (canUse && !isLocked) ?
+                    "rgba(30, 20, 10, 0.4)" : "rgba(10, 10, 10, 0.6)";
+                    ctx.fillRect(drawX + 4, drawY + 4, 4, 4);
+                    ctx.fillRect(drawX + b.w - 8, drawY + 4, 4, 4);
+                    ctx.fillRect(drawX + 4, drawY + b.h - 8, 4, 4);
+                    ctx.fillRect(drawX + b.w - 8, drawY + b.h - 8, 4, 4);
+                    if (harvestBreatheAlpha > 0) {
+                        ctx.globalAlpha = harvestBreatheAlpha;
+                        ctx.fillStyle = "#fff";
+                        ctx.fillRect(drawX + 12, drawY + 8, b.w - 24, 4);
+                    }
+                } else {
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+                    ctx.fillRect(drawX + 6, drawY + 6, b.w - 12, b.h - 12);
                 }
                 
                 ctx.globalAlpha = btnAlpha;
@@ -3283,6 +3294,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
