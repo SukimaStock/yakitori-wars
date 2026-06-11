@@ -67,6 +67,8 @@ const SoundManager = {
     enabled: localStorage.getItem("yakitoriSoundEnabled") !== "false",
     unlocked: false,
     sounds: {},
+    pools: {},
+    poolSize: 4,
     loadFailed: {},
 
     files: {
@@ -108,23 +110,28 @@ const SoundManager = {
         const self = this;
 
         for (const key in this.files) {
-            const audio = new Audio(this.files[key]);
+            this.pools[key] = [];
 
-            audio.addEventListener("error", function() {
+            const orig = new Audio(this.files[key]);
+            orig.addEventListener("error", function() {
                 self.loadFailed[key] = true;
                 console.warn("Sound file failed to load: " + key + " -> " + self.files[key]);
             });
 
-            audio.addEventListener("canplaythrough", function() {
+            orig.addEventListener("canplaythrough", function() {
                 if (self.loadFailed[key]) {
                     self.loadFailed[key] = false;
                 }
             });
+            this.sounds[key] = orig;
 
-            audio.volume = this.volumes[key];
-            audio.preload = "auto";
-            audio.load();
-            this.sounds[key] = audio;
+            for (let i = 0; i < this.poolSize; i++) {
+                const audio = new Audio(this.files[key]);
+                audio.volume = this.volumes[key] !== undefined ? this.volumes[key] : 0.25;
+                audio.preload = "auto";
+                audio.load();
+                this.pools[key].push(audio);
+            }
         }
     },
 
@@ -133,28 +140,32 @@ const SoundManager = {
 
         this.unlocked = true;
 
-        for (const key in this.sounds) {
-            const audio = this.sounds[key];
+        for (const key in this.pools) {
+            const pool = this.pools[key];
 
-            try {
-                audio.muted = true;
-                audio.currentTime = 0;
+            for (let i = 0; i < pool.length; i++) {
+                const audio = pool[i];
 
-                const p = audio.play();
+                try {
+                    audio.muted = true;
+                    audio.currentTime = 0;
 
-                if (p && p.then) {
-                    p.then(function() {
-                        audio.pause();
-                        audio.currentTime = 0;
+                    const p = audio.play();
+
+                    if (p && p.then) {
+                        p.then(function() {
+                            audio.pause();
+                            audio.currentTime = 0;
+                            audio.muted = false;
+                        }).catch(function() {
+                            audio.muted = false;
+                        });
+                    } else {
                         audio.muted = false;
-                    }).catch(function() {
-                        audio.muted = false;
-                    });
-                } else {
+                    }
+                } catch (e) {
                     audio.muted = false;
                 }
-            } catch (e) {
-                audio.muted = false;
             }
         }
     },
@@ -162,7 +173,7 @@ const SoundManager = {
     play: function(name, options) {
         if (!this.enabled) return;
 
-        if (!this.sounds[name]) {
+        if (!this.pools[name]) {
             console.warn("Unknown sound name: " + name);
             return;
         }
@@ -178,15 +189,32 @@ const SoundManager = {
 
         const now = Date.now();
         const cooldown = this.cooldowns && this.cooldowns[name] !== undefined ? this.cooldowns[name] : 100;
-        const force = options && options.force === true;
+        
+        options = options || {};
+        const force = !!options.force;
 
         if (!force && this.lastPlayed[name] && now - this.lastPlayed[name] < cooldown) return;
         this.lastPlayed[name] = now;
 
-        const original = this.sounds[name];
+        const pool = this.pools[name];
+        let audio = null;
+
+        for (let i = 0; i < pool.length; i++) {
+            if (pool[i].paused || pool[i].ended) {
+                audio = pool[i];
+                break;
+            }
+        }
+
+        if (!audio) {
+            audio = pool[0];
+            try {
+                audio.pause();
+                audio.currentTime = 0;
+            } catch (e) {}
+        }
 
         try {
-            const audio = original.cloneNode(true);
             audio.volume = this.volumes[name] !== undefined ? this.volumes[name] : 0.25;
             audio.currentTime = 0;
 
@@ -207,6 +235,7 @@ const SoundManager = {
         localStorage.setItem("yakitoriSoundEnabled", value ? "true" : "false");
     }
 };
+
 
 
 
@@ -1126,9 +1155,9 @@ function tryHarvestNode(node) {
     if (status === "perfect") {
         SoundManager.play("perfectServe", { force: true });
     } else if (status === "burnt") {
-        SoundManager.play("burnt");
+        SoundManager.play("burnt", { force: true });
     } else {
-        SoundManager.play("harvest");
+        SoundManager.play("harvest", { force: true });
     }
     
     if (status === "perfect") p.stats.perfect++; if (status === "burnt") p.stats.burnt++; if (isSteal && scoreGained > 0) p.stats.steal++;
@@ -1167,6 +1196,7 @@ bonusText = "ORDER!"; }
     state.visuals.ghosts.push({ laneIndex: laneIndex, status: status.toUpperCase(), startTime: performance.now(), cookState: node.cookState, owner: node.owner });
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
+
 
 
 
