@@ -1166,6 +1166,7 @@ bonusText = "ORDER!"; }
     node.built = false; node.owner = null; node.cookState = 0; node.justPlaced = false; consumeWorker();
 }
 
+
 function tryUchiwaNode(node) {
     if (node.built) { 
         node.uchiwaBoost += 1;
@@ -2028,11 +2029,15 @@ function getBuildModeIcon(mode) { if (mode === "sapling") return "put_skewer"; i
     if (mode === "uchiwa") return "uchiwa"; return null; }
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     if (!lane.built) return;
-    if (mode !== "harvest" && mode !== "uchiwa") return;
+    if (mode !== "harvest" && mode !== "uchiwa" && mode !== null) return;
     
     const now = getTime();
-    const elapsedMode = now - (state.buildModeStartTime || now);
-    const modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
+    let modeAlpha = 1.0;
+    
+    if (mode !== null) {
+        const elapsedMode = now - (state.buildModeStartTime || now);
+        modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
+    }
     
     if (modeAlpha <= 0) return;
 
@@ -2150,10 +2155,45 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
         ctx.fillStyle = currentTextColor;
         ctx.fillText(labelText, laneCx, hintY);
         ctx.globalAlpha = modeAlpha;
+    } else if (mode === null) {
+        const currentStatus = getCookLabel(lane.type, lane.cookState);
+        const baseHeat = getBaseHeat(lane.type);
+        const predictedCookState = Math.min(8, lane.cookState + baseHeat + (lane.uchiwaBoost || 0));
+        const predictedStatus = getCookLabel(lane.type, predictedCookState);
+
+        let hintType = null;
+        if (predictedStatus === "burnt" && currentStatus !== "burnt") {
+            hintType = "danger";
+        } else if (currentStatus === "perfect") {
+            hintType = "perfect";
+        }
+
+        if (hintType) {
+            const px = Math.round(laneCx - 14);
+            const py = Math.round(hintY - 12);
+            
+            drawBevelRect(ctx, px, py, 28, 24, "#241f1c");
+            ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+            ctx.fillRect(px + 2, py + 2, 24, 2);
+
+            if (hintType === "danger") {
+                const pulse = 0.6 + 0.4 * Math.sin(now / 100);
+                drawDotIcon(ctx, "warning", laneCx, hintY, "#ff5555", 1.8);
+                ctx.globalAlpha = pulse;
+                drawDotIcon(ctx, "warning", laneCx, hintY, "#ffaaaa", 1.8);
+            } else if (hintType === "perfect") {
+                const pulse = 0.8 + 0.2 * Math.sin(now / 150);
+                drawDotIcon(ctx, "diamond", laneCx, hintY, "#ffeb3b", 1.5);
+                ctx.globalAlpha = pulse;
+                drawDotIcon(ctx, "diamond", laneCx, hintY, "#ffffff", 1.5);
+            }
+            ctx.globalAlpha = 1.0;
+        }
     }
 
     ctx.restore();
 }
+
 
 
 
