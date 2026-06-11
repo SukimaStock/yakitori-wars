@@ -83,14 +83,14 @@ const SoundManager = {
     },
 
     volumes: {
-        place: 0.15,
-        sizzle: 0.13,
-        harvest: 0.15,
-        perfect: 0.17,
-        burnt: 0.14,
-        perfectServe: 0.18,
-        uchiwa: 0.16,
-        undercooked: 0.16
+        place: 0.08,
+        sizzle: 0.08,
+        harvest: 0.09,
+        perfect: 0.09,
+        burnt: 0.10,
+        perfectServe: 0.10,
+        uchiwa: 0.10,
+        undercooked: 0.10
     },
 
     cooldowns: {
@@ -2080,19 +2080,49 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
             && !state.isBusy;
             
         if (!canShowIdleHint) return;
+
+        const currentStatus = getCookLabel(lane.type, lane.cookState);
+        const baseHeat = getBaseHeat(lane.type);
+        const predictedCookState = Math.min(8, lane.cookState + baseHeat + (lane.uchiwaBoost || 0));
+        const predictedStatus = getCookLabel(lane.type, predictedCookState);
+
+        let hintType = null;
+        if (predictedStatus === "burnt" && currentStatus !== "burnt") {
+            hintType = "danger";
+        } else if (currentStatus === "perfect") {
+            hintType = "perfect";
+        }
+
+        if (hintType) {
+            const b = getLaneBounds(laneIndex);
+            const laneCx = b.x + b.w / 2;
+            const gaugeY = b.y + b.h + 12; // 焼きメーターのY座標
+
+            if (hintType === "danger") {
+                // 最低0.45を残し、ゆっくり脈打つ
+                const pulse = 0.45 + 0.55 * (Math.sin(now / 150) * 0.5 + 0.5);
+                ctx.globalAlpha = pulse;
+                // 焼きメーターの右端に小さく危険アイコンを置く
+                drawDotIcon(ctx, "warning", laneCx + 40, gaugeY + 4, "#ff5555", 1.4);
+            } else if (hintType === "perfect") {
+                const pulse = 0.5 + 0.5 * (Math.sin(now / 200) * 0.5 + 0.5);
+                ctx.globalAlpha = pulse;
+                // 焼きメーターの左端に小さくキラキラを置く
+                drawDotIcon(ctx, "diamond", laneCx - 40, gaugeY + 4, "#ffeb3b", 1.4);
+            }
+            ctx.globalAlpha = 1.0;
+        }
+        return;
     }
 
     let modeAlpha = 1.0;
-    if (mode !== null) {
-        const elapsedMode = now - (state.buildModeStartTime || now);
-        modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
-    }
+    const elapsedMode = now - (state.buildModeStartTime || now);
+    modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
     
     if (modeAlpha <= 0) return;
 
     const b = getLaneBounds(laneIndex);
     const laneCx = b.x + b.w / 2;
-    
     const floatDist = 10 * (1 - modeAlpha);
     const hintY = b.y - 20 - floatDist;
 
@@ -2204,44 +2234,11 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
         ctx.fillStyle = currentTextColor;
         ctx.fillText(labelText, laneCx, hintY);
         ctx.globalAlpha = modeAlpha;
-    } else if (mode === null) {
-        const currentStatus = getCookLabel(lane.type, lane.cookState);
-        const baseHeat = getBaseHeat(lane.type);
-        const predictedCookState = Math.min(8, lane.cookState + baseHeat + (lane.uchiwaBoost || 0));
-        const predictedStatus = getCookLabel(lane.type, predictedCookState);
-
-        let hintType = null;
-        if (predictedStatus === "burnt" && currentStatus !== "burnt") {
-            hintType = "danger";
-        } else if (currentStatus === "perfect") {
-            hintType = "perfect";
-        }
-
-        if (hintType) {
-            const px = Math.round(laneCx - 14);
-            const py = Math.round(hintY - 12);
-            
-            drawBevelRect(ctx, px, py, 28, 24, "#241f1c");
-            ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-            ctx.fillRect(px + 2, py + 2, 24, 2);
-
-            if (hintType === "danger") {
-                const pulse = 0.6 + 0.4 * Math.sin(now / 100);
-                drawDotIcon(ctx, "warning", laneCx, hintY, "#ff5555", 1.8);
-                ctx.globalAlpha = pulse;
-                drawDotIcon(ctx, "warning", laneCx, hintY, "#ffaaaa", 1.8);
-            } else if (hintType === "perfect") {
-                const pulse = 0.8 + 0.2 * Math.sin(now / 150);
-                drawDotIcon(ctx, "diamond", laneCx, hintY, "#ffeb3b", 1.5);
-                ctx.globalAlpha = pulse;
-                drawDotIcon(ctx, "diamond", laneCx, hintY, "#ffffff", 1.5);
-            }
-            ctx.globalAlpha = 1.0;
-        }
     }
 
     ctx.restore();
 }
+
 
 
 
