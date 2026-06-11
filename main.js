@@ -2027,22 +2027,81 @@ function drawDotIcon(ctx, iconId, cx, cy, color, scale) {
 function getBuildModeIcon(mode) { if (mode === "sapling") return "put_skewer"; if (mode === "harvest") return "serve_plate";
     if (mode === "uchiwa") return "uchiwa"; return null; }
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
-    if (!lane.built || !mode) return;
-    const b = getLaneBounds(laneIndex); const laneCx = b.x + b.w / 2, hintY = b.y - 18;
-    const status = getCookLabel(lane.type, lane.cookState), isOwn = lane.owner === activePlayer;
-    const canSteal = !isOwn && status !== "early" && status !== "burnt" && pResources >= 1;
-    if (mode === "harvest") {
-        if (status === "early") { drawDotIcon(ctx, "cross", laneCx, hintY, "#cc7777", 1.6);
-        } 
-        else if (status === "burnt") { if (isOwn) drawDotIcon(ctx, "cross", laneCx, hintY, "#555", 2);
-            else drawDotIcon(ctx, "trash", laneCx, hintY, "#ccc", 2); } 
-        else if (isOwn) { if (status === "perfect") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ff4", 2);
-            else if (status === "okay") drawDotIcon(ctx, "diamond", laneCx, hintY, "#ddd", 2);
-        } 
-        else if (canSteal) drawDotIcon(ctx, "meat", laneCx, hintY, "#f33", 2);
-        else drawDotIcon(ctx, "warning", laneCx, hintY, "#888", 2);
+    if (!lane.built || mode !== "harvest") return;
+    
+    const now = getTime();
+    const elapsedMode = now - (state.buildModeStartTime || now);
+    const modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
+    
+    if (modeAlpha <= 0) return;
+
+    const b = getLaneBounds(laneIndex);
+    const laneCx = b.x + b.w / 2;
+    
+    const floatDist = 10 * (1 - modeAlpha);
+    const hintY = b.y - 20 - floatDist;
+
+    const status = getCookLabel(lane.type, lane.cookState);
+    const isOwn = lane.owner === activePlayer;
+    const isSteal = !isOwn;
+    
+    let canHarvest = false;
+    if (isOwn) {
+        canHarvest = true;
+    } else {
+        if (status === "early") canHarvest = false;
+        else if (status !== "burnt" && pResources < 1) canHarvest = false;
+        else canHarvest = true;
     }
+
+    ctx.save();
+    ctx.globalAlpha = modeAlpha;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (!canHarvest) {
+        drawBevelRect(ctx, laneCx - 14, hintY - 12, 28, 24, "#241f1c");
+        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.fillRect(laneCx - 12, hintY - 10, 24, 2);
+        
+        ctx.fillStyle = "#000000";
+        ctx.font = getPixelFont(14);
+        ctx.fillText("x", laneCx + 2, hintY + 2);
+        ctx.fillStyle = "#aaaaaa";
+        ctx.fillText("x", laneCx, hintY);
+    } else {
+        const score = getHarvestScore(lane, isSteal, status);
+        let scoreText = score > 0 ? "+" + score : "" + score;
+        let textColor = score > 0 ? "#ffeb3b" : (score < 0 ? "#ff5555" : "#aaaaaa");
+        if (score === 0) textColor = "#aaaaaa";
+
+        let isStealIcon = (isSteal && status !== "burnt");
+        let plateW = 40;
+        if (isStealIcon) plateW = 54;
+        
+        const px = Math.round(laneCx - plateW / 2);
+        const py = Math.round(hintY - 12);
+        
+        drawBevelRect(ctx, px, py, plateW, 24, "#241f1c");
+        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.fillRect(px + 2, py + 2, plateW - 4, 2);
+
+        let textX = laneCx;
+        if (isStealIcon) {
+            drawDotIcon(ctx, "meat", px + 12, hintY, "#f33", 1.5);
+            textX = px + 36;
+        }
+
+        ctx.font = getPixelFont(12);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillText(scoreText, textX + 2, hintY + 2);
+        ctx.fillStyle = textColor;
+        ctx.fillText(scoreText, textX, hintY);
+    }
+
+    ctx.restore();
 }
+
 
 function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scale = 1) {
     // 全体的に控えめなアルファ値に調整
@@ -2625,64 +2684,50 @@ function drawGameScreen(ctx) {
             const elapsedMode = now - (state.buildModeStartTime || now);
             const modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
 
-            const tagFloatY = Math.sin(now / 200) * 3;
-            const ty = info.b.y - 10 + tagFloatY;
-            const baseColor = "#a07b5a"; 
-            const markColor = "#4a2818"; 
-            
-            ctx.globalAlpha = modeAlpha;
-            ctx.fillStyle = "#1a1a1a";
-            ctx.fillRect(info.laneCx - 1, ty - 32, 2, 10); 
-            
-            drawBevelRect(ctx, info.laneCx - 12, ty - 22, 24, 28, baseColor);
-            
-            ctx.fillStyle = markColor;
-            ctx.fillRect(info.laneCx - 1, ty - 18, 2, 18); 
-            ctx.fillRect(info.laneCx - 4, ty - 14, 8, 4); 
-            ctx.fillRect(info.laneCx - 4, ty - 8, 8, 4);  
-            ctx.globalAlpha = 1.0;
-
-            const floatY = info.b.y - 55 - (1 - modeAlpha) * 10;
-            ctx.textAlign = "center";
-            if (state.buildMode === "harvest") {
-                const isSteal = (lane.owner !== null && lane.owner !== activePlayer);
-                const score = getHarvestScore(lane, isSteal, info.currentStatus);
-                let scoreText = score > 0 ? "+" + score : "" + score;
-                let color = score > 0 ? "#ffeb3b" : (score < 0 ? "#ff5555" : "#aaaaaa");
-                if (score === 0) color = "#aaaaaa";
-                ctx.fillStyle = "rgba(25, 20, 15, " + (0.85 * modeAlpha) + ")";
-                ctx.fillRect(info.laneCx - 24, floatY - 16, 48, 22);
-    
-                ctx.fillStyle = "rgba(255, 255, 255, " + (0.15 * modeAlpha) + ")";
-                ctx.fillRect(info.laneCx - 24, floatY - 16, 48, 2);
-                ctx.fillStyle = "rgba(0, 0, 0, " + (0.5 * modeAlpha) + ")";
-                ctx.fillRect(info.laneCx - 24, floatY + 4, 48, 2);
-                ctx.font = getPixelFont(12);
-                ctx.fillStyle = "rgba(0, 0, 0, " + modeAlpha + ")"; ctx.fillText(scoreText, info.laneCx + 2, floatY + 2);
+            if (state.buildMode !== "harvest") {
+                const tagFloatY = Math.sin(now / 200) * 3;
+                const ty = info.b.y - 10 + tagFloatY;
+                const baseColor = "#a07b5a"; 
+                const markColor = "#4a2818"; 
+                
                 ctx.globalAlpha = modeAlpha;
-                ctx.fillStyle = color; ctx.fillText(scoreText, info.laneCx, floatY);
-            } else if (state.buildMode === "uchiwa") {
-                let statusText = info.uchiwaTargetStatus.toUpperCase();
-                if (info.uchiwaTargetStatus === "burnt") statusText = "BURN"; if (info.uchiwaTargetStatus === "okay") statusText = "OK";
-                let color = "#fff", textAlpha = modeAlpha;
-                if (info.uchiwaTargetStatus === "perfect") color = "#ffeb3b";
-                else if (info.uchiwaTargetStatus === "burnt") { color = "#ff5555"; textAlpha = modeAlpha * (0.6 + 0.4 * Math.sin(now / 80));
+                ctx.fillStyle = "#1a1a1a";
+                ctx.fillRect(info.laneCx - 1, ty - 32, 2, 10); 
+                
+                drawBevelRect(ctx, info.laneCx - 12, ty - 22, 24, 28, baseColor);
+                
+                ctx.fillStyle = markColor;
+                ctx.fillRect(info.laneCx - 1, ty - 18, 2, 18); 
+                ctx.fillRect(info.laneCx - 4, ty - 14, 8, 4); 
+                ctx.fillRect(info.laneCx - 4, ty - 8, 8, 4);  
+                ctx.globalAlpha = 1.0;
+
+                const floatY = info.b.y - 55 - (1 - modeAlpha) * 10;
+                ctx.textAlign = "center";
+                
+                if (state.buildMode === "uchiwa") {
+                    let statusText = info.uchiwaTargetStatus.toUpperCase();
+                    if (info.uchiwaTargetStatus === "burnt") statusText = "BURN"; if (info.uchiwaTargetStatus === "okay") statusText = "OK";
+                    let color = "#fff", textAlpha = modeAlpha;
+                    if (info.uchiwaTargetStatus === "perfect") color = "#ffeb3b";
+                    else if (info.uchiwaTargetStatus === "burnt") { color = "#ff5555"; textAlpha = modeAlpha * (0.6 + 0.4 * Math.sin(now / 80));
+                    }
+                    else if (info.uchiwaTargetStatus === "okay") color = "#dddddd";
+                    else color = "#aaaaaa";
+                    ctx.fillStyle = "rgba(25, 20, 15, " + (0.85 * modeAlpha) + ")";
+                    ctx.fillRect(info.laneCx - 24, floatY - 24, 48, 30);
+                    ctx.fillStyle = "rgba(255, 255, 255, " + (0.15 * modeAlpha) + ")";
+                    ctx.fillRect(info.laneCx - 24, floatY - 24, 48, 2);
+                    ctx.fillStyle = "rgba(0, 0, 0, " + (0.5 * modeAlpha) + ")";
+                    ctx.fillRect(info.laneCx - 24, floatY + 4, 48, 2);
+                    ctx.font = getPixelFont(8);
+                    ctx.fillStyle = "rgba(180, 180, 180, " + modeAlpha + ")"; ctx.fillText("NEXT", info.laneCx, floatY - 12);
+                    ctx.globalAlpha = textAlpha;
+                    ctx.font = getPixelFont(10); ctx.fillStyle = "#000"; ctx.fillText(statusText, info.laneCx + 2, floatY + 2);
+                    ctx.fillStyle = color; ctx.fillText(statusText, info.laneCx, floatY);
                 }
-                else if (info.uchiwaTargetStatus === "okay") color = "#dddddd";
-                else color = "#aaaaaa";
-                ctx.fillStyle = "rgba(25, 20, 15, " + (0.85 * modeAlpha) + ")";
-                ctx.fillRect(info.laneCx - 24, floatY - 24, 48, 30);
-                ctx.fillStyle = "rgba(255, 255, 255, " + (0.15 * modeAlpha) + ")";
-                ctx.fillRect(info.laneCx - 24, floatY - 24, 48, 2);
-                ctx.fillStyle = "rgba(0, 0, 0, " + (0.5 * modeAlpha) + ")";
-                ctx.fillRect(info.laneCx - 24, floatY + 4, 48, 2);
-                ctx.font = getPixelFont(8);
-                ctx.fillStyle = "rgba(180, 180, 180, " + modeAlpha + ")"; ctx.fillText("NEXT", info.laneCx, floatY - 12);
-                ctx.globalAlpha = textAlpha;
-                ctx.font = getPixelFont(10); ctx.fillStyle = "#000"; ctx.fillText(statusText, info.laneCx + 2, floatY + 2);
-                ctx.fillStyle = color; ctx.fillText(statusText, info.laneCx, floatY);
+                ctx.globalAlpha = 1.0;
             }
-            ctx.globalAlpha = 1.0;
         }
 
         if (info.isCurrentPreviewLane && info.previewEventForThisLane && info.previewProg >= 0.25) {
@@ -2820,6 +2865,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 function shouldShowActionButtons() {
     if (state.screen !== "game") return false;
