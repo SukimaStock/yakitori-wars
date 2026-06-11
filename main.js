@@ -3191,9 +3191,41 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
     if (state.buildMode) {
         const cb = getCancelButtonBounds(), selectedIcon = getBuildModeIcon(state.buildMode);
         if (selectedIcon) { 
-            const iconX = cb.x + cb.w / 2, iconY = cb.y - 26;
-            ctx.globalAlpha = 0.9;
-            drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 3); ctx.globalAlpha = 1.0;
+            const iconX = cb.x + cb.w / 2;
+            const bob = Math.sin(now * 0.004) * 2;
+            const iconY = cb.y - 40 + bob;
+            
+            // 道具トレイのような小さな暗い影
+            ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+            ctx.fillRect(iconX - 20, cb.y - 22, 40, 6);
+            ctx.fillRect(iconX - 16, cb.y - 24, 32, 2);
+            ctx.fillRect(iconX - 16, cb.y - 16, 32, 2);
+            
+            ctx.globalAlpha = 0.95;
+            
+            // アイコンサイズを 3 から 4 に拡大
+            drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 4);
+            
+            // モードごとのアクセント演出
+            if (state.buildMode === "sapling") {
+                // 肉を添える
+                drawDotIcon(ctx, "meat", iconX - 12, iconY + 8, "#d66a70", 2.5);
+            } else if (state.buildMode === "harvest") {
+                // 皿の上に小さな湯気
+                const steamY1 = iconY - 14 - (now * 0.015) % 8;
+                const steamY2 = iconY - 12 - ((now + 300) * 0.015) % 8;
+                ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+                ctx.fillRect(iconX - 8, steamY1, 2, 2);
+                ctx.fillRect(iconX + 6, steamY2, 2, 2);
+            } else if (state.buildMode === "uchiwa") {
+                // 風線
+                const windP = (now * 0.04) % 20;
+                ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.fillRect(iconX + 14 + windP, iconY - 4, 6, 2);
+                ctx.fillRect(iconX + 10 + windP, iconY + 6, 4, 2);
+            }
+            
+            ctx.globalAlpha = 1.0;
         }
         const isPressed = (now - (state.visuals.cancelClick || 0) < 150);
         drawBevelRect(ctx, cb.x, cb.y, cb.w, cb.h, "#8a3a3a", isPressed);
@@ -3294,6 +3326,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
