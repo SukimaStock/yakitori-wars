@@ -50,10 +50,11 @@ function initGameState() {
             buttonClicks: {}, buttonErrors: {}, laneErrors: {}, laneFlashes: {}, placedAt: {}, 
             peakFlashes: {}, ghosts: [], floaters: [], statusMessages: [], particles: [], 
             cancelClick: 0, titleClick: null, perfectFlash: { timer: 0 }, resultComment: null,
-            aiTargetLane: null, traces: [], uchiwaGusts: {} 
+            aiTargetLane: null, traces: [], uchiwaGusts: {}, pendingButtonAction: null 
         }
     };
 }
+
 initGameState();
 
 let logoImage = new Image(); logoImage.src = "Logo.png";
@@ -1098,7 +1099,8 @@ function placeWorker(boxId) {
         p.resources += 1;
         SynthSfx.play("meat");
         const panelW = Math.min(100, LAYOUT.CANVAS_WIDTH * 0.25);
-        const px = state.currentPlayer === 1 ? 10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
+        const px = state.currentPlayer === 1 ?
+        10 + panelW / 2 : LAYOUT.CANVAS_WIDTH - panelW - 10 + panelW / 2;
         const py = 15 + 95 + 10;
         state.visuals.statusMessages.push({ type: "meat", amount: 1, player: state.currentPlayer, x: px, y: py, startTime: performance.now(), duration: 800 });
         consumeWorker();
@@ -1109,9 +1111,10 @@ function placeWorker(boxId) {
             else if (boxId === 3) { state.buildMode = "harvest"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
             else if (boxId === 4) { state.buildMode = "uchiwa"; state.pendingBox = boxId; state.buildModeStartTime = performance.now(); }
             state.isBusy = false;
-        }, 150);
+        }, 80);
     }
 }
+
 
 function tryBuildNode(node) {
     const p = state.players[state.currentPlayer - 1];
@@ -1304,7 +1307,20 @@ function handleCanvasClick(event, canvas) {
                 if (boxId !== 1) {
                     SynthSfx.play("tap");
                 }
-                placeWorker(boxId); 
+                
+                state.visuals.pendingButtonAction = {
+                    index: i,
+                    boxId: boxId,
+                    startTime: performance.now(),
+                    duration: 140
+                };
+                state.isBusy = true;
+                
+                setTimeout(function() {
+                    if (state.visuals) state.visuals.pendingButtonAction = null;
+                    placeWorker(boxId);
+                }, 140);
+                
             } 
             else if (!isInputLocked()) {
                 let reason = "";
@@ -1319,6 +1335,7 @@ function handleCanvasClick(event, canvas) {
         }
     }
 }
+
 
 // ==========================================
 // 6. game/ai.js - AIロジック
@@ -3012,15 +3029,18 @@ function shouldShowActionButtons() {
     if (state.cookPreviewActive || state.roundEndPauseTimer > 0) return false;
     if (state.turnSplashTimer > 0 || state.pendingTurnSplash) return false;
     if (state.pendingPlayer !== null || state.aiBreathTimer > 0) return false;
-    if (state.isBusy || state.isAIThinking) return false;
+
+    const isPending = !!(state.visuals && state.visuals.pendingButtonAction);
+    if (!isPending && (state.isBusy || state.isAIThinking)) return false;
 
     const cp = state.currentPlayer;
     if (!state.players || !state.players[cp - 1]) return false;
-    if (state.players[cp - 1].workersRemaining <= 0) return false;
+    if (state.players[cp - 1].workersRemaining <= 0 && !isPending) return false;
     if (isAIPlayer(cp)) return false;
 
     return true;
 }
+
 
 function drawActionHintTag(ctx, boxId, cx, cy, canUse, isLocked) {
     const tagW = 48;
@@ -3197,7 +3217,10 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
                 if (boxId === 1) canUse = canUseMeat(state.currentPlayer);  if (boxId === 2) canUse = canUseSkewer(state.currentPlayer); 
                 if (boxId === 3) canUse = canUseServe(state.currentPlayer); if (boxId === 4) canUse = canUseUchiwa(state.currentPlayer); 
         
-                const isPressed = (now - (state.visuals.buttonClicks[i] || 0) < 160), isLocked = isInputLocked() && !isPressed;
+                const pending = state.visuals.pendingButtonAction;
+                const isPendingPressed = pending && pending.index === i;
+                const isPressed = isPendingPressed || (now - (state.visuals.buttonClicks[i] || 0) < 160);
+                const isLocked = isInputLocked() && !isPressed;
                 const isError = (now - (state.visuals.buttonErrors[i] || 0) < 150); 
                 
                 let baseColor = tagColors[i];
@@ -3260,6 +3283,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 // --------------------------------------------------
