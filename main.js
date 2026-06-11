@@ -3207,10 +3207,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
             drawDotIcon(ctx, selectedIcon, iconX, iconY, "#fff", 4);
             
             // モードごとのアクセント演出
-            if (state.buildMode === "sapling") {
-                // 肉を添える
-                drawDotIcon(ctx, "meat", iconX - 12, iconY + 8, "#d66a70", 2.5);
-            } else if (state.buildMode === "harvest") {
+            if (state.buildMode === "harvest") {
                 // 皿の上に小さな湯気
                 const steamY1 = iconY - 14 - (now * 0.015) % 8;
                 const steamY2 = iconY - 12 - ((now + 300) * 0.015) % 8;
@@ -3326,6 +3323,7 @@ function renderParticlesAndOverlay(ctx, now, activePlayer) {
         }
     }
 }
+
 
 
 
