@@ -81,12 +81,12 @@ const SoundManager = {
     },
 
     volumes: {
-        place: 0.10,
+        place: 0.05,
         sizzle: 0.08,
         harvest: 0.10,
-        perfect: 0.12,
+        perfect: 0.08,
         burnt: 0.09,
-        perfectServe: 0.13,
+        perfectServe: 0.10,
         uchiwa: 0.11,
         undercooked: 0.11
     },
@@ -2027,7 +2027,8 @@ function drawDotIcon(ctx, iconId, cx, cy, color, scale) {
 function getBuildModeIcon(mode) { if (mode === "sapling") return "put_skewer"; if (mode === "harvest") return "serve_plate";
     if (mode === "uchiwa") return "uchiwa"; return null; }
 function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
-    if (!lane.built || mode !== "harvest") return;
+    if (!lane.built) return;
+    if (mode !== "harvest" && mode !== "uchiwa") return;
     
     const now = getTime();
     const elapsedMode = now - (state.buildModeStartTime || now);
@@ -2041,66 +2042,119 @@ function drawLaneHint(ctx, lane, laneIndex, mode, activePlayer, pResources) {
     const floatDist = 10 * (1 - modeAlpha);
     const hintY = b.y - 20 - floatDist;
 
-    const status = getCookLabel(lane.type, lane.cookState);
-    const isOwn = lane.owner === activePlayer;
-    const isSteal = !isOwn;
-    
-    let canHarvest = false;
-    if (isOwn) {
-        canHarvest = true;
-    } else {
-        if (status === "early") canHarvest = false;
-        else if (status !== "burnt" && pResources < 1) canHarvest = false;
-        else canHarvest = true;
-    }
-
     ctx.save();
     ctx.globalAlpha = modeAlpha;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    if (!canHarvest) {
-        drawBevelRect(ctx, laneCx - 14, hintY - 12, 28, 24, "#241f1c");
-        ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-        ctx.fillRect(laneCx - 12, hintY - 10, 24, 2);
+    if (mode === "harvest") {
+        const status = getCookLabel(lane.type, lane.cookState);
+        const isOwn = lane.owner === activePlayer;
+        const isSteal = !isOwn;
         
-        ctx.fillStyle = "#000000";
-        ctx.font = getPixelFont(14);
-        ctx.fillText("x", laneCx + 2, hintY + 2);
-        ctx.fillStyle = "#aaaaaa";
-        ctx.fillText("x", laneCx, hintY);
-    } else {
-        const score = getHarvestScore(lane, isSteal, status);
-        let scoreText = score > 0 ? "+" + score : "" + score;
-        let textColor = score > 0 ? "#ffeb3b" : (score < 0 ? "#ff5555" : "#aaaaaa");
-        if (score === 0) textColor = "#aaaaaa";
+        let canHarvest = false;
+        if (isOwn) {
+            canHarvest = true;
+        } else {
+            if (status === "early") canHarvest = false;
+            else if (status !== "burnt" && pResources < 1) canHarvest = false;
+            else canHarvest = true;
+        }
 
-        let isStealIcon = (isSteal && status !== "burnt");
-        let plateW = 40;
-        if (isStealIcon) plateW = 54;
-        
+        if (!canHarvest) {
+            drawBevelRect(ctx, laneCx - 14, hintY - 12, 28, 24, "#241f1c");
+            ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+            ctx.fillRect(laneCx - 12, hintY - 10, 24, 2);
+            
+            ctx.fillStyle = "#000000";
+            ctx.font = getPixelFont(14);
+            ctx.fillText("x", laneCx + 2, hintY + 2);
+            ctx.fillStyle = "#aaaaaa";
+            ctx.fillText("x", laneCx, hintY);
+        } else {
+            const score = getHarvestScore(lane, isSteal, status);
+            let scoreText = score > 0 ? "+" + score : "" + score;
+            let textColor = score > 0 ? "#ffeb3b" : (score < 0 ? "#ff5555" : "#aaaaaa");
+            if (score === 0) textColor = "#aaaaaa";
+
+            let isStealIcon = (isSteal && status !== "burnt");
+            let plateW = 40;
+            if (isStealIcon) plateW = 54;
+            
+            const px = Math.round(laneCx - plateW / 2);
+            const py = Math.round(hintY - 12);
+            
+            drawBevelRect(ctx, px, py, plateW, 24, "#241f1c");
+            ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+            ctx.fillRect(px + 2, py + 2, plateW - 4, 2);
+
+            let textX = laneCx;
+            if (isStealIcon) {
+                drawDotIcon(ctx, "meat", px + 12, hintY, "#f33", 1.5);
+                textX = px + 36;
+            }
+
+            ctx.font = getPixelFont(12);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+            ctx.fillText(scoreText, textX + 2, hintY + 2);
+            ctx.fillStyle = textColor;
+            ctx.fillText(scoreText, textX, hintY);
+        }
+    } else if (mode === "uchiwa") {
+        const baseHeat = getBaseHeat(lane.type);
+        const predictedCookState = Math.min(8, lane.cookState + baseHeat + 1);
+        const predictedStatus = getCookLabel(lane.type, predictedCookState);
+
+        let labelText = "";
+        let textColor = "#fff";
+        let plateW = 64;
+
+        if (predictedStatus === "perfect") {
+            labelText = "PERFECT";
+            textColor = "#ffeb3b";
+            plateW = 72;
+        } else if (predictedStatus === "okay") {
+            labelText = "OK";
+            textColor = "#dddddd";
+            plateW = 40;
+        } else if (predictedStatus === "burnt") {
+            labelText = "BURN";
+            textColor = "#ff5555";
+            plateW = 48;
+        } else {
+            labelText = "EARLY";
+            textColor = "#aaaaaa";
+            plateW = 56;
+        }
+
         const px = Math.round(laneCx - plateW / 2);
         const py = Math.round(hintY - 12);
-        
+
         drawBevelRect(ctx, px, py, plateW, 24, "#241f1c");
         ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
         ctx.fillRect(px + 2, py + 2, plateW - 4, 2);
 
-        let textX = laneCx;
-        if (isStealIcon) {
-            drawDotIcon(ctx, "meat", px + 12, hintY, "#f33", 1.5);
-            textX = px + 36;
+        ctx.font = getPixelFont(10);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
+        ctx.fillText(labelText, laneCx + 2, hintY + 2);
+        
+        let currentTextColor = textColor;
+        if (predictedStatus === "burnt") {
+            const pulse = 0.6 + 0.4 * Math.sin(now / 80);
+            ctx.globalAlpha = modeAlpha * pulse;
+        } else if (predictedStatus === "perfect") {
+            const pulse = 0.8 + 0.2 * Math.sin(now / 150);
+            ctx.globalAlpha = modeAlpha * pulse;
         }
 
-        ctx.font = getPixelFont(12);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        ctx.fillText(scoreText, textX + 2, hintY + 2);
-        ctx.fillStyle = textColor;
-        ctx.fillText(scoreText, textX, hintY);
+        ctx.fillStyle = currentTextColor;
+        ctx.fillText(labelText, laneCx, hintY);
+        ctx.globalAlpha = modeAlpha;
     }
 
     ctx.restore();
 }
+
 
 
 function drawSparkles(ctx, cx, y, isHarvestMode, isPreview, extraAlpha = 0, scale = 1) {
@@ -2415,6 +2469,9 @@ function drawGameScreen(ctx) {
 
         let sparkChance = 0.02 * heat;
         if (cookFlashAlpha > 0) sparkChance += 0.08 * heat * cookFlashAlpha;
+        const uchiwaSparkTime = state.visuals.uchiwaGusts[lane.id];
+        if (uchiwaSparkTime && now - uchiwaSparkTime < 500) sparkChance += 0.3;
+
         if (Math.random() < sparkChance) { 
             state.visuals.particles.push({
                 x: info.laneCx + (Math.random() - 0.5) * 30,
@@ -2502,6 +2559,19 @@ function drawGameScreen(ctx) {
             if (uchiwaTime && now - uchiwaTime < 800) {
                 const gustP = 1 - ((now - uchiwaTime) / 800);
                 gustWobble = Math.sin(now / 30) * 0.5 * gustP;
+                
+                if (now - uchiwaTime < 350) {
+                    const windP = (now - uchiwaTime) / 350;
+                    ctx.save();
+                    ctx.globalAlpha = 1 - Math.pow(windP, 2);
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                    const wx1 = info.gx + 20 * YAKITORI_PIXEL_UNIT - windP * 60;
+                    const wx2 = info.gx + 25 * YAKITORI_PIXEL_UNIT - windP * 80;
+                    ctx.fillRect(wx1, info.gy + 8 * YAKITORI_PIXEL_UNIT, 20, 2);
+                    ctx.fillRect(wx2, info.gy + 18 * YAKITORI_PIXEL_UNIT, 16, 2);
+                    ctx.fillRect(wx1 + 10, info.gy + 28 * YAKITORI_PIXEL_UNIT, 24, 2);
+                    ctx.restore();
+                }
             }
 
             const stickTop = info.b.y + info.b.h * 0.1 + fallYOffset + breatheY;
@@ -2519,6 +2589,11 @@ function drawGameScreen(ctx) {
                 p = Math.max(0, Math.min(1, p));
                 popFlashAlpha = Math.sin(p * Math.PI / 2);
                 popY = -Math.sin(p * Math.PI) * 1.0; 
+            }
+
+            if (uchiwaTime && now - uchiwaTime < 250) {
+                const flashP = 1 - ((now - uchiwaTime) / 250);
+                popFlashAlpha = Math.max(popFlashAlpha, flashP * 0.7);
             }
 
             const skewerOffsetX = 10 + Math.round(gustWobble / YAKITORI_PIXEL_UNIT);
@@ -2684,7 +2759,7 @@ function drawGameScreen(ctx) {
             const elapsedMode = now - (state.buildModeStartTime || now);
             const modeAlpha = Math.min(1, Math.max(0, elapsedMode / 200));
 
-            if (state.buildMode !== "harvest") {
+            if (state.buildMode === "sapling") {
                 const tagFloatY = Math.sin(now / 200) * 3;
                 const ty = info.b.y - 10 + tagFloatY;
                 const baseColor = "#a07b5a"; 
@@ -2700,32 +2775,6 @@ function drawGameScreen(ctx) {
                 ctx.fillRect(info.laneCx - 1, ty - 18, 2, 18); 
                 ctx.fillRect(info.laneCx - 4, ty - 14, 8, 4); 
                 ctx.fillRect(info.laneCx - 4, ty - 8, 8, 4);  
-                ctx.globalAlpha = 1.0;
-
-                const floatY = info.b.y - 55 - (1 - modeAlpha) * 10;
-                ctx.textAlign = "center";
-                
-                if (state.buildMode === "uchiwa") {
-                    let statusText = info.uchiwaTargetStatus.toUpperCase();
-                    if (info.uchiwaTargetStatus === "burnt") statusText = "BURN"; if (info.uchiwaTargetStatus === "okay") statusText = "OK";
-                    let color = "#fff", textAlpha = modeAlpha;
-                    if (info.uchiwaTargetStatus === "perfect") color = "#ffeb3b";
-                    else if (info.uchiwaTargetStatus === "burnt") { color = "#ff5555"; textAlpha = modeAlpha * (0.6 + 0.4 * Math.sin(now / 80));
-                    }
-                    else if (info.uchiwaTargetStatus === "okay") color = "#dddddd";
-                    else color = "#aaaaaa";
-                    ctx.fillStyle = "rgba(25, 20, 15, " + (0.85 * modeAlpha) + ")";
-                    ctx.fillRect(info.laneCx - 24, floatY - 24, 48, 30);
-                    ctx.fillStyle = "rgba(255, 255, 255, " + (0.15 * modeAlpha) + ")";
-                    ctx.fillRect(info.laneCx - 24, floatY - 24, 48, 2);
-                    ctx.fillStyle = "rgba(0, 0, 0, " + (0.5 * modeAlpha) + ")";
-                    ctx.fillRect(info.laneCx - 24, floatY + 4, 48, 2);
-                    ctx.font = getPixelFont(8);
-                    ctx.fillStyle = "rgba(180, 180, 180, " + modeAlpha + ")"; ctx.fillText("NEXT", info.laneCx, floatY - 12);
-                    ctx.globalAlpha = textAlpha;
-                    ctx.font = getPixelFont(10); ctx.fillStyle = "#000"; ctx.fillText(statusText, info.laneCx + 2, floatY + 2);
-                    ctx.fillStyle = color; ctx.fillText(statusText, info.laneCx, floatY);
-                }
                 ctx.globalAlpha = 1.0;
             }
         }
@@ -2865,6 +2914,7 @@ function drawGameScreen(ctx) {
         ctx.fillStyle = "rgba(0, 0, 0, " + (alpha * 0.8) + ")"; ctx.fillRect(0, 0, LAYOUT.CANVAS_WIDTH, LAYOUT.CANVAS_HEIGHT);
     }
 }
+
 
 
 function shouldShowActionButtons() {
